@@ -20,26 +20,25 @@ import copy
 from signal import signal, SIGPIPE, SIG_DFL 
 signal(SIGPIPE,SIG_DFL) 
 
-class tree:
+class Tree:
     count=0
-    def __init__(self,name=None,lens=None,left=None,right=None,top=None,number_snvs=None,snvs=None,accumulated_snvs=None,cnvs=None,accumulated_dels=None,C='0.0.0'):
+    def __init__(self,name=None,lens=None,left=None,right=None,top=None,snvs=None,accumulated_snvs=None,cnvs=None,accumulated_dels=None,C='0.0.0'):
         self.name=name
         self.lens=lens
         self.left=left
         self.right=right
         self.top=top
-        self.number_snvs=number_snvs
         self.snvs=snvs                         #it contains position of each snv that occured on its top branch
         self.accumulated_snvs=accumulated_snvs #it contains pos for all snvs on the lineage leading to that node 
         self.cnvs=cnvs                         #it contains [start,end,copy,leaves_count,pre_snvs,new_copies] of each cnv that occured on its top branch
         self.accumulated_dels=accumulated_dels #it contains [start,end] for each del on the lineage leading to that node 
         self.C=C
-        tree.count+=1
+        Tree.count+=1
 
     def add_node(self,node):
         '''
         This method is used when constructing a tree.
-        After adding node to the growing tree, return the new node added.
+        After adding node to the growing tree, return the node added as the new tree.
         '''
         if self.left==None:
             self.left=node
@@ -56,6 +55,9 @@ class tree:
 ####################################################################################################
 
     def add_snv_cnv(self,snv_rate=0,cnv_rate=0,del_prob=None,cnv_length_lambda=None,cnv_length_max=None,copy_max=None):
+        '''
+        Randomly put SNVs and CNVs to a phylogenetic tree.
+        '''
         mutation_rate=snv_rate+cnv_rate
         if self.lens != None and mutation_rate > 0:
             print('New node: {}'.format(self.lens))
@@ -72,7 +74,7 @@ class tree:
                     self.accumulated_dels=self.top.accumulated_dels[:]
 
             snv_prob=snv_rate/mutation_rate
-            mutation_waiting_times=waiting_times(time=self.lens,expect=mutation_rate)
+            mutation_waiting_times=waiting_times(span=self.lens,rate=mutation_rate)
             for waiting_t in mutation_waiting_times:
                 pos=numpy.random.uniform()
                 if numpy.random.uniform()<snv_prob:
@@ -91,9 +93,10 @@ class tree:
                     self.print_tree()
                     print()
                 else:
-#cnvs
-                    start=pos
+#cnvs: if the new cnv overlap with accumulated_dels, compare it with those dels and 
+#only keep those new regions.
 #FIXME check here very carefully
+                    start=pos
                     length=numpy.random.exponential(cnv_length_lambda)
                     if length>cnv_length_max:
                         length=cnv_length_max
@@ -102,33 +105,31 @@ class tree:
                         end=1
                     leaves_count=self.leaves_number()
                     new_cnvs=[[start,end]]
-                    for new_cnv in new_cnvs:
+                    for cnv in new_cnvs:
                         for deletion in self.accumulated_dels:
-                            if new_cnv[0]<deletion[0]:
-                                if new_cnv[1]<deletion[0]:
-                                    pass
-                                elif deletion[0]<=new_cnv[1]<=deletion[1]:
-                                    new_cnv[1]=deletion[0]
-                                else:
-                                    new_cnv[1]=deletion[0]
-                                    new_cnvs.append([deletion[1],new_cnv[1]])
-                            elif deletion[0]<=new_cnv[0]<=deletion[1]:
-                                if deletion[0]<=new_cnv[1]<=deletion[1]:
-                                    new_cnvs.remove(new_cnv)
+                            if cnv[0]<deletion[0]:
+                                if deletion[0]<=cnv[1]<=deletion[1]:
+                                    cnv[1]=deletion[0]
+                                elif cnv[1]>deletion[1]:
+                                    cnv[1]=deletion[0]
+                                    new_cnvs.append([deletion[1],cnv[1]])
+                            elif deletion[0]<=cnv[0]<=deletion[1]:
+                                if deletion[0]<=cnv[1]<=deletion[1]:
+                                    new_cnvs.remove(cnv)
                                     break
                                 else:
-                                    new_cnv[0]=deletion[1]
+                                    cnv[0]=deletion[1]
                     if not new_cnvs[0]:
                         continue
 ########################################################################################################################
                     print(new_cnvs)
-#deletion
+#the new cnv is a deletion
                     if numpy.random.uniform()<del_prob:
                         for deletion in new_cnvs:
 #output pre_snvs to self.cnvs, so it can be used to correct the count of snvs 
                             pre_snvs=[]
                             for snv in self.accumulated_snvs:
-                                if deletion[0]<=snv<=deletion[1]:
+                                if deletion[0]<=snv<deletion[1]:
                                     self.accumulated_snvs.remove(snv)
                                     if snv in self.snvs:
                                         self.snvs.remove(snv)
@@ -143,21 +144,22 @@ class tree:
                                  'new_copies':[]}
                             self.cnvs.append(cnv)
                             self.accumulated_dels.append(deletion)
-#amplification
+#the new cnv is an amplification
                     else:
                         cnv_copy=numpy.random.random_integers(copy_max)
-#the old snvs on cnvs. Those snvs are the snvs on the ancestor lineage leading to segment, and locate in the segment.
                         for seg in new_cnvs:
                             start,end=seg
                             length=end-start
+#collect the old snvs on cnvs. Those snvs are the snvs on the ancestor lineage leading to segment, and locate in the segment.
                             pre_snvs=[]
                             for snv in self.accumulated_snvs:
-                                if start<snv<end:
+                                if start<=snv<end:
                                     pre_snvs.append(snv)
 
+#collect the new snvs on cnvs
                             new_copies=[]
                             for i in range(cnv_copy):
-                                segment=tree()
+                                segment=Tree()
                                 segment.lens=float(self.lens)-waiting_t
                                 if self.left != None:
                                     segment.left=copy.deepcopy(self.left)
@@ -169,7 +171,6 @@ class tree:
                                     segment.right.top=segment
                                 else:
                                     segment.right=None
-#the new snvs on cnvs
                                 segment.add_snv_cnv(snv_rate=snv_rate*length)
                                 segment.re_place_snvs(start,length)
                                 if segment.snvs:
@@ -399,13 +400,13 @@ class tree:
         if self.snvs !=None and set(self.snvs).intersection(snvs):
             self.C='255.0.0'
 
-def waiting_times(time=None,expect=None):
+def waiting_times(span=None,rate=None):
     elapse=0.0
     waiting_times=[]
-    time=float(time)
-    while elapse<time:
-        elapse+=numpy.random.exponential(1/expect)
-        if elapse<time:
+    span=float(span)
+    while elapse<span:
+        elapse+=numpy.random.exponential(1/rate)
+        if elapse<span:
             waiting_times.append(elapse)
     return waiting_times
 
@@ -439,16 +440,16 @@ def newick2tree(newick=None):
     while newick != ';':
         if newick.startswith('('):
             if 'mytree' in vars():
-                mytree=mytree.add_node(tree())
+                mytree=mytree.add_node(Tree())
             else:
-                mytree=tree()
+                mytree=Tree()
             newick=newick[1:]
         elif leaf_name_re.match(newick):
             m=leaf_name_re.match(newick)
             index=m.span()
             leaf_name=newick[:index[1]-1]
             newick=newick[index[1]-1:]
-            mytree=mytree.add_node(tree(name=leaf_name))
+            mytree=mytree.add_node(Tree(name=leaf_name))
         elif lens_re.match(newick):
             m=lens_re.match(newick)
             index=m.span()
