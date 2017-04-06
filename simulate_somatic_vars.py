@@ -55,12 +55,15 @@ class Tree:
 
 ####################################################################################################
 
-    def add_snv_cnv(self,snv_rate=0,cnv_rate=0,del_prob=None,cnv_length_lambda=None,cnv_length_max=None,copy_max=None):
+    def add_snv_cnv(self,start=0,end=1,inherent_snvs=None,snv_rate=None,cnv_rate=None,del_prob=None,cnv_length_lambda=None,cnv_length_max=None,copy_max=None):
         '''
         Randomly put SNVs and CNVs on a phylogenetic tree.
         For amplifications, we will build a new tree for every new copy and use this method to add SNVs/CNVs on the new tree.
+        NOTE: snv_rate/cnv_rate are correlated with start end. Make sure start-end==1.
         '''
-        mutation_rate=snv_rate+cnv_rate
+#rescale mutation rate according the length of the sequence
+        length=end-start
+        mutation_rate=(snv_rate+cnv_rate)*length
         if self.lens != None and mutation_rate > 0:
             print('New node: {}'.format(self.lens))
             self.print_tree()
@@ -69,16 +72,22 @@ class Tree:
             self.cnvs=[]
             self.accumulated_snvs=[]
             self.accumulated_dels=[]
-            if self.top != None:
+            if self.top == None: 
+#root node, may have inherent_snvs
+                self.snvs=inherent_snvs[:]
+                self.accumulated_snvs=inherent_snvs[:]
+#TODO: inherent_cnvs? should check interaction between snvs and cnvs first
+            else:
+#non-root node inherits snvs/cnvs from its top nodes 
                 if self.top.accumulated_snvs != None:
                     self.accumulated_snvs=self.top.accumulated_snvs[:] 
                 if self.top.accumulated_dels != None:
                     self.accumulated_dels=self.top.accumulated_dels[:]
 
-            snv_prob=snv_rate/mutation_rate
+            snv_prob=snv_rate/(snv_rate+cnv_rate)
             mutation_waiting_times=waiting_times(span=self.lens,rate=mutation_rate)
             for waiting_t in mutation_waiting_times:
-                pos=numpy.random.uniform()
+                pos=numpy.random.uniform(start,end)
                 if numpy.random.uniform()<snv_prob:
 #snv
                     if self.accumulated_dels:
@@ -102,8 +111,8 @@ class Tree:
                     if cnv_length>cnv_length_max:
                         cnv_length=cnv_length_max
                     cnv_end=cnv_start+cnv_length
-                    if cnv_end>1:
-                        cnv_end=1
+                    if cnv_end>end:
+                        cnv_end=end
                     leaves_count=self.leaves_number()
                     new_cnvs=[[cnv_start,cnv_end]]
                     for cnv_start,cnv_end in new_cnvs:
@@ -124,8 +133,8 @@ class Tree:
                         continue
 ########################################################################################################################
                     print(new_cnvs)
-#the new cnv is a deletion
                     if numpy.random.uniform()<del_prob:
+#the new cnv is a deletion
                         for del_start,del_end in new_cnvs:
 #output pre_snvs to self.cnvs, so it can be used to correct the count of snvs 
                             pre_snvs=[]
@@ -144,8 +153,8 @@ class Tree:
                                  'new_copies':[]}
                             self.cnvs.append(cnv)
                             self.accumulated_dels.append([del_start,del_end])
-#the new cnv is an amplification
                     else:
+#the new cnv is an amplification
                         cnv_copy=numpy.random.random_integers(copy_max)
                         for amp_start,amp_end in new_cnvs:
                             amp_length=amp_end-amp_start
@@ -170,12 +179,9 @@ class Tree:
                                     segment.right.top=segment
                                 else:
                                     segment.right=None
-                                segment.add_snv_cnv(snv_rate=snv_rate*amp_length)
-                                segment.re_place_snvs(amp_start,amp_length)
-                                if segment.snvs:
-                                    segment.snvs.extend(pre_snvs)
-                                else:
-                                    segment.snvs=pre_snvs
+                                segment.add_snv_cnv(start=amp_start,end=amp_end,inherent_snvs=pre_snvs,
+                                                    snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
+                                                    cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
                                 new_copies.append(segment)
                             cnv={'start':amp_start,
                                  'end':amp_end,
@@ -186,24 +192,14 @@ class Tree:
                             self.cnvs.append(cnv)
 
         if self.left != None:
-            self.left.add_snv_cnv(snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
-            cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
+            self.left.add_snv_cnv(start=start,end=end,inherent_snvs=[],
+                                  snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
+                                  cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
         if self.right != None:
-            self.right.add_snv_cnv(snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
-            cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
+            self.right.add_snv_cnv(start=start,end=end,inherent_snvs=[],
+                                   snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
+                                   cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
 
-    def re_place_snvs(self,start=0,scale=1):
-        '''
-        We need to re-place the SNVs which occured on the new copies of CNVs.
-        '''
-        if self.snvs != None:
-            for i in range(len(self.snvs)):
-                self.snvs[i]=self.snvs[i]*scale+start
-        if self.left != None:
-            self.left.re_place_snvs(start=start,scale=scale)
-        if self.right != None:
-            self.right.re_place_snvs(start=start,scale=scale)
-        
     def all_cnvs(self):
         '''
         return a list of all cnvs on the tree
@@ -213,6 +209,10 @@ class Tree:
         all_cnvs=[]
         if self.cnvs != None:
             all_cnvs=self.cnvs
+            for cnv in self.cnvs:
+                if cnv['copy']>0:
+                    for cp in cnv['new_copies']:
+                        all_cnvs.extend(cp.all_cnvs())
         if self.left != None:
             all_cnvs.extend(self.left.all_cnvs())
         if self.right != None:
@@ -310,8 +310,8 @@ class Tree:
 #collect all snvs and cnvs
         for i in range(ploid):
             new_tree=copy.deepcopy(self)
-            new_tree.add_snv_cnv(snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,cnv_length_lambda=cnv_length_lambda,
-            cnv_length_max=cnv_length_max,copy_max=copy_max)
+            new_tree.add_snv_cnv(inherent_snvs=[],snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
+                                 cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
             all_snvs_alt_counts.extend(new_tree.snvs_alt_count())
             all_cnvs.extend(new_tree.all_cnvs())
 
