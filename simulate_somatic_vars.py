@@ -30,7 +30,8 @@ class Tree:
         self.top=top
         self.snvs=snvs                         #it contains position of each snv that occured on its top branch
         self.accumulated_snvs=accumulated_snvs #it contains pos for all snvs on the lineage leading to that node 
-        self.cnvs=cnvs                         #it contains [start,end,copy,leaves_count,pre_snvs,new_copies] of each cnv that occured on its top branch
+#it's a list of dictionary and each dictionary contains those keys {start,end,copy,leaves_count,pre_snvs,new_copies} of each cnv that occured on its top branch
+        self.cnvs=cnvs                         
         self.accumulated_dels=accumulated_dels #it contains [start,end] for each del on the lineage leading to that node 
         self.C=C
         Tree.count+=1
@@ -56,7 +57,8 @@ class Tree:
 
     def add_snv_cnv(self,snv_rate=0,cnv_rate=0,del_prob=None,cnv_length_lambda=None,cnv_length_max=None,copy_max=None):
         '''
-        Randomly put SNVs and CNVs to a phylogenetic tree.
+        Randomly put SNVs and CNVs on a phylogenetic tree.
+        For amplifications, we will build a new tree for every new copy and use this method to add SNVs/CNVs on the new tree.
         '''
         mutation_rate=snv_rate+cnv_rate
         if self.lens != None and mutation_rate > 0:
@@ -80,9 +82,8 @@ class Tree:
                 if numpy.random.uniform()<snv_prob:
 #snv
                     if self.accumulated_dels:
-                        for deletion in self.accumulated_dels:
-#                            print(deletion)
-                            if not deletion[0]<=pos<deletion[1]:
+                        for del_start,del_end in self.accumulated_dels:
+                            if not del_start<=pos<del_end:
                                 self.snvs.append(pos)
                                 self.accumulated_snvs.append(pos)
                     else:
@@ -96,64 +97,62 @@ class Tree:
 #cnvs: if the new cnv overlap with accumulated_dels, compare it with those dels and 
 #only keep those new regions.
 #FIXME check here very carefully
-                    start=pos
-                    length=numpy.random.exponential(cnv_length_lambda)
-                    if length>cnv_length_max:
-                        length=cnv_length_max
-                    end=start+length
-                    if end>1:
-                        end=1
+                    cnv_start=pos
+                    cnv_length=numpy.random.exponential(cnv_length_lambda)
+                    if cnv_length>cnv_length_max:
+                        cnv_length=cnv_length_max
+                    cnv_end=cnv_start+cnv_length
+                    if cnv_end>1:
+                        cnv_end=1
                     leaves_count=self.leaves_number()
-                    new_cnvs=[[start,end]]
-                    for cnv in new_cnvs:
-                        for deletion in self.accumulated_dels:
-                            if cnv[0]<deletion[0]:
-                                if deletion[0]<=cnv[1]<=deletion[1]:
-                                    cnv[1]=deletion[0]
-                                elif cnv[1]>deletion[1]:
-                                    cnv[1]=deletion[0]
-                                    new_cnvs.append([deletion[1],cnv[1]])
-                            elif deletion[0]<=cnv[0]<=deletion[1]:
-                                if deletion[0]<=cnv[1]<=deletion[1]:
-                                    new_cnvs.remove(cnv)
+                    new_cnvs=[[cnv_start,cnv_end]]
+                    for cnv_start,cnv_end in new_cnvs:
+                        for del_start,del_end in self.accumulated_dels:
+                            if cnv_start<del_start:
+                                if del_start<=cnv_end<=del_end:
+                                    cnv_end=del_start
+                                elif cnv_end>del_end:
+                                    cnv_end=del_start
+                                    new_cnvs.append([del_end,cnv_end])
+                            elif del_start<=cnv_start<=del_end:
+                                if del_start<=cnv_end<=del_end:
+                                    new_cnvs.remove([cnv_start,cnv_end])
                                     break
                                 else:
-                                    cnv[0]=deletion[1]
+                                    cnv_start=del_end
                     if not new_cnvs[0]:
                         continue
 ########################################################################################################################
                     print(new_cnvs)
 #the new cnv is a deletion
                     if numpy.random.uniform()<del_prob:
-                        for deletion in new_cnvs:
+                        for del_start,del_end in new_cnvs:
 #output pre_snvs to self.cnvs, so it can be used to correct the count of snvs 
                             pre_snvs=[]
                             for snv in self.accumulated_snvs:
-                                if deletion[0]<=snv<deletion[1]:
+                                if del_start<=snv<del_end:
                                     self.accumulated_snvs.remove(snv)
                                     if snv in self.snvs:
                                         self.snvs.remove(snv)
                                     else:
                                         pre_snvs.append(snv)
-#it contains [start,end,copy,leaves_count,pre_snvs,new_copies] of each cnv that occured on its top branch
-                            cnv={'start':deletion[0],
-                                 'end':deletion[1],
+                            cnv={'start':del_start,
+                                 'end':del_end,
                                  'copy':-1,
                                  'leaves_count':leaves_count,
                                  'pre_snvs':pre_snvs,
                                  'new_copies':[]}
                             self.cnvs.append(cnv)
-                            self.accumulated_dels.append(deletion)
+                            self.accumulated_dels.append([del_start,del_end])
 #the new cnv is an amplification
                     else:
                         cnv_copy=numpy.random.random_integers(copy_max)
-                        for seg in new_cnvs:
-                            start,end=seg
-                            length=end-start
+                        for amp_start,amp_end in new_cnvs:
+                            amp_length=amp_end-amp_start
 #collect the old snvs on cnvs. Those snvs are the snvs on the ancestor lineage leading to segment, and locate in the segment.
                             pre_snvs=[]
                             for snv in self.accumulated_snvs:
-                                if start<=snv<end:
+                                if amp_start<=snv<amp_end:
                                     pre_snvs.append(snv)
 
 #collect the new snvs on cnvs
@@ -171,21 +170,20 @@ class Tree:
                                     segment.right.top=segment
                                 else:
                                     segment.right=None
-                                segment.add_snv_cnv(snv_rate=snv_rate*length)
-                                segment.re_place_snvs(start,length)
+                                segment.add_snv_cnv(snv_rate=snv_rate*amp_length)
+                                segment.re_place_snvs(amp_start,amp_length)
                                 if segment.snvs:
                                     segment.snvs.extend(pre_snvs)
                                 else:
                                     segment.snvs=pre_snvs
                                 new_copies.append(segment)
-                            cnv={'start':start,
-                                 'end':end,
+                            cnv={'start':amp_start,
+                                 'end':amp_end,
                                  'copy':cnv_copy,
                                  'leaves_count':leaves_count,
                                  'pre_snvs':pre_snvs,
                                  'new_copies':new_copies}
                             self.cnvs.append(cnv)
-#                            self.cnvs.append([start,end,copy,leaves_count,pre_snvs,new_copies])
 
         if self.left != None:
             self.left.add_snv_cnv(snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
@@ -208,7 +206,7 @@ class Tree:
         
     def all_cnvs(self):
         '''
-        return a list of all cnvs in the form of [[start,end,copy,leaves_count],...]
+        return a list of all cnvs on the tree
         '''
         if self is None:
             return
@@ -321,8 +319,7 @@ class Tree:
         all_pos_changes=cnvs2break_points(all_cnvs)
         all_pos_changes.append([1,-background])
         all_snvs_alt_counts.sort(key=lambda snv: snv[0])
-#initiate region_mean_ploid with ploid
-        region_mean_ploid=background
+        region_mean_ploid=background #initiate region_mean_ploid with background
         for snv in all_snvs_alt_counts:
             while snv[0]>=all_pos_changes[0][0]:
                 change=all_pos_changes.pop(0)
