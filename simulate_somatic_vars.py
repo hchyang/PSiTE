@@ -129,7 +129,7 @@ class Tree:
                                     break
                                 else:
                                     cnv_start=del_end
-                    if not new_cnvs[0]:
+                    if len(new_cnvs)==0 or len(new_cnvs[0])==0:
                         continue
 ########################################################################################################################
                     print(new_cnvs)
@@ -145,7 +145,8 @@ class Tree:
                                         self.snvs.remove(snv)
                                     else:
                                         pre_snvs.append(snv)
-                            cnv={'start':del_start,
+                            cnv={'seg':[start,end],
+                                 'start':del_start,
                                  'end':del_end,
                                  'copy':-1,
                                  'leaves_count':leaves_count,
@@ -183,7 +184,8 @@ class Tree:
                                                     snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
                                                     cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
                                 new_copies.append(segment)
-                            cnv={'start':amp_start,
+                            cnv={'seg':[start,end],
+                                 'start':amp_start,
                                  'end':amp_end,
                                  'copy':cnv_copy,
                                  'leaves_count':leaves_count,
@@ -306,7 +308,7 @@ class Tree:
         all_snvs_alt_counts=[]
         all_snvs_alt_freq=[]
         all_leaves=self.leaves_number()
-        background=all_leaves*2
+        background=all_leaves*ploid
 #collect all snvs and cnvs
         for i in range(ploid):
             new_tree=copy.deepcopy(self)
@@ -509,7 +511,7 @@ if __name__ == '__main__':
                                                       )
             cnv_file=open(args.cnv,'w')
             for cnv in cnvs_freq:
-                cnv_file.write('{}\t{}\t{}\t{}\t{}\n'.format(cnv['start'],cnv['end'],cnv['copy'],cnv['leaves_count'],cnv['pre_snvs']))
+                cnv_file.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(cnv['seg'],cnv['start'],cnv['end'],cnv['copy'],cnv['leaves_count'],cnv['pre_snvs']))
 
             for snv in snvs_freq:
                 print(*snv,sep="\t")
