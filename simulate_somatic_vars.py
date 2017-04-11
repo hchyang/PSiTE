@@ -22,6 +22,7 @@ signal(SIGPIPE,SIG_DFL)
 
 class Tree:
     count=0
+    cnv_c2=0
     def __init__(self,name=None,lens=None,left=None,right=None,top=None,snvs=None,accumulated_snvs=None,cnvs=None,accumulated_dels=None,C='0.0.0'):
         self.name=name
         self.lens=lens
@@ -115,20 +116,26 @@ class Tree:
                         cnv_end=end
                     leaves_count=self.leaves_number()
                     new_cnvs=[[cnv_start,cnv_end]]
-                    for cnv_start,cnv_end in new_cnvs:
-                        for del_start,del_end in self.accumulated_dels:
-                            if cnv_start<del_start:
-                                if del_start<=cnv_end<=del_end:
-                                    cnv_end=del_start
-                                elif cnv_end>del_end:
-                                    cnv_end=del_start
-                                    new_cnvs.append([del_end,cnv_end])
-                            elif del_start<=cnv_start<=del_end:
-                                if del_start<=cnv_end<=del_end:
-                                    new_cnvs.remove([cnv_start,cnv_end])
+                    print('**********')
+                    print('new_cnvs:'+str(new_cnvs))
+                    print('pre_dels:'+str(self.accumulated_dels))
+                    print('**********')
+                    for cnv in new_cnvs:
+                        for deletion in self.accumulated_dels:
+                            if cnv[0]<deletion[0]:
+                                if deletion[0]<=cnv[1]<=deletion[1]:
+                                    cnv[1]=deletion[0]
+                                elif cnv[1]>deletion[1]:
+                                    cnv[1]=deletion[0]
+                                    new_cnvs.append([deletion[1],cnv[1]])
+                            elif deletion[0]<=cnv[0]<=deletion[1]:
+                                if deletion[0]<=cnv[1]<=deletion[1]:
+                                    print("cnv:"+str([cnv[0],cnv[1]]))
+                                    print("del:"+str([deletion[0],deletion[1]]))
+                                    new_cnvs.remove([cnv[0],cnv[1]])
                                     break
                                 else:
-                                    cnv_start=del_end
+                                    cnv[0]=deletion[1]
                     if len(new_cnvs)==0 or len(new_cnvs[0])==0:
                         continue
 ########################################################################################################################
@@ -168,21 +175,21 @@ class Tree:
 #collect the new snvs on cnvs
                             new_copies=[]
                             for i in range(cnv_copy):
-                                segment=Tree()
-                                segment.lens=float(self.lens)-waiting_t
+                                segment=Tree(name=self.name,lens=float(self.lens)-waiting_t)
                                 if self.left != None:
                                     segment.left=copy.deepcopy(self.left)
                                     segment.left.top=segment
-                                else:
-                                    segment.left=None
                                 if self.right != None:
                                     segment.right=copy.deepcopy(self.right)
                                     segment.right.top=segment
-                                else:
-                                    segment.right=None
                                 segment.add_snv_cnv(start=amp_start,end=amp_end,inherent_snvs=pre_snvs,
                                                     snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
                                                     cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
+                                print('AAAAAAAAA')
+                                print(segment.cnvs)
+                                self.print_tree()
+                                print()
+                                print('ZZZZZZZZZ')
                                 new_copies.append(segment)
                             cnv={'seg':[start,end],
                                  'start':amp_start,
@@ -202,23 +209,24 @@ class Tree:
                                    snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
                                    cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
 
-    def all_cnvs(self):
+    def all_cnvs_collect(self):
         '''
-        return a list of all cnvs on the tree
+        Return a list of all cnvs on the tree.
         '''
         if self is None:
             return
         all_cnvs=[]
         if self.cnvs != None:
-            all_cnvs=self.cnvs
-            for cnv in self.cnvs:
+            all_cnvs=self.cnvs[:]
+            tmp_cnvs=self.cnvs[:]
+            for cnv in tmp_cnvs: #We should use tmp_cnvs instead of all_cnvs here, as all_cnvs is growing in this 'for' loop.
                 if cnv['copy']>0:
                     for cp in cnv['new_copies']:
-                        all_cnvs.extend(cp.all_cnvs())
+                        all_cnvs.extend(cp.all_cnvs_collect())
         if self.left != None:
-            all_cnvs.extend(self.left.all_cnvs())
+            all_cnvs.extend(self.left.all_cnvs_collect())
         if self.right != None:
-            all_cnvs.extend(self.right.all_cnvs())
+            all_cnvs.extend(self.right.all_cnvs_collect())
         return all_cnvs
 
 ########################################################################################################################
@@ -240,7 +248,6 @@ class Tree:
             for snv in self.snvs:
                 all_alt_count[snv]=self.leaves_number()
         if self.cnvs!=None:
-#FIXME: should I store all cnv information in a dictionary?
             for cnv in self.cnvs:
                 if cnv['copy']>0: #amplification
                     for cp in cnv['new_copies']:
@@ -315,7 +322,7 @@ class Tree:
             new_tree.add_snv_cnv(inherent_snvs=[],snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
                                  cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
             all_snvs_alt_counts.extend(new_tree.snvs_alt_count())
-            all_cnvs.extend(new_tree.all_cnvs())
+            all_cnvs.extend(new_tree.all_cnvs_collect())
 
         all_cnvs.sort(key=lambda cnv: cnv['start'])
         all_pos_changes=cnvs2break_points(all_cnvs)
