@@ -135,7 +135,7 @@ class Tree:
                                 if del_start<=cnv[1]<=del_end:
                                     print("cnv:"+str([cnv[0],cnv[1]]))
                                     print("del:"+str([del_start,del_end]))
-                                    new_cnvs.remove([cnv[0],cnv[1]])
+                                    new_cnvs.remove(cnv)
                                     break
                                 elif cnv[1]>del_end:
                                     cnv[0]=del_end
