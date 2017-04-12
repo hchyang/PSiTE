@@ -67,9 +67,9 @@ class Tree:
         length=end-start
         mutation_rate=(snv_rate+cnv_rate)*length
         if self.lens != None and mutation_rate > 0:
-            print('New node: {}'.format(self.lens))
-            self.print_tree()
-            print()
+#            print('New node: {}'.format(self.lens))
+#            self.print_tree()
+#            print()
             self.snvs=[]
             self.cnvs=[]
             self.accumulated_snvs=[]
@@ -100,10 +100,10 @@ class Tree:
                     else:
                         self.snvs.append(pos)
                         self.accumulated_snvs.append(pos)
-                    print('New SNV: {}'.format(pos))
-                    print('Tree of new SNV: {}'.format(self.lens))
-                    self.print_tree()
-                    print()
+#                    print('New SNV: {}'.format(pos))
+#                    print('Tree of new SNV: {}'.format(self.lens))
+#                    self.print_tree()
+#                    print()
                 else:
 #cnvs: if the new cnv overlap with accumulated_dels, compare it with those dels and 
 #only keep those new regions.
@@ -117,10 +117,10 @@ class Tree:
                         cnv_end=end
                     leaves_count=self.leaves_number()
                     new_cnvs=[[cnv_start,cnv_end]]
-                    print('**********')
-                    print('new_cnvs:'+str(new_cnvs))
-                    print('pre_dels:'+str(self.accumulated_dels))
-                    print('**********')
+#                    print('**********')
+#                    print('new_cnvs:'+str(new_cnvs))
+#                    print('pre_dels:'+str(self.accumulated_dels))
+#                    print('**********')
                     for cnv in new_cnvs: #We need to modify new_cnvs in place
                         for del_start,del_end in self.accumulated_dels:
                             if cnv[0]<del_start:
@@ -129,22 +129,20 @@ class Tree:
                                 elif cnv[1]>del_end:
                                     new_cnvs.append([del_end,cnv[1]])
                                     cnv[1]=del_start
-                                else:
-                                    print('Should not be here!')
                             elif del_start<=cnv[0]<=del_end:
                                 if del_start<=cnv[1]<=del_end:
-                                    print("cnv:"+str([cnv[0],cnv[1]]))
-                                    print("del:"+str([del_start,del_end]))
+#                                    print("cnv:"+str([cnv[0],cnv[1]]))
+#                                    print("del:"+str([del_start,del_end]))
                                     new_cnvs.remove(cnv)
                                     break
                                 elif cnv[1]>del_end:
                                     cnv[0]=del_end
                                 else:
-                                    print('Should not be here!')
+                                    print('Should not be here!3')
                     if len(new_cnvs)==0 or len(new_cnvs[0])==0:
                         continue
 ########################################################################################################################
-                    print(new_cnvs)
+#                    print(new_cnvs)
                     if numpy.random.uniform()<del_prob:
 #the new cnv is a deletion
                         for del_start,del_end in new_cnvs:
@@ -190,11 +188,11 @@ class Tree:
                                 segment.add_snv_cnv(start=amp_start,end=amp_end,inherent_snvs=pre_snvs,
                                                     snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
                                                     cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
-                                print('AAAAAAAAA')
-                                print(segment.cnvs)
-                                self.print_tree()
-                                print()
-                                print('ZZZZZZZZZ')
+#                                print('AAAAAAAAA')
+#                                print(segment.cnvs)
+#                                self.print_tree()
+#                                print()
+#                                print('ZZZZZZZZZ')
                                 new_copies.append(segment)
                             cnv={'seg':[start,end],
                                  'start':amp_start,
@@ -471,7 +469,7 @@ def newick2tree(newick=None):
             newick=newick[1:]
             mytree=mytree.top
         else:
-            print('Should not be here!2')
+            print('Should not be here!4')
             print('Check your newick tree! Or maybe there are something I do not know about newick!')
     return mytree
     
