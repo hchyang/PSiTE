@@ -60,7 +60,8 @@ class Tree:
         '''
         Randomly put SNVs and CNVs on a phylogenetic tree.
         For amplifications, we will build a new tree for every new copy and use this method to add SNVs/CNVs on the new tree.
-        NOTE: snv_rate/cnv_rate are correlated with start end. Make sure start-end==1.
+        NOTE: 1. snv_rate/cnv_rate are correlated with start end. Make sure start-end==1.
+              2. We assume for each CNVs, its start is included, and its end is not.
         '''
 #rescale mutation rate according the length of the sequence
         length=end-start
@@ -120,22 +121,26 @@ class Tree:
                     print('new_cnvs:'+str(new_cnvs))
                     print('pre_dels:'+str(self.accumulated_dels))
                     print('**********')
-                    for cnv in new_cnvs:
-                        for deletion in self.accumulated_dels:
-                            if cnv[0]<deletion[0]:
-                                if deletion[0]<=cnv[1]<=deletion[1]:
-                                    cnv[1]=deletion[0]
-                                elif cnv[1]>deletion[1]:
-                                    cnv[1]=deletion[0]
-                                    new_cnvs.append([deletion[1],cnv[1]])
-                            elif deletion[0]<=cnv[0]<=deletion[1]:
-                                if deletion[0]<=cnv[1]<=deletion[1]:
+                    for cnv in new_cnvs: #We need to modify new_cnvs in place
+                        for del_start,del_end in self.accumulated_dels:
+                            if cnv[0]<del_start:
+                                if del_start<=cnv[1]<=del_end:
+                                    cnv[1]=del_start
+                                elif cnv[1]>del_end:
+                                    new_cnvs.append([del_end,cnv[1]])
+                                    cnv[1]=del_start
+                                else:
+                                    print('Should not be here!')
+                            elif del_start<=cnv[0]<=del_end:
+                                if del_start<=cnv[1]<=del_end:
                                     print("cnv:"+str([cnv[0],cnv[1]]))
-                                    print("del:"+str([deletion[0],deletion[1]]))
+                                    print("del:"+str([del_start,del_end]))
                                     new_cnvs.remove([cnv[0],cnv[1]])
                                     break
+                                elif cnv[1]>del_end:
+                                    cnv[0]=del_end
                                 else:
-                                    cnv[0]=deletion[1]
+                                    print('Should not be here!')
                     if len(new_cnvs)==0 or len(new_cnvs[0])==0:
                         continue
 ########################################################################################################################
