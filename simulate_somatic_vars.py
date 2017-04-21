@@ -15,6 +15,7 @@ import numpy
 import argparse
 import copy
 import logging
+import trunk_vars
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe 
@@ -57,17 +58,18 @@ class Tree:
 
 ####################################################################################################
 
-    def add_snv_cnv(self,start=0,end=1,inherent_snvs=None,snv_rate=None,cnv_rate=None,del_prob=None,cnv_length_lambda=None,cnv_length_max=None,copy_max=None):
+    def add_snv_cnv(self,start=0,end=1,inherent_snvs=[],inherent_dels=[],inherent_cnvs=[],
+                    snv_rate=None,cnv_rate=None,del_prob=None,cnv_length_lambda=None,cnv_length_max=None,copy_max=None):
         '''
         Randomly put SNVs and CNVs on a phylogenetic tree.
         For amplifications, we will build a new tree for every new copy and use this method to add SNVs/CNVs on the new tree.
         NOTE: 1. snv_rate/cnv_rate are correlated with start end. Make sure start-end==1.
-              2. We assume for each CNVs, its start is included, and its end is not.
+              2. We assume for each CNVs, its start is inclusive, but its end is not.
         '''
 #rescale mutation rate according the length of the sequence
         length=end-start
-        mutation_rate=(snv_rate+cnv_rate)*length
-        if self.lens != None and mutation_rate > 0:
+#        if self.lens != None and mutation_rate > 0:
+        if self.lens != None:
             logging.debug('New node with length: %s',self.lens)
             logging.debug('Structure: %s',self.tree2newick())
             self.snvs=[]
@@ -77,7 +79,9 @@ class Tree:
             if self.top == None: 
 #root node, may have inherent_snvs
                 self.snvs=inherent_snvs[:]
+                self.cnvs=inherent_cnvs[:]
                 self.accumulated_snvs=inherent_snvs[:]
+                self.accumulated_dels=inherent_dels[:]
 #TODO: inherent_cnvs? should check interaction between snvs and cnvs first
             else:
 #non-root node inherits snvs/cnvs from its top nodes 
@@ -86,114 +90,116 @@ class Tree:
                 if self.top.accumulated_dels != None:
                     self.accumulated_dels=self.top.accumulated_dels[:]
 
-            snv_prob=snv_rate/(snv_rate+cnv_rate)
-            mutation_waiting_times=waiting_times(span=self.lens,rate=mutation_rate)
-            for waiting_t in mutation_waiting_times:
-                pos=numpy.random.uniform(start,end)
-                if numpy.random.uniform()<snv_prob:
+            mutation_rate=(snv_rate+cnv_rate)*length
+            if mutation_rate>0:
+                snv_prob=snv_rate/(snv_rate+cnv_rate)
+                mutation_waiting_times=waiting_times(span=self.lens,rate=mutation_rate)
+                for waiting_t in mutation_waiting_times:
+                    pos=numpy.random.uniform(start,end)
+                    if numpy.random.uniform()<snv_prob:
 #snv
-                    if self.accumulated_dels:
-                        for del_start,del_end in self.accumulated_dels:
-                            if not del_start<=pos<del_end:
-                                self.snvs.append(pos)
-                                self.accumulated_snvs.append(pos)
+                        if self.accumulated_dels:
+                            for del_start,del_end in self.accumulated_dels:
+                                if not del_start<=pos<del_end:
+                                    self.snvs.append(pos)
+                                    self.accumulated_snvs.append(pos)
+                        else:
+                            self.snvs.append(pos)
+                            self.accumulated_snvs.append(pos)
+                        logging.debug('New SNV: %s',pos)
+                        logging.debug('The length of the tree with new SNV: %s',self.lens)
+                        logging.debug('Structure: %s',self.tree2newick())
                     else:
-                        self.snvs.append(pos)
-                        self.accumulated_snvs.append(pos)
-                    logging.debug('New SNV: %s',pos)
-                    logging.debug('The length of the tree with new SNV: %s',self.lens)
-                    logging.debug('Structure: %s',self.tree2newick())
-                else:
 #cnvs: if the new cnv overlap with accumulated_dels, compare it with those dels and 
 #only keep those new regions.
 #FIXME check here very carefully
-                    cnv_start=pos
-                    cnv_length=numpy.random.exponential(cnv_length_lambda)
-                    if cnv_length>cnv_length_max:
-                        cnv_length=cnv_length_max
-                    cnv_end=cnv_start+cnv_length
-                    if cnv_end>end:
-                        cnv_end=end
-                    leaves_count=self.leaves_number()
-                    new_cnvs=[[cnv_start,cnv_end]]
-                    logging.debug('New SNV: %s',str(new_cnvs))
-                    logging.debug('Pre deletions: %s',str(self.accumulated_dels))
-                    for cnv in new_cnvs: #We need to modify new_cnvs in place
-                        for del_start,del_end in self.accumulated_dels:
-                            if cnv[0]<del_start:
-                                if del_start<=cnv[1]<=del_end:
-                                    cnv[1]=del_start
-                                elif cnv[1]>del_end:
-                                    new_cnvs.append([del_end,cnv[1]])
-                                    cnv[1]=del_start
-                            elif del_start<=cnv[0]<=del_end:
-                                if del_start<=cnv[1]<=del_end:
-                                    new_cnvs.remove(cnv)
-                                    break
-                                elif cnv[1]>del_end:
-                                    cnv[0]=del_end
-                                else:
-                                    print('Should not be here!3')
-                    logging.debug('New SNVs after comparing with pre deletions: %s',str(new_cnvs))
-                    if len(new_cnvs)==0 or len(new_cnvs[0])==0:
-                        continue
-########################################################################################################################
-                    if numpy.random.uniform()<del_prob:
-#the new cnv is a deletion
-                        logging.debug('New SNVs are deletions.')
-                        for del_start,del_end in new_cnvs:
-#output pre_snvs to self.cnvs, so it can be used to correct the count of snvs 
-                            pre_snvs=[]
-                            for snv in self.accumulated_snvs:
-                                if del_start<=snv<del_end:
-                                    self.accumulated_snvs.remove(snv)
-                                    if snv in self.snvs:
-                                        self.snvs.remove(snv)
+                        cnv_start=pos
+                        cnv_length=numpy.random.exponential(cnv_length_lambda)
+                        if cnv_length>cnv_length_max:
+                            cnv_length=cnv_length_max
+                        cnv_end=cnv_start+cnv_length
+                        if cnv_end>end:
+                            cnv_end=end
+                        leaves_count=self.leaves_number()
+                        new_cnvs=[[cnv_start,cnv_end]]
+                        logging.debug('New CNV: %s',str(new_cnvs))
+                        logging.debug('Pre deletions: %s',str(self.accumulated_dels))
+                        for cnv in new_cnvs: #We need to modify new_cnvs in place
+                            for del_start,del_end in self.accumulated_dels:
+                                if cnv[0]<del_start:
+                                    if del_start<=cnv[1]<=del_end:
+                                        cnv[1]=del_start
+                                    elif cnv[1]>del_end:
+                                        new_cnvs.append([del_end,cnv[1]])
+                                        cnv[1]=del_start
+                                elif del_start<=cnv[0]<=del_end:
+                                    if del_start<=cnv[1]<=del_end:
+                                        new_cnvs.remove(cnv)
+                                        break
+                                    elif cnv[1]>del_end:
+                                        cnv[0]=del_end
                                     else:
-                                        pre_snvs.append(snv)
-                            cnv={'seg':[start,end],
-                                 'start':del_start,
-                                 'end':del_end,
-                                 'copy':-1,
-                                 'leaves_count':leaves_count,
-                                 'pre_snvs':pre_snvs,
-                                 'new_copies':[]}
-                            self.cnvs.append(cnv)
-                            self.accumulated_dels.append([del_start,del_end])
-                    else:
+                                        print('Should not be here!3')
+                        logging.debug('New CNVs after comparing with pre deletions: %s',str(new_cnvs))
+                        if len(new_cnvs)==0 or len(new_cnvs[0])==0:
+                            continue
+########################################################################################################################
+                        if numpy.random.uniform()<del_prob:
+#the new cnv is a deletion
+                            logging.debug('New CNVs are deletions.')
+                            for del_start,del_end in new_cnvs:
+#output pre_snvs to self.cnvs, so it can be used to correct the count of snvs 
+                                pre_snvs=[]
+                                for snv in self.accumulated_snvs:
+                                    if del_start<=snv<del_end:
+                                        self.accumulated_snvs.remove(snv)
+                                        if snv in self.snvs:
+                                            self.snvs.remove(snv)
+                                        else:
+                                            pre_snvs.append(snv)
+                                cnv={'seg':[start,end],
+                                     'start':del_start,
+                                     'end':del_end,
+                                     'copy':-1,
+                                     'leaves_count':leaves_count,
+                                     'pre_snvs':pre_snvs,
+                                     'new_copies':[]}
+                                self.cnvs.append(cnv)
+                                self.accumulated_dels.append([del_start,del_end])
+                        else:
 #the new cnv is an amplification
-                        logging.debug('New SNVs are amplifications.')
-                        cnv_copy=numpy.random.random_integers(copy_max)
-                        for amp_start,amp_end in new_cnvs:
-                            amp_length=amp_end-amp_start
+                            logging.debug('New CNVs are amplifications.')
+                            cnv_copy=numpy.random.random_integers(copy_max)
+                            for amp_start,amp_end in new_cnvs:
+                                amp_length=amp_end-amp_start
 #collect the old snvs on cnvs. Those snvs are the snvs on the ancestor lineage leading to segment, and locate in the segment.
-                            pre_snvs=[]
-                            for snv in self.accumulated_snvs:
-                                if amp_start<=snv<amp_end:
-                                    pre_snvs.append(snv)
+                                pre_snvs=[]
+                                for snv in self.accumulated_snvs:
+                                    if amp_start<=snv<amp_end:
+                                        pre_snvs.append(snv)
 
 #collect the new snvs on cnvs
-                            new_copies=[]
-                            for i in range(cnv_copy):
-                                segment=Tree(name=self.name,lens=float(self.lens)-waiting_t)
-                                if self.left != None:
-                                    segment.left=copy.deepcopy(self.left)
-                                    segment.left.top=segment
-                                if self.right != None:
-                                    segment.right=copy.deepcopy(self.right)
-                                    segment.right.top=segment
-                                segment.add_snv_cnv(start=amp_start,end=amp_end,inherent_snvs=pre_snvs,
-                                                    snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
-                                                    cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
-                                new_copies.append(segment)
-                            cnv={'seg':[start,end],
-                                 'start':amp_start,
-                                 'end':amp_end,
-                                 'copy':cnv_copy,
-                                 'leaves_count':leaves_count,
-                                 'pre_snvs':pre_snvs,
-                                 'new_copies':new_copies}
-                            self.cnvs.append(cnv)
+                                new_copies=[]
+                                for i in range(cnv_copy):
+                                    segment=Tree(name=self.name,lens=float(self.lens)-waiting_t)
+                                    if self.left != None:
+                                        segment.left=copy.deepcopy(self.left)
+                                        segment.left.top=segment
+                                    if self.right != None:
+                                        segment.right=copy.deepcopy(self.right)
+                                        segment.right.top=segment
+                                    segment.add_snv_cnv(start=amp_start,end=amp_end,inherent_snvs=pre_snvs,
+                                                        snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
+                                                        cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
+                                    new_copies.append(segment)
+                                cnv={'seg':[start,end],
+                                     'start':amp_start,
+                                     'end':amp_end,
+                                     'copy':cnv_copy,
+                                     'leaves_count':leaves_count,
+                                     'pre_snvs':pre_snvs,
+                                     'new_copies':new_copies}
+                                self.cnvs.append(cnv)
 
         if self.left != None:
             self.left.add_snv_cnv(start=start,end=end,inherent_snvs=[],
@@ -299,7 +305,9 @@ class Tree:
                     self.leaves_names+=self.right.leaves_names()
         return self.names
     
-    def snvs_freq_cnvs_profile(self,ploid=None,snv_rate=None,cnv_rate=None,del_prob=None,cnv_length_lambda=None,cnv_length_max=None,copy_max=None):
+    def snvs_freq_cnvs_profile(self,ploid=None,snv_rate=None,cnv_rate=None,del_prob=None,
+                               cnv_length_lambda=None,cnv_length_max=None,copy_max=None,
+                               trunk_snvs=None,trunk_dels=None,trunk_cnvs=None):
         '''
         Produce the true frequency of SNVs in the samples.
         It's a warpper for generating SNVs/CNVs on a tree and summarize their frequency.
@@ -314,7 +322,17 @@ class Tree:
         for i in range(ploid):
             logging.info(' Simulate tree %s (total: %s)',i+1,ploid)
             hap_tree=copy.deepcopy(self)
-            hap_tree.add_snv_cnv(inherent_snvs=[],snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
+            hap_trunk_snvs=[]
+            hap_trunk_dels=[]
+            hap_trunk_cnvs=[]
+            if i in trunk_snvs:
+                hap_trunk_snvs=trunk_snvs[i]
+            if i in trunk_dels:
+                hap_trunk_dels=trunk_dels[i]
+            if i in trunk_cnvs:
+                hap_trunk_cnvs=trunk_cnvs[i]
+            hap_tree.add_snv_cnv(inherent_snvs=hap_trunk_snvs,inherent_dels=hap_trunk_dels,inherent_cnvs=hap_trunk_cnvs,
+                                 snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
                                  cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
             all_snvs_alt_counts.extend(hap_tree.snvs_alt_count())
             all_cnvs.extend(hap_tree.all_cnvs_collect())
@@ -411,10 +429,11 @@ def waiting_times(span=None,rate=None):
     elapse=0.0
     waiting_times=[]
     span=float(span)
-    while elapse<span:
-        elapse+=numpy.random.exponential(1/rate)
-        if elapse<span:
-            waiting_times.append(elapse)
+    if rate>0:
+        while elapse<span:
+            elapse+=numpy.random.exponential(1/rate)
+            if elapse<span:
+                waiting_times.append(elapse)
     return waiting_times
 
 def merge_two_dict(dict1={},dict2={}):
@@ -523,7 +542,8 @@ if __name__ == '__main__':
     default='log.txt'
     parse.add_argument('-g','--log',type=str,default=default,help='the log file [{}]'.format(default))
     default=10
-    parse.add_argument('-G','--loglevel',type=int,default=default,choices=[10,20,30,40,50],help='the log file [{}]'.format(default))
+    parse.add_argument('--loglevel',type=int,default=default,choices=[10,20,30,40,50],help='the log file [{}]'.format(default))
+    parse.add_argument('--trunk_vars',type=str,help='the trunk variants file')
     args=parse.parse_args()
 
     logging.basicConfig(filename=args.log, filemode='w', format='%(levelname)s: %(message)s', level=args.loglevel)
@@ -538,6 +558,14 @@ if __name__ == '__main__':
         for line in input:
             newick=line.rstrip()
             mytree=newick2tree(newick)
+#trunk vars
+            trunk_snvs={}
+            trunk_dels={}
+            trunk_cnvs={}
+            if hasattr(args,'trunk_vars'):
+                trunk_snvs,trunk_dels,trunk_cnvs=trunk_vars.classify_vars(args.trunk_vars,args.ploid,mytree.leaves_number())
+                mytree.lens=0
+
             snvs_freq,cnvs,depth_profile=mytree.snvs_freq_cnvs_profile(
                                                        ploid=args.ploid,
                                                        snv_rate=args.snv_rate,
@@ -546,6 +574,9 @@ if __name__ == '__main__':
                                                        cnv_length_lambda=args.cnv_length_lambda,
                                                        cnv_length_max=args.cnv_length_max,
                                                        copy_max=args.copy_max,
+                                                       trunk_snvs=trunk_snvs,
+                                                       trunk_dels=trunk_dels,
+                                                       trunk_cnvs=trunk_cnvs,
                                                        )
             cnv_file=open(args.cnv,'w')
             for cnv in cnvs:
