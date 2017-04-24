@@ -8,8 +8,9 @@
 #########################################################################
 
 import logging
+import copy as cp
 
-def classify_vars(vars_file,ploid,leaves_number):
+def classify_vars(vars_file,ploid,leaves_number,tree):
     '''
     Input vars should be in this format
     chr start end indicator
@@ -38,6 +39,9 @@ def classify_vars(vars_file,ploid,leaves_number):
             else:
                 if not chrom in cnvs:
                     cnvs[chrom]=[]
+#construct cnv
+#TODO: maybe I should write a function for the construction of cnv 
+#Right now, there are two pieces of code doing the same thing
                 cnvs[chrom].append({'seg': [0,1],
                                      'start': start,
                                      'end': end,
@@ -46,6 +50,10 @@ def classify_vars(vars_file,ploid,leaves_number):
                                      'pre_snvs': [],
                                      'new_copies': [],
                                     })
+                if isinstance(copy,int) and copy>0:
+                    for i in range(copy):
+                        segment=cp.deepcopy(tree)
+                        cnvs[chrom][-1]['new_copies'].append(segment)
 
                 if copy==-1:
                     if not chrom in dels:

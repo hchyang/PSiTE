@@ -81,7 +81,6 @@ class Tree:
             self.cnvs=inherent_cnvs[:]
             self.accumulated_snvs=inherent_snvs[:]
             self.accumulated_dels=inherent_dels[:]
-#TODO: inherent_cnvs? should check interaction between snvs and cnvs first
         else:
 #non-root node inherits snvs/cnvs from its top nodes 
             if self.top.accumulated_snvs != None:
@@ -109,9 +108,9 @@ class Tree:
                     logging.debug('The length of the tree with new SNV: %s',self.lens)
                     logging.debug('Structure: %s',self.tree2newick())
                 else:
-#cnvs: if the new cnv overlap with accumulated_dels, compare it with those dels and 
-#only keep those new regions.
-#FIXME check here very carefully
+#cnvs
+#if the new cnv overlap with accumulated_dels, compare it with the accumulated dels 
+#and only keep those new regions.
                     cnv_start=pos
                     cnv_length=numpy.random.exponential(cnv_length_lambda)
                     if cnv_length>cnv_length_max:
@@ -187,9 +186,6 @@ class Tree:
                                 if self.right != None:
                                     segment.right=copy.deepcopy(self.right)
                                     segment.right.top=segment
-                                segment.add_snv_cnv(start=amp_start,end=amp_end,inherent_snvs=pre_snvs,
-                                                    snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
-                                                    cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
                                 new_copies.append(segment)
                             cnv={'seg':[start,end],
                                  'start':amp_start,
@@ -199,6 +195,12 @@ class Tree:
                                  'pre_snvs':pre_snvs,
                                  'new_copies':new_copies}
                             self.cnvs.append(cnv)
+        for cnv in self.cnvs:
+            if cnv['copy']>0: 
+                for segment in cnv['new_copies']:
+                    segment.add_snv_cnv(start=cnv['start'],end=cnv['end'],inherent_snvs=cnv['pre_snvs'],
+                                        snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
+                                        cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
 
         if self.left != None:
             self.left.add_snv_cnv(start=start,end=end,inherent_snvs=[],
@@ -561,9 +563,8 @@ if __name__ == '__main__':
             trunk_snvs={}
             trunk_dels={}
             trunk_cnvs={}
-            if hasattr(args,'trunk_vars'):
-                trunk_snvs,trunk_dels,trunk_cnvs=trunk_vars.classify_vars(args.trunk_vars,args.ploid,mytree.leaves_number())
-#                mytree.lens=0
+            if args.trunk_vars!=None:
+                trunk_snvs,trunk_dels,trunk_cnvs=trunk_vars.classify_vars(args.trunk_vars,args.ploid,mytree.leaves_number(),mytree)
 
             snvs_freq,cnvs,depth_profile=mytree.snvs_freq_cnvs_profile(
                                                        ploid=args.ploid,
