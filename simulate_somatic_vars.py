@@ -7,7 +7,6 @@
 # Description: 
 #########################################################################
 
-import os
 import sys
 import re
 import pickle
@@ -25,7 +24,7 @@ signal(SIGPIPE,SIG_DFL)
 class Tree:
     count=0
     cnv_c2=0
-    def __init__(self,name=None,lens=None,left=None,right=None,top=None,snvs=None,accumulated_snvs=None,cnvs=None,accumulated_dels=None,C='0.0.0'):
+    def __init__(self,name=None,lens=None,left=None,right=None,top=None,snvs=None,accumulated_snvs=None,cnvs=None,accumulated_dels=None,C='0.0.0',nodeid=None):
         self.name=name
         self.lens=lens
         self.left=left
@@ -37,6 +36,7 @@ class Tree:
         self.cnvs=cnvs                         
         self.accumulated_dels=accumulated_dels #it contains [start,end] for each del on the lineage leading to that node 
         self.C=C
+        self.nodeid=nodeid
         Tree.count+=1
 
     def add_node(self,node):
@@ -68,7 +68,7 @@ class Tree:
         '''
 #rescale mutation rate according the length of the sequence
         length=end-start
-        logging.debug('New node with length: %s',self.lens)
+        logging.debug('Node (%s) with length: %s',self.nodeid,self.lens)
         logging.debug('Structure: %s',self.tree2newick())
         self.snvs=[]
         self.cnvs=[]
@@ -179,7 +179,7 @@ class Tree:
 #collect the new snvs on cnvs
                             new_copies=[]
                             for i in range(cnv_copy):
-                                segment=Tree(name=self.name,lens=float(self.lens)-waiting_t)
+                                segment=Tree(name=self.name,lens=float(self.lens)-waiting_t,nodeid=self.nodeid)
                                 if self.left != None:
                                     segment.left=copy.deepcopy(self.left)
                                     segment.left.top=segment
@@ -251,18 +251,38 @@ class Tree:
             for cnv in self.cnvs:
                 if cnv['copy']>0: #amplification
                     for cp in cnv['new_copies']:
-                        all_alt_count=merge_two_dict(all_alt_count,cp.all_snvs_allele_count())
+                        all_alt_count=merge_two_dict_count(all_alt_count,cp.all_snvs_allele_count())
                 else:  #deletion
                     pre_snvs_dict={}
                     for snv in cnv['pre_snvs']:
                         pre_snvs_dict[snv]=-self.leaves_number()
-                    all_alt_count=merge_two_dict(all_alt_count,pre_snvs_dict)
+                    all_alt_count=merge_two_dict_count(all_alt_count,pre_snvs_dict)
 
         if self.left!=None:
-            all_alt_count=merge_two_dict(all_alt_count,self.left.all_snvs_allele_count())
+            all_alt_count=merge_two_dict_count(all_alt_count,self.left.all_snvs_allele_count())
         if self.right!=None:
-            all_alt_count=merge_two_dict(all_alt_count,self.right.all_snvs_allele_count())
+            all_alt_count=merge_two_dict_count(all_alt_count,self.right.all_snvs_allele_count())
         return all_alt_count
+
+    def all_nodes_snvs(self):
+        '''
+        It will return a diction of all nodes in the tree. 
+        {node:{cnv1,cnvs2,...},...}
+        '''
+        nodes_snvs={}
+        if self.snvs!=None:
+            nodes_snvs[self.nodeid]=set(self.snvs)
+        if self.cnvs!=None:
+            for cnv in self.cnvs:
+                if cnv['copy']>0: #amplification
+                    for cp in cnv['new_copies']:
+                        nodes_snvs=merge_two_dict_set(nodes_snvs,cp.all_nodes_snvs())
+
+        if self.left!=None:
+            nodes_snvs=merge_two_dict_set(nodes_snvs,self.left.all_nodes_snvs())
+        if self.right!=None:
+            nodes_snvs=merge_two_dict_set(nodes_snvs,self.right.all_nodes_snvs())
+        return nodes_snvs
 
     def snvs_alt_count(self):
         '''
@@ -306,6 +326,16 @@ class Tree:
                     self.leaves_names+=self.right.leaves_names()
         return self.names
     
+    def attach_info(self,attr,info):
+        '''
+        Put the informaton of each node in the dict (info) onto each node.
+        '''
+        setattr(self,attr,info[self.nodeid])
+        if self.left!=None:
+            self.left.attach_info(attr,info)
+        if self.right!=None:
+            self.right.attach_info(attr,info)
+
     def snvs_freq_cnvs_profile(self,ploid=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_lambda=None,cnv_length_max=None,copy_max=None,
                                trunk_snvs=None,trunk_dels=None,trunk_cnvs=None):
@@ -314,6 +344,7 @@ class Tree:
         It's a warpper for generating SNVs/CNVs on a tree and summarize their frequency.
         '''
         all_cnvs=[]
+        all_nodes_snvs={}
         all_snvs_alt_counts=[]
         all_snvs_alt_freq=[]
         all_leaves=self.leaves_number()
@@ -337,8 +368,13 @@ class Tree:
                                  cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
             all_snvs_alt_counts.extend(hap_tree.snvs_alt_count())
             all_cnvs.extend(hap_tree.all_cnvs_collect())
+            all_nodes_snvs=merge_two_dict_set(all_nodes_snvs,hap_tree.all_nodes_snvs())
 
         all_cnvs.sort(key=lambda cnv: cnv['start'])
+
+#construct a tree with merged snvs to dump
+        tree_with_snvs=copy.deepcopy(self)
+        tree_with_snvs.attach_info(attr='snvs',info=all_nodes_snvs)
 
 #construct depth profile list, assuming the whole region start with 0 and end with 1.
         all_pos_changes=cnvs2break_points(all_cnvs)
@@ -353,30 +389,30 @@ class Tree:
                 change=all_pos_changes.pop(0)
                 region_mean_ploid+=change[1]
             all_snvs_alt_freq.append([snv[0],snv[1]/region_mean_ploid])
-        return all_snvs_alt_freq,all_cnvs,depth_profile
+        return all_snvs_alt_freq,all_cnvs,depth_profile,all_nodes_snvs,tree_with_snvs
 
 ####################################################################################################
 
-    def tree2newick(self,lens=False,attr=None):
+    def tree2newick(self,lens=False,attrs=None):
         '''
         Convert tree structure to string in Newick/NHX format.
         '''
         newick_str=''
 
         if self.left != None:
-            newick_str+='(' + self.left.tree2newick(lens=lens,attr=attr)
+            newick_str+='(' + self.left.tree2newick(lens=lens,attrs=attrs)
         if self.name==None:
             newick_str+=','
         else:
             newick_str+=self.name
         if self.right != None:
-            newick_str+=self.right.tree2newick(lens=lens,attr=attr) + ')'
+            newick_str+=self.right.tree2newick(lens=lens,attrs=attrs) + ')'
 
         if self.lens!=None and lens:
             newick_str+= ':' + self.lens
-        if attr!=None and lens==True:
+        if attrs!=None and lens==True:
             newick_str+='[&&NHX:W=1.0'
-            for attribute in attr:
+            for attribute in attrs:
                 if getattr(self, attribute):
                     newick_str+=':{}={}'.format(attribute,getattr(self, attribute))
             newick_str+=']'
@@ -423,7 +459,7 @@ class Tree:
             self.left.highlight_snvs(snvs)
         if self.right != None:
             self.right.highlight_snvs(snvs)
-        if self.snvs !=None and set(self.snvs).intersection(snvs):
+        if self.snvs !=None and self.snvs.intersection(snvs):
             self.C='255.0.0'
 
 def waiting_times(span=None,rate=None):
@@ -437,15 +473,32 @@ def waiting_times(span=None,rate=None):
                 waiting_times.append(elapse)
     return waiting_times
 
-def merge_two_dict(dict1={},dict2={}):
+def merge_two_dict_count(dict1={},dict2={}):
+    '''
+    It's similiar with dict.update, but for the key in both dicts,
+    its new value equal the sum of dict1[key] and dict2[key].
+    '''
     new_dict={}
     for key in set.union(set(dict1),set(dict2)):
-        if key in dict1 and key in dict2:
-            new_dict[key]=dict1[key]+dict2[key]
-        elif key in dict1:
-            new_dict[key]=dict1[key]
-        else:
-            new_dict[key]=dict2[key]
+        new_dict[key]=0
+        if key in dict1:
+            new_dict[key]+=dict1[key]
+        if key in dict2:
+            new_dict[key]+=dict2[key]
+    return new_dict
+    
+def merge_two_dict_set(dict1={},dict2={}):
+    '''
+    It's similiar with dict.update, but for the key in both dicts,
+    its new value equal the union of dict1[key] and dict2[key].
+    '''
+    new_dict={}
+    for key in set.union(set(dict1),set(dict2)):
+        new_dict[key]=set()
+        if key in dict1:
+            new_dict[key]=new_dict[key].union(dict1[key])
+        if key in dict2:
+            new_dict[key]=new_dict[key].union(dict2[key])
     return new_dict
     
 def cnvs2break_points(cnvs):
@@ -478,22 +531,29 @@ def pos_changes2region_profile(pos_changes):
                 profile.append([start,end,current])
     return profile
 
+def node_id():
+    i=0
+    while True:
+        i+=1
+        yield str(i)
+
 def newick2tree(newick=None):
     leaf_name_re=re.compile('\w+:')
     lens_re=re.compile(':[0-9.]+')
+    node_id_gen=node_id()
     while newick != ';':
         if newick.startswith('('):
             if 'mytree' in vars():
-                mytree=mytree.add_node(Tree())
+                mytree=mytree.add_node(Tree(nodeid=node_id_gen.__next__()))
             else:
-                mytree=Tree()
+                mytree=Tree(nodeid=node_id_gen.__next__())
             newick=newick[1:]
         elif leaf_name_re.match(newick):
             m=leaf_name_re.match(newick)
             index=m.span()
             leaf_name=newick[:index[1]-1]
             newick=newick[index[1]-1:]
-            mytree=mytree.add_node(Tree(name=leaf_name))
+            mytree=mytree.add_node(Tree(name=leaf_name,nodeid=node_id_gen.__next__()))
         elif lens_re.match(newick):
             m=lens_re.match(newick)
             index=m.span()
@@ -538,13 +598,21 @@ if __name__ == '__main__':
     parse.add_argument('-s','--random_seed',type=int,help='the seed for random random number generator [{}]'.format(default))
     default='raw.cnvs'
     parse.add_argument('-V','--cnv',type=str,default=default,help='the file to save CNVs [{}]'.format(default))
+    default='raw.snvs'
+    parse.add_argument('-S','--snv',type=str,default=default,help='the file to save SNVs [{}]'.format(default))
     default='depth.profile'
     parse.add_argument('-P','--depth_profile',type=str,default=default,help='the file to save depth profile [{}]'.format(default))
+    default='nodes.snvs'
+    parse.add_argument('-n','--nodes_snvs',type=str,default=default,help='the file to save snvs in each nodes [{}]'.format(default))
     default='log.txt'
     parse.add_argument('-g','--log',type=str,default=default,help='the log file [{}]'.format(default))
     default=10
     parse.add_argument('--loglevel',type=int,default=default,choices=[10,20,30,40,50],help='the log file [{}]'.format(default))
     parse.add_argument('--trunk_vars',type=str,help='the trunk variants file')
+    default='tree.dat'
+    parse.add_argument('--tree_data',type=str,default=default,help='the file to dump the tree data [{}]'.format(default))
+    default=None
+    parse.add_argument('--expands',type=str,default=default,help='the basename of the file to output the snv and segment data for expands [{}]'.format(default))
     args=parse.parse_args()
 
     logging.basicConfig(filename=args.log, filemode='w', format='%(levelname)s: %(message)s', level=args.loglevel)
@@ -559,14 +627,15 @@ if __name__ == '__main__':
         for line in input:
             newick=line.rstrip()
             mytree=newick2tree(newick)
+            leaves_number=mytree.leaves_number()
 #trunk vars
             trunk_snvs={}
             trunk_dels={}
             trunk_cnvs={}
             if args.trunk_vars!=None:
-                trunk_snvs,trunk_dels,trunk_cnvs=trunk_vars.classify_vars(args.trunk_vars,args.ploid,mytree.leaves_number(),mytree)
+                trunk_snvs,trunk_dels,trunk_cnvs=trunk_vars.classify_vars(args.trunk_vars,args.ploid,leaves_number,mytree)
 
-            snvs_freq,cnvs,depth_profile=mytree.snvs_freq_cnvs_profile(
+            snvs_freq,cnvs,depth_profile,nodes_snvs,tree_with_snvs=mytree.snvs_freq_cnvs_profile(
                                                        ploid=args.ploid,
                                                        snv_rate=args.snv_rate,
                                                        cnv_rate=args.cnv_rate,
@@ -582,11 +651,37 @@ if __name__ == '__main__':
             for cnv in cnvs:
                 cnv_file.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(cnv['seg'],cnv['start'],cnv['end'],cnv['copy'],cnv['leaves_count'],cnv['pre_snvs']))
 
-            depth_profile_file=open(args.depth_profile,'w')
-            for reg in depth_profile:
-                depth_profile_file.write('{}\t{}\t{}\n'.format(*reg))
+            snv_file=open(args.snv,'w')
+            for pos,freq in snvs_freq:
+                snv_file.write('{}\t{}\n'.format(pos,freq))
 
-            for snv in snvs_freq:
-                print(*snv,sep="\t")
+            depth_profile_file=open(args.depth_profile,'w')
+            for seg in depth_profile:
+                depth_profile_file.write('{}\t{}\t{}\n'.format(*seg))
+
+            nodes_snvs_file=open(args.nodes_snvs,'w')
+            for node in sorted(nodes_snvs.keys()):
+                for snv in sorted(nodes_snvs[node]):
+                    nodes_snvs_file.write('{}\t{}\n'.format(node,snv))
+
+            tree_data_file=open(args.tree_data,'wb')
+            pickle.dump(tree_with_snvs,tree_data_file)
+
+            if args.expands != None:
+#output for expands
+                expands_snps_file=open(args.expands+'.snps','w')
+                expands_snps_file.write('chr\tstartpos\tAF_Tumor\tPN_B\n')
+                chroms=1
+                for pos,freq in snvs_freq:
+                    total_dp,b_allele_dp=simulate_sequence_coverage(args.depth,freq)
+                    expands_snps_file.write('{}\t{}\t{}\t{}\n'.format(chroms,pos,b_allele_dp/total_dp,0))
+
+#in the segment input for expands
+#CN_Estimate - the copy number estimated for each segment (average value across all subpopulations in the sample)
+                expands_segs_file=open(args.expands+'.segs','w')
+                expands_segs_file.write("chr\tstartpos\tendpos\tCN_Estimate\n")
+                for start,end,copy in depth_profile:
+                    expands_segs_file.write('{}\t{}\t{}\t{}\n'.format(chroms,start,end,copy/leaves_number))
+
 
 
