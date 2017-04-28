@@ -96,17 +96,18 @@ class Tree:
                 pos=numpy.random.uniform(start,end)
                 if numpy.random.uniform()<snv_prob:
 #snv
-                    if self.accumulated_dels:
-                        for del_start,del_end in self.accumulated_dels:
-                            if not del_start<=pos<del_end:
-                                self.snvs.append(pos)
-                                self.accumulated_snvs.append(pos)
-                    else:
-                        self.snvs.append(pos)
-                        self.accumulated_snvs.append(pos)
+                    self.snvs.append(pos)
+                    self.accumulated_snvs.append(pos)
                     logging.debug('New SNV: %s',pos)
                     logging.debug('The length of the tree with new SNV: %s',self.lens)
                     logging.debug('Structure: %s',self.tree2newick())
+                    if self.accumulated_dels:
+                        for del_start,del_end in self.accumulated_dels:
+                            if del_start<=pos<del_end:
+                                self.snvs.pop()
+                                self.accumulated_snvs.pop()
+                                logging.debug('The new SNV locates in the pre_deletion: [%s, %s]',del_start,del_end)
+                                break
                 else:
 #cnvs
 #if the new cnv overlap with accumulated_dels, compare it with the accumulated dels 
@@ -122,7 +123,12 @@ class Tree:
                     new_cnvs=[[cnv_start,cnv_end]]
                     logging.debug('New CNV: %s',str(new_cnvs))
                     logging.debug('Pre deletions: %s',str(self.accumulated_dels))
-                    for cnv in new_cnvs: #We need to modify new_cnvs in place
+#TODO: check here very carefully.
+#We need to modify new_cnvs in place. Let's sort accumulated_dels first.
+#After the sorting, all deletions in accumulated_dels should be ordered non-overlapping regions.
+#Without this, there will be problems.
+                    self.accumulated_dels.sort(key=lambda deletion: deletion[0])
+                    for cnv in new_cnvs: 
                         for del_start,del_end in self.accumulated_dels:
                             if cnv[0]<del_start:
                                 if del_start<=cnv[1]<=del_end:
@@ -130,6 +136,9 @@ class Tree:
                                 elif cnv[1]>del_end:
                                     new_cnvs.append([del_end,cnv[1]])
                                     cnv[1]=del_start
+                                else:
+#cnv_end < current_del_start, that means cnv_end is less than start points of all left dels
+                                    break
                             elif del_start<=cnv[0]<=del_end:
                                 if del_start<=cnv[1]<=del_end:
                                     new_cnvs.remove(cnv)
@@ -145,16 +154,21 @@ class Tree:
                     if numpy.random.uniform()<del_prob:
 #the new cnv is a deletion
                         logging.debug('New CNVs are deletions.')
+                        logging.debug('Node (%s) accumulated_snvs: %s.',self.nodeid,str(self.accumulated_snvs))
+                        logging.debug('Node (%s) snvs: %s.',self.nodeid,str(self.snvs))
                         for del_start,del_end in new_cnvs:
 #output pre_snvs to self.cnvs, so it can be used to correct the count of snvs 
                             pre_snvs=[]
-                            for snv in self.accumulated_snvs:
+#We need to use a copy of self.accumulated_snvs for the 'for loop'.
+#Without that, modify this list in place will cause some element bypassed.
+                            for snv in self.accumulated_snvs[:]:
                                 if del_start<=snv<del_end:
                                     self.accumulated_snvs.remove(snv)
                                     if snv in self.snvs:
                                         self.snvs.remove(snv)
                                     else:
                                         pre_snvs.append(snv)
+                            logging.debug('pre_snvs in new DELs regions: %s.',str(pre_snvs))
                             cnv={'seg':[start,end],
                                  'start':del_start,
                                  'end':del_end,
