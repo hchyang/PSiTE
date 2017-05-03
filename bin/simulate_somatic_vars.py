@@ -352,6 +352,21 @@ class Tree:
         if self.right!=None:
             self.right.attach_info(attr,info)
 
+    def prune(self,tips=None):
+        '''
+        Prune all branches with equal or less than the number of tips specified by the parameter tips.
+        For a Tree object, it should run the leaves_number() method before run this method.
+        '''
+        if self.leaves_count<=tips:
+            logging.debug('Trim %s children of node (nodeid: %s)',self.leaves_count,self.nodeid)
+            self.left=None
+            self.right=None
+            if self.name==None:
+                self.name='i'+self.nodeid
+        else:
+            self.left.prune(tips=tips)
+            self.right.prune(tips=tips)
+
     def snvs_freq_cnvs_profile(self,ploid=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_lambda=None,cnv_length_max=None,copy_max=None,
                                trunk_snvs=None,trunk_dels=None,trunk_cnvs=None):
@@ -610,6 +625,10 @@ if __name__ == '__main__':
     parse.add_argument('-c','--copy_max',type=int,default=default,help='the maximium ADDITIONAL copy of a CNV [{}]'.format(default))
     default=2
     parse.add_argument('-p','--ploid',type=int,default=default,help='the ploid to simulate [{}]'.format(default))
+    default=0
+    parse.add_argument('-x','--prune',type=int,default=default,help='trim all its children for the branches with equal or less than this number of tips [{}]'.format(default))
+    default=0.0
+    parse.add_argument('-X','--prune_proportion',type=float,default=default,help='trim all its children for the branches with equal or less than this proportion of tips [{}]'.format(default))
     default=50
     parse.add_argument('-D','--depth',type=int,default=default,help='the mean depth for simulating coverage data [{}]'.format(default))
     default=None
@@ -646,6 +665,11 @@ if __name__ == '__main__':
             newick=line.rstrip()
             mytree=newick2tree(newick)
             leaves_number=mytree.leaves_number()
+            if args.prune>0:
+                mytree.prune(tips=args.prune)
+            elif args.prune_proportion>0.0:
+                trim=leaves_number*args.prune_proportion
+                mytree.prune(tips=trim)
 #trunk vars
             trunk_snvs={}
             trunk_dels={}
