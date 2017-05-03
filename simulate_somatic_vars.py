@@ -290,7 +290,9 @@ class Tree:
             for cnv in self.cnvs:
                 if cnv['copy']>0: #amplification
                     for cp in cnv['new_copies']:
-                        nodes_snvs=merge_two_dict_set(nodes_snvs,cp.all_nodes_snvs())
+                        tmp=cp.all_nodes_snvs()
+                        tmp[self.nodeid]=tmp[self.nodeid]-set(cnv['pre_snvs'])
+                        nodes_snvs=merge_two_dict_set(nodes_snvs,tmp)
 
         if self.left!=None:
             nodes_snvs=merge_two_dict_set(nodes_snvs,self.left.all_nodes_snvs())
@@ -388,7 +390,7 @@ class Tree:
 
 #construct a tree with merged snvs to dump
         tree_with_snvs=copy.deepcopy(self)
-        tree_with_snvs.attach_info(attr='snvs',info=all_nodes_snvs)
+        tree_with_snvs.attach_info(attr='new_snvs',info=all_nodes_snvs)
 
 #construct depth profile list, assuming the whole region start with 0 and end with 1.
         all_pos_changes=cnvs2break_points(all_cnvs)
@@ -473,8 +475,10 @@ class Tree:
             self.left.highlight_snvs(snvs)
         if self.right != None:
             self.right.highlight_snvs(snvs)
-        if self.snvs !=None and self.snvs.intersection(snvs):
+        if self.new_snvs !=None and self.new_snvs.intersection(snvs):
             self.C='255.0.0'
+            logging.debug('Highlight node %s (with leaves %s) because of variants:\n%s',
+                self.nodeid,self.leaves_number(),self.new_snvs.intersection(snvs))
 
 def waiting_times(span=None,rate=None):
     elapse=0.0

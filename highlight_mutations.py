@@ -11,13 +11,18 @@ import os
 import sys
 import argparse
 import pickle
+import logging
+
 from simulate_somatic_vars import *
+
 #import parse_newick
 
 parse=argparse.ArgumentParser(description='Find the mutations on the tree and output a NHX tree with the branch with the muations highlighted')
 parse.add_argument('-m','--mutations',required=True,help='Mutations to be selected')
+parse.add_argument('-l','--log',required=True,help='Log file')
 parse.add_argument('-t','--tree', help='The original tree with mutations')
 args=parse.parse_args()
+logging.basicConfig(filename=args.log, filemode='w', format='%(levelname)s: %(message)s', level=10)
 
 mutations={}
 with open(args.mutations) as input:
