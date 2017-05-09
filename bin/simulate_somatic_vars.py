@@ -15,6 +15,7 @@ import argparse
 import copy
 import logging
 import trunk_vars
+#import pdb; pdb.set_trace()
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe 
@@ -58,6 +59,7 @@ class Tree:
 
 ####################################################################################################
 
+    #@profile
     def add_snv_cnv(self,start=0,end=1,inherent_snvs=[],inherent_dels=[],inherent_cnvs=[],
                     snv_rate=None,cnv_rate=None,del_prob=None,cnv_length_lambda=None,cnv_length_max=None,copy_max=None):
         '''
@@ -367,6 +369,7 @@ class Tree:
             self.left.prune(tips=tips)
             self.right.prune(tips=tips)
 
+    #@profile
     def snvs_freq_cnvs_profile(self,ploid=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_lambda=None,cnv_length_max=None,copy_max=None,
                                trunk_snvs=None,trunk_dels=None,trunk_cnvs=None):
@@ -570,35 +573,42 @@ def node_id():
         i+=1
         yield str(i)
 
+@profile
 def newick2tree(newick=None):
-    leaf_name_re=re.compile('\w+:')
-    lens_re=re.compile(':[0-9.]+')
+    leaf_name_re=re.compile('^\w+:')
+    lens_re=re.compile('^:[0-9.]+')
+    brushwood=newick.split(',')
     node_id_gen=node_id()
-    while newick != ';':
-        if newick.startswith('('):
-            if 'mytree' in vars():
-                mytree=mytree.add_node(Tree(nodeid=node_id_gen.__next__()))
+    for branch in brushwood:
+        while branch != '':
+            if lens_re.match(branch):
+                m=lens_re.match(branch)
+                index=m.span()
+                lens=branch[1:index[1]]
+                branch=branch[index[1]:]
+                mytree.lens=lens
+            elif branch.startswith(')'):
+                branch=branch[1:]
+                mytree=mytree.top
+            elif branch.startswith('('):
+                if 'mytree' in vars():
+                    mytree=mytree.add_node(Tree(nodeid=node_id_gen.__next__()))
+                else:
+                    mytree=Tree(nodeid=node_id_gen.__next__())
+                branch=branch[1:]
+            elif leaf_name_re.match(branch):
+                m=leaf_name_re.match(branch)
+                index=m.span()
+                leaf_name=branch[:index[1]-1]
+                branch=branch[index[1]-1:]
+                mytree=mytree.add_node(Tree(name=leaf_name,nodeid=node_id_gen.__next__()))
+            elif branch==';':
+                break
             else:
-                mytree=Tree(nodeid=node_id_gen.__next__())
-            newick=newick[1:]
-        elif leaf_name_re.match(newick):
-            m=leaf_name_re.match(newick)
-            index=m.span()
-            leaf_name=newick[:index[1]-1]
-            newick=newick[index[1]-1:]
-            mytree=mytree.add_node(Tree(name=leaf_name,nodeid=node_id_gen.__next__()))
-        elif lens_re.match(newick):
-            m=lens_re.match(newick)
-            index=m.span()
-            lens=newick[1:index[1]]
-            newick=newick[index[1]:]
-            mytree.lens=lens
-        elif newick.startswith((',',')')):
-            newick=newick[1:]
-            mytree=mytree.top
+                print('Should not be here!4')
+                print('Check your newick tree! Or maybe there are something I do not know about newick!')
         else:
-            print('Should not be here!4')
-            print('Check your newick tree! Or maybe there are something I do not know about newick!')
+            mytree=mytree.top
     return mytree
     
 def simulate_sequence_coverage(mean_coverage=None,baf=None):
@@ -607,8 +617,8 @@ def simulate_sequence_coverage(mean_coverage=None,baf=None):
     b_allele_coverage=numpy.random.binomial(n=coverage,p=baf)
     return [coverage,b_allele_coverage]
 
-if __name__ == '__main__':
-
+#@profile
+def __main__():
     parse=argparse.ArgumentParser(description='Generate snvs on a coalescent tree in newick format')
     parse.add_argument('-t','--tree',required=True,help='a tree in newick format')
     default=300
@@ -660,10 +670,12 @@ if __name__ == '__main__':
         seed=args.random_seed
     logging.info(' Random seed: %s',seed)
     numpy.random.seed(seed)
+
     with open(args.tree) as input:
         for line in input:
             newick=line.rstrip()
             mytree=newick2tree(newick)
+#            print(mytree.tree2newick())
             leaves_number=mytree.leaves_number()
             if args.prune>0:
                 mytree.prune(tips=args.prune)
@@ -706,8 +718,10 @@ if __name__ == '__main__':
                 for snv in sorted(nodes_snvs[node]):
                     nodes_snvs_file.write('{}\t{}\n'.format(node,snv))
 
+#TODO: Should we change pickle to json or yaml?
+#http://stackoverflow.com/questions/4677012/python-cant-pickle-type-x-attribute-lookup-failed
             tree_data_file=open(args.tree_data,'wb')
-            pickle.dump(tree_with_snvs,tree_data_file)
+            #pickle.dump(tree_with_snvs,tree_data_file)
 
             if args.expands != None:
 #output for expands
@@ -725,5 +739,5 @@ if __name__ == '__main__':
                 for start,end,copy in depth_profile:
                     expands_segs_file.write('{}\t{}\t{}\t{}\n'.format(chroms,start,end,copy/leaves_number))
 
-
-
+if __name__ == '__main__':
+    __main__()
