@@ -342,7 +342,7 @@ class Tree:
                     self.leaves_names+=self.left.leaves_names()
                 if self.right!=None:
                     self.leaves_names+=self.right.leaves_names()
-        return self.names
+        return self.leaves_names
     
     def attach_info(self,attr,info):
         '''
@@ -468,7 +468,7 @@ class Tree:
         return snvs_all
 
 ################################################################################
-#FIXME this method is not currect because of the effect of CNVs
+#FIXME this method is not correct because of the effect of CNVs
 #let's sort snvs by their positions and output genotypes for all samples
 #in each locus
     def snvs_all(self):
@@ -573,7 +573,7 @@ def node_id():
         i+=1
         yield str(i)
 
-@profile
+#@profile
 def newick2tree(newick=None):
     leaf_name_re=re.compile('^\w+:')
     lens_re=re.compile('^:[0-9.]+')
@@ -622,11 +622,11 @@ def __main__():
     parse=argparse.ArgumentParser(description='Generate snvs on a coalescent tree in newick format')
     parse.add_argument('-t','--tree',required=True,help='a tree in newick format')
     default=300
-    parse.add_argument('-r','--snv_rate',type=float,default=default,help='the muation rate for generating SNVs [{}]'.format(default))
+    parse.add_argument('-r','--snv_rate',type=float,default=default,help='the muation rate of SNVs [{}]'.format(default))
     default=3
-    parse.add_argument('-R','--cnv_rate',type=float,default=default,help='the muation rate for generating CNVs [{}]'.format(default))
+    parse.add_argument('-R','--cnv_rate',type=float,default=default,help='the muation rate of CNVs [{}]'.format(default))
     default=0.5
-    parse.add_argument('-d','--del_prob',type=int,default=default,help='the probability to be deletion for a CNV mutation [{}]'.format(default))
+    parse.add_argument('-d','--del_prob',type=int,default=default,help='the probability of being deletion for a CNV mutation [{}]'.format(default))
     default=0.001
     parse.add_argument('-l','--cnv_length_lambda',type=float,default=default,help='the lambda of CNVs length [{}]'.format(default))
     default=0.01
@@ -644,9 +644,9 @@ def __main__():
     default=None
     parse.add_argument('-s','--random_seed',type=int,help='the seed for random random number generator [{}]'.format(default))
     default='raw.cnvs'
-    parse.add_argument('-V','--cnv',type=str,default=default,help='the file to save CNVs [{}]'.format(default))
+    parse.add_argument('-V','--cnv',type=str,default=default,help='the output file to save CNVs [{}]'.format(default))
     default='raw.snvs'
-    parse.add_argument('-S','--snv',type=str,default=default,help='the file to save SNVs [{}]'.format(default))
+    parse.add_argument('-S','--snv',type=str,default=default,help='the output file to save SNVs [{}]'.format(default))
     default='depth.profile'
     parse.add_argument('-P','--depth_profile',type=str,default=default,help='the file to save depth profile [{}]'.format(default))
     default='nodes.snvs'
@@ -654,12 +654,12 @@ def __main__():
     default='log.txt'
     parse.add_argument('-g','--log',type=str,default=default,help='the log file [{}]'.format(default))
     default=10
-    parse.add_argument('--loglevel',type=int,default=default,choices=[10,20,30,40,50],help='the log file [{}]'.format(default))
+    parse.add_argument('--loglevel',type=int,default=default,choices=[10,20,30,40,50],help='the logging level [{}]'.format(default))
     parse.add_argument('--trunk_vars',type=str,help='the trunk variants file')
     default='tree.dat'
     parse.add_argument('--tree_data',type=str,default=default,help='the file to dump the tree data [{}]'.format(default))
     default=None
-    parse.add_argument('--expands',type=str,default=default,help='the basename of the file to output the snv and segment data for expands [{}]'.format(default))
+    parse.add_argument('--expands',type=str,default=default,help='the basename of the file to output the snv and segment data for EXPANDS [{}]'.format(default))
     args=parse.parse_args()
 
     logging.basicConfig(filename=args.log, filemode='w', format='%(levelname)s: %(message)s', level=args.loglevel)
