@@ -1,12 +1,5 @@
 #!/usr/bin/env python
 
-#########################################################################
-# Author: Hechuan
-# Created Time: 2017-04-04 18:00:34
-# File Name: simulate_somatic_vars.py
-# Description: 
-#########################################################################
-
 import re
 import pickle
 import numpy
@@ -51,13 +44,13 @@ class Tree:
 ####################################################################################################
 
     #@profile
-    def add_snv_cnv(self,start=0,end=1,inherent_snvs=[],inherent_dels=[],inherent_cnvs=[],
+    def add_snv_cnv(self,start=None,end=None,inherent_snvs=[],inherent_dels=[],inherent_cnvs=[],
                     snv_rate=None,cnv_rate=None,del_prob=None,cnv_length_lambda=None,cnv_length_max=None,copy_max=None):
         '''
         Randomly put SNVs and CNVs on a phylogenetic tree.
         For amplifications, we will build a new tree for every new copy and use this method to add SNVs/CNVs on the new tree.
-        NOTE: 1. snv_rate/cnv_rate are correlated with start end. Make sure start-end==1.
-              2. We assume for each CNVs, its start is inclusive, but its end is not.
+        NOTE: 1. For both SNV and CNV, the position is 0 based.
+              2. For each CNVs, its start is inclusive, but its end is not: [start, end).
         '''
 #rescale mutation rate according the length of the sequence
         length=end-start
@@ -81,12 +74,13 @@ class Tree:
             if self.top.accumulated_dels != None:
                 self.accumulated_dels=self.top.accumulated_dels[:]
 
-        mutation_rate=(snv_rate+cnv_rate)*length
+#rescale with the length
+        mutation_rate=snv_rate+cnv_rate
         if self.lens != None and mutation_rate > 0:
             snv_prob=snv_rate/(snv_rate+cnv_rate)
             mutation_waiting_times=waiting_times(span=self.lens,rate=mutation_rate)
             for waiting_t in mutation_waiting_times:
-                pos=numpy.random.uniform(start,end)
+                pos=numpy.random.randint(start,end)
                 if numpy.random.uniform()<snv_prob:
 #snv
                     self.snvs.append(pos)
@@ -106,7 +100,7 @@ class Tree:
 #if the new cnv overlap with accumulated_dels, compare it with the accumulated dels 
 #and only keep those new regions.
                     cnv_start=pos
-                    cnv_length=numpy.random.exponential(cnv_length_lambda)
+                    cnv_length=round(numpy.random.exponential(cnv_length_lambda))
                     if cnv_length>cnv_length_max:
                         cnv_length=cnv_length_max
                     cnv_end=cnv_start+cnv_length
@@ -204,9 +198,10 @@ class Tree:
                             self.cnvs.append(cnv)
         for cnv in self.cnvs:
             if cnv['copy']>0: 
+                scale=(cnv['end']-cnv['start'])/(end-start)
                 for segment in cnv['new_copies']:
                     segment.add_snv_cnv(start=cnv['start'],end=cnv['end'],inherent_snvs=cnv['pre_snvs'],
-                                        snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
+                                        snv_rate=snv_rate*scale,cnv_rate=cnv_rate*scale,del_prob=del_prob,
                                         cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
 
         if self.left != None:
@@ -363,7 +358,7 @@ class Tree:
     #@profile
     def snvs_freq_cnvs_profile(self,ploid=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_lambda=None,cnv_length_max=None,copy_max=None,
-                               trunk_snvs=None,trunk_dels=None,trunk_cnvs=None):
+                               trunk_snvs=None,trunk_dels=None,trunk_cnvs=None,length=None):
         '''
         Produce the true frequency of SNVs in the samples.
         It's a warpper for generating SNVs/CNVs on a tree and summarize their frequency.
@@ -388,7 +383,7 @@ class Tree:
                 hap_trunk_dels=trunk_dels[i]
             if i in trunk_cnvs:
                 hap_trunk_cnvs=trunk_cnvs[i]
-            hap_tree.add_snv_cnv(inherent_snvs=hap_trunk_snvs,inherent_dels=hap_trunk_dels,inherent_cnvs=hap_trunk_cnvs,
+            hap_tree.add_snv_cnv(start=0,end=length,inherent_snvs=hap_trunk_snvs,inherent_dels=hap_trunk_dels,inherent_cnvs=hap_trunk_cnvs,
                                  snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
                                  cnv_length_lambda=cnv_length_lambda,cnv_length_max=cnv_length_max,copy_max=copy_max)
             all_snvs_alt_counts.extend(hap_tree.snvs_alt_count())
@@ -401,10 +396,10 @@ class Tree:
         tree_with_snvs=copy.deepcopy(self)
         tree_with_snvs.attach_info(attr='new_snvs',info=all_nodes_snvs)
 
-#construct depth profile list, assuming the whole region start with 0 and end with 1.
+#construct depth profile list, assuming the whole region start with 1 and end with length
         all_pos_changes=cnvs2break_points(all_cnvs)
         all_pos_changes.insert(0,[0,background])
-        all_pos_changes.append([1,-background])
+        all_pos_changes.append([length,-background])
 
         depth_profile=pos_changes2region_profile(all_pos_changes)
         all_snvs_alt_counts.sort(key=lambda snv: snv[0])

@@ -31,10 +31,10 @@ def __main__():
     parse.add_argument('-R','--cnv_rate',type=float,default=default,help='the muation rate of CNVs [{}]'.format(default))
     default=0.5
     parse.add_argument('-d','--del_prob',type=int,default=default,help='the probability of being deletion for a CNV mutation [{}]'.format(default))
-    default=0.001
-    parse.add_argument('-l','--cnv_length_lambda',type=float,default=default,help='the lambda of CNVs length [{}]'.format(default))
-    default=0.01
-    parse.add_argument('-L','--cnv_length_max',type=float,default=default,help='the maximium of CNVs length [{}]'.format(default))
+    default=4000000
+    parse.add_argument('-l','--cnv_length_lambda',type=int,default=default,help='the lambda of CNVs length [{}]'.format(default))
+    default=20000000
+    parse.add_argument('-L','--cnv_length_max',type=int,default=default,help='the maximium of CNVs length [{}]'.format(default))
     default=5
     parse.add_argument('-c','--copy_max',type=int,default=default,help='the maximium ADDITIONAL copy of a CNV [{}]'.format(default))
     default=2
@@ -64,6 +64,8 @@ def __main__():
     parse.add_argument('--tree_data',type=str,default=default,help='the file to dump the tree data [{}]'.format(default))
     default=None
     parse.add_argument('--expands',type=str,default=default,help='the basename of the file to output the snv and segment data for EXPANDS [{}]'.format(default))
+    default=100000000
+    parse.add_argument('--length',type=int,default=default,help='the length of sequence to simulate [{}]'.format(default))
     args=parse.parse_args()
 
     logging.basicConfig(filename=args.log, filemode='w', format='%(levelname)s: %(message)s', level=args.loglevel)
@@ -104,6 +106,7 @@ def __main__():
                                                        trunk_snvs=trunk_snvs,
                                                        trunk_dels=trunk_dels,
                                                        trunk_cnvs=trunk_cnvs,
+                                                       length=args.length,
                                                        )
             cnv_file=open(args.cnv,'w')
             for cnv in cnvs:
