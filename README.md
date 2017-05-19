@@ -106,7 +106,7 @@ P.S. start and end are 0 based. And the region of each var is like in bed: [star
 
 ## Authors
 
-* [HechuanYang](https://github.com/hchyang)
+* [Hechuan Yang](https://github.com/hchyang)
 
 ## License
 
