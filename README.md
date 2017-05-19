@@ -32,12 +32,10 @@ The file format of trunk variants is like:
     1 12 123 +3
     0 12 123 -1
 
-- chr:    which copy of chrs the var locates in (0 based)
-
-- start:  the start of the var
-
-- end:    the end of the var
-- copy:   an interger. 0: SNV, -1: deletion, +int: amplification
+- **chr**:    which copy of chrs the var locates in (0 based)
+- **start**:  the start of the var
+- **end**:    the end of the var
+- **copy**:   an interger. 0: SNV, -1: deletion, +int: amplification
 
 P.S. start and end are 0 based. And the region of each var is like in bed: [start,end).
 
