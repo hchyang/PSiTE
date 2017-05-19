@@ -9,6 +9,7 @@ import logging
 class Tree:
     count=0
     cnv_c2=0
+    snv_pos={}
     def __init__(self,name=None,lens=None,left=None,right=None,top=None,snvs=None,accumulated_snvs=None,cnvs=None,accumulated_dels=None,C='0.0.0',nodeid=None):
         self.name=name
         self.lens=lens
@@ -83,6 +84,15 @@ class Tree:
                 pos=numpy.random.randint(start,end)
                 if numpy.random.uniform()<snv_prob:
 #snv
+#make sure at most one SNV mutated on each position.
+                    hit=0
+                    while pos in Tree.snv_pos:
+                        hit+=1
+                        if hit>10:
+                            raise TooManyMutationsError
+                        pos=numpy.random.randint(start,end)
+                    Tree.snv_pos[pos]=1
+
                     self.snvs.append(pos)
                     self.accumulated_snvs.append(pos)
                     logging.debug('New SNV: %s',pos)
@@ -525,7 +535,7 @@ def merge_two_dict_set(dict1={},dict2={}):
     
 def cnvs2break_points(cnvs):
     '''
-    Return a list of lists. Each sublist contain two elements. The first is the postion and the second 
+    Return a list of lists. Each sublist contain two elements. The first is the postion, and the second 
     is the copy number CHANGES across all the samples between that positon and the next position.
     [[pos,relative_copy_number_change],...]
     '''
@@ -602,3 +612,6 @@ def simulate_sequence_coverage(mean_coverage=None,baf=None):
     coverage=numpy.random.poisson(mean_coverage)
     b_allele_coverage=numpy.random.binomial(n=coverage,p=baf)
     return [coverage,b_allele_coverage]
+
+class TooManyMutationsError(Exception):
+    pass

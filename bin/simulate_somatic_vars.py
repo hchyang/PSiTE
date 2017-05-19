@@ -21,9 +21,19 @@ import tree
 from signal import signal, SIGPIPE, SIG_DFL 
 signal(SIGPIPE,SIG_DFL) 
 
+def check_seed(value):
+    ivalue=int(value)
+    if not 0<=ivalue<=4294967296: #2**32: Must be convertible to 32 bit unsigned integers.
+         raise argparse.ArgumentTypeError("{} is an invalid value for random seed. It should be an interger between 0 and 4294967296.".format(value))
+    return ivalue
+
+def check_max_cnv_length(seq_length,max_cnv_length):
+    if max_cnv_length>seq_length:
+         raise argparse.ArgumentTypeError("The value of -L/--cnv_length_max ({}) should NOT be larger than --length ({}).".format(max_cnv_length,seq_length))
+
 #@profile
 def __main__():
-    parse=argparse.ArgumentParser(description='Generate snvs on a coalescent tree in newick format')
+    parse=argparse.ArgumentParser(description='Simulate SNVs/CNVs on a coalescent tree in newick format')
     parse.add_argument('-t','--tree',required=True,help='a tree in newick format')
     default=300
     parse.add_argument('-r','--snv_rate',type=float,default=default,help='the muation rate of SNVs [{}]'.format(default))
@@ -36,17 +46,17 @@ def __main__():
     default=20000000
     parse.add_argument('-L','--cnv_length_max',type=int,default=default,help='the maximium of CNVs length [{}]'.format(default))
     default=5
-    parse.add_argument('-c','--copy_max',type=int,default=default,help='the maximium ADDITIONAL copy of a CNV [{}]'.format(default))
+    parse.add_argument('-c','--copy_max',type=int,default=default,help='the maximium ADDITIONAL copy of a CNVs [{}]'.format(default))
     default=2
     parse.add_argument('-p','--ploid',type=int,default=default,help='the ploid to simulate [{}]'.format(default))
     default=0
-    parse.add_argument('-x','--prune',type=int,default=default,help='trim all its children for the branches with equal or less than this number of tips [{}]'.format(default))
+    parse.add_argument('-x','--prune',type=int,default=default,help='trim all their children for the branches with equal or less than this number of tips [{}]'.format(default))
     default=0.0
-    parse.add_argument('-X','--prune_proportion',type=float,default=default,help='trim all its children for the branches with equal or less than this proportion of tips [{}]'.format(default))
+    parse.add_argument('-X','--prune_proportion',type=float,default=default,help='trim all their children for the branches with equal or less than this proportion of tips [{}]'.format(default))
     default=50
     parse.add_argument('-D','--depth',type=int,default=default,help='the mean depth for simulating coverage data [{}]'.format(default))
     default=None
-    parse.add_argument('-s','--random_seed',type=int,help='the seed for random random number generator [{}]'.format(default))
+    parse.add_argument('-s','--random_seed',type=check_seed,help='the seed for random number generator [{}]'.format(default))
     default='raw.cnvs'
     parse.add_argument('-V','--cnv',type=str,default=default,help='the output file to save CNVs [{}]'.format(default))
     default='raw.snvs'
@@ -54,19 +64,23 @@ def __main__():
     default='depth.profile'
     parse.add_argument('-P','--depth_profile',type=str,default=default,help='the file to save depth profile [{}]'.format(default))
     default='nodes.snvs'
-    parse.add_argument('-n','--nodes_snvs',type=str,default=default,help='the file to save snvs in each nodes [{}]'.format(default))
+    parse.add_argument('-n','--nodes_snvs',type=str,default=default,help='the file to save SNVs on each nodes [{}]'.format(default))
     default='log.txt'
     parse.add_argument('-g','--log',type=str,default=default,help='the log file [{}]'.format(default))
     default=10
     parse.add_argument('--loglevel',type=int,default=default,choices=[10,20,30,40,50],help='the logging level [{}]'.format(default))
     parse.add_argument('--trunk_vars',type=str,help='the trunk variants file')
+    default=0
+    parse.add_argument('--trunk_length',type=float,help='the trunk length [{}]'.format(default))
     default='tree.dat'
     parse.add_argument('--tree_data',type=str,default=default,help='the file to dump the tree data [{}]'.format(default))
     default=None
     parse.add_argument('--expands',type=str,default=default,help='the basename of the file to output the snv and segment data for EXPANDS [{}]'.format(default))
     default=100000000
-    parse.add_argument('--length',type=int,default=default,help='the length of sequence to simulate [{}]'.format(default))
+    parse.add_argument('--length',type=int,default=default,help='the length of the sequence to simulate [{}]'.format(default))
     args=parse.parse_args()
+
+    check_max_cnv_length(args.length,args.cnv_length_max)
 
     logging.basicConfig(filename=args.log, filemode='w', format='%(levelname)s: %(message)s', level=args.loglevel)
     logging.info(' Command: %s',' '.join(sys.argv))
@@ -81,7 +95,8 @@ def __main__():
         for line in input:
             newick=line.rstrip()
             mytree=tree.newick2tree(newick)
-#            print(mytree.tree2newick())
+            if args.trunk_length:
+                mytree.lens=args.trunk_length
             leaves_number=mytree.leaves_number()
             if args.prune>0:
                 mytree.prune(tips=args.prune)
@@ -93,7 +108,7 @@ def __main__():
             trunk_dels={}
             trunk_cnvs={}
             if args.trunk_vars!=None:
-                trunk_snvs,trunk_dels,trunk_cnvs=trunk_vars.classify_vars(args.trunk_vars,args.ploid,leaves_number,mytree)
+                trunk_snvs,trunk_dels,trunk_cnvs=trunk_vars.classify_vars(args.trunk_vars,args.ploid,args.length,leaves_number,mytree)
 
             snvs_freq,cnvs,depth_profile,nodes_snvs,tree_with_snvs=mytree.snvs_freq_cnvs_profile(
                                                        ploid=args.ploid,
