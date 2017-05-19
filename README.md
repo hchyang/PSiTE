@@ -6,7 +6,7 @@ PhyloVars is a python program for simulating somatic mutations in a population o
 
 PhyloVars is written in Python3, and numpy is the only pakage which is not included in the standard library of python3.
 
-PhyloVars can be downloaded:
+PhyloVars can be downloaded from github:
 
     git clone git@github.com:hchyang/phyloVars.git
 
@@ -106,7 +106,7 @@ P.S. start and end are 0 based. And the region of each var is like in bed: [star
 
 ## Authors
 
-* **Hechuan Yang** - [HechuanYang](https://github.com/hchyang)
+* [HechuanYang](https://github.com/hchyang)
 
 ## License
 
