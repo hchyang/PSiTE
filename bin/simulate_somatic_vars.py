@@ -42,7 +42,7 @@ def __main__():
     default=0.5
     parse.add_argument('-d','--del_prob',type=int,default=default,help='the probability of being deletion for a CNV mutation [{}]'.format(default))
     default=4000000
-    parse.add_argument('-l','--cnv_length_lambda',type=int,default=default,help='the lambda of CNVs length [{}]'.format(default))
+    parse.add_argument('-l','--cnv_length_beta',type=int,default=default,help='the mean of CNVs length [{}]'.format(default))
     default=20000000
     parse.add_argument('-L','--cnv_length_max',type=int,default=default,help='the maximium of CNVs length [{}]'.format(default))
     default=5
@@ -115,7 +115,7 @@ def __main__():
                                                        snv_rate=args.snv_rate,
                                                        cnv_rate=args.cnv_rate,
                                                        del_prob=args.del_prob,
-                                                       cnv_length_lambda=args.cnv_length_lambda,
+                                                       cnv_length_beta=args.cnv_length_beta,
                                                        cnv_length_max=args.cnv_length_max,
                                                        copy_max=args.copy_max,
                                                        trunk_snvs=trunk_snvs,
