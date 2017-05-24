@@ -64,66 +64,66 @@ This file contains logging information, e.g. the command line information and th
 
 ### All options
 
-	usage: simulate_somatic_vars.py [-h] -t TREE [-r SNV_RATE] [-R CNV_RATE]
-									[-d DEL_PROB] [-l CNV_LENGTH_BETA]
-									[-L CNV_LENGTH_MAX] [-c COPY_MAX] [-p PLOID]
-									[-x PRUNE] [-X PRUNE_PROPORTION] [-D DEPTH]
-									[-s RANDOM_SEED] [-V CNV] [-S SNV]
-									[-P CNV_PROFILE] [-n NODES_SNVS] [-g LOG]
-									[--loglevel {DEBUG,INFO}]
-									[--trunk_vars TRUNK_VARS]
-									[--trunk_length TRUNK_LENGTH]
-									[--tree_data TREE_DATA] [--expands EXPANDS]
-									[--length LENGTH]
+    usage: simulate_somatic_vars.py [-h] -t TREE [-r SNV_RATE] [-R CNV_RATE]
+                                    [-d DEL_PROB] [-l CNV_LENGTH_BETA]
+                                    [-L CNV_LENGTH_MAX] [-c COPY_MAX] [-p PLOID]
+                                    [-x PRUNE] [-X PRUNE_PROPORTION] [-D DEPTH]
+                                    [-s RANDOM_SEED] [-V CNV] [-S SNV]
+                                    [-P CNV_PROFILE] [-n NODES_SNVS] [-g LOG]
+                                    [--loglevel {DEBUG,INFO}]
+                                    [--trunk_vars TRUNK_VARS]
+                                    [--trunk_length TRUNK_LENGTH]
+                                    [--tree_data TREE_DATA] [--expands EXPANDS]
+                                    [--length LENGTH]
 
-	Simulate SNVs/CNVs on a coalescent tree in newick format
+    Simulate SNVs/CNVs on a coalescent tree in newick format
 
-	optional arguments:
-	  -h, --help            show this help message and exit
-	  -t TREE, --tree TREE  a tree in newick format
-	  -r SNV_RATE, --snv_rate SNV_RATE
-							the muation rate of SNVs [300]
-	  -R CNV_RATE, --cnv_rate CNV_RATE
-							the muation rate of CNVs [3]
-	  -d DEL_PROB, --del_prob DEL_PROB
-							the probability of being deletion for a CNV mutation
-							[0.5]
-	  -l CNV_LENGTH_BETA, --cnv_length_beta CNV_LENGTH_BETA
-							the mean of CNVs length [4000000]
-	  -L CNV_LENGTH_MAX, --cnv_length_max CNV_LENGTH_MAX
-							the maximium of CNVs length [20000000]
-	  -c COPY_MAX, --copy_max COPY_MAX
-							the maximium ADDITIONAL copy of a CNVs [5]
-	  -p PLOID, --ploid PLOID
-							the ploid to simulate [2]
-	  -x PRUNE, --prune PRUNE
-							trim all their children for the branches with equal or
-							less than this number of tips [0]
-	  -X PRUNE_PROPORTION, --prune_proportion PRUNE_PROPORTION
-							trim all their children for the branches with equal or
-							less than this proportion of tips [0.0]
-	  -D DEPTH, --depth DEPTH
-							the mean depth for simulating coverage data [50]
-	  -s RANDOM_SEED, --random_seed RANDOM_SEED
-							the seed for random number generator [None]
-	  -V CNV, --cnv CNV     the output file to save CNVs [raw.cnvs]
-	  -S SNV, --snv SNV     the output file to save SNVs [raw.snvs]
-	  -P CNV_PROFILE, --cnv_profile CNV_PROFILE
-							the file to save CNVs profile [cnv.profile]
-	  -n NODES_SNVS, --nodes_snvs NODES_SNVS
-							the file to save SNVs on each nodes [nodes.snvs]
-	  -g LOG, --log LOG     the log file [log.txt]
-	  --loglevel {DEBUG,INFO}
-							the logging level [DEBUG]
-	  --trunk_vars TRUNK_VARS
-							the trunk variants file
-	  --trunk_length TRUNK_LENGTH
-							the trunk length [0]
-	  --tree_data TREE_DATA
-							the file to dump the tree data [tree.dat]
-	  --expands EXPANDS     the basename of the file to output the snv and segment
-							data for EXPANDS [None]
-	  --length LENGTH       the length of the sequence to simulate [100000000]
+    optional arguments:
+      -h, --help            show this help message and exit
+      -t TREE, --tree TREE  a tree in newick format
+      -r SNV_RATE, --snv_rate SNV_RATE
+                            the muation rate of SNVs [300]
+      -R CNV_RATE, --cnv_rate CNV_RATE
+                            the muation rate of CNVs [3]
+      -d DEL_PROB, --del_prob DEL_PROB
+                            the probability of being deletion for a CNV mutation
+                            [0.5]
+      -l CNV_LENGTH_BETA, --cnv_length_beta CNV_LENGTH_BETA
+                            the mean of CNVs length [4000000]
+      -L CNV_LENGTH_MAX, --cnv_length_max CNV_LENGTH_MAX
+                            the maximium of CNVs length [20000000]
+      -c COPY_MAX, --copy_max COPY_MAX
+                            the maximium ADDITIONAL copy of a CNVs [5]
+      -p PLOID, --ploid PLOID
+                            the ploid to simulate [2]
+      -x PRUNE, --prune PRUNE
+                            trim all their children for the branches with equal or
+                            less than this number of tips [0]
+      -X PRUNE_PROPORTION, --prune_proportion PRUNE_PROPORTION
+                            trim all their children for the branches with equal or
+                            less than this proportion of tips [0.0]
+      -D DEPTH, --depth DEPTH
+                            the mean depth for simulating coverage data [50]
+      -s RANDOM_SEED, --random_seed RANDOM_SEED
+                            the seed for random number generator [None]
+      -V CNV, --cnv CNV     the output file to save CNVs [raw.cnvs]
+      -S SNV, --snv SNV     the output file to save SNVs [raw.snvs]
+      -P CNV_PROFILE, --cnv_profile CNV_PROFILE
+                            the file to save CNVs profile [cnv.profile]
+      -n NODES_SNVS, --nodes_snvs NODES_SNVS
+                            the file to save SNVs on each nodes [nodes.snvs]
+      -g LOG, --log LOG     the log file [log.txt]
+      --loglevel {DEBUG,INFO}
+                            the logging level [DEBUG]
+      --trunk_vars TRUNK_VARS
+                            the trunk variants file
+      --trunk_length TRUNK_LENGTH
+                            the trunk length [0]
+      --tree_data TREE_DATA
+                            the file to dump the tree data [tree.dat]
+      --expands EXPANDS     the basename of the file to output the snv and segment
+                            data for EXPANDS [None]
+      --length LENGTH       the length of the sequence to simulate [100000000]
 
 ## Authors
 
