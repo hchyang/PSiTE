@@ -61,8 +61,8 @@ def __main__():
     parse.add_argument('-V','--cnv',type=str,default=default,help='the output file to save CNVs [{}]'.format(default))
     default='raw.snvs'
     parse.add_argument('-S','--snv',type=str,default=default,help='the output file to save SNVs [{}]'.format(default))
-    default='depth.profile'
-    parse.add_argument('-P','--depth_profile',type=str,default=default,help='the file to save depth profile [{}]'.format(default))
+    default='cnv.profile'
+    parse.add_argument('-P','--cnv_profile',type=str,default=default,help='the file to save CNVs profile [{}]'.format(default))
     default='nodes.snvs'
     parse.add_argument('-n','--nodes_snvs',type=str,default=default,help='the file to save SNVs on each nodes [{}]'.format(default))
     default='log.txt'
@@ -110,7 +110,7 @@ def __main__():
             if args.trunk_vars!=None:
                 trunk_snvs,trunk_dels,trunk_cnvs=trunk_vars.classify_vars(args.trunk_vars,args.ploid,args.length,leaves_number,mytree)
 
-            snvs_freq,cnvs,depth_profile,nodes_snvs,tree_with_snvs=mytree.snvs_freq_cnvs_profile(
+            snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs=mytree.snvs_freq_cnvs_profile(
                                                        ploid=args.ploid,
                                                        snv_rate=args.snv_rate,
                                                        cnv_rate=args.cnv_rate,
@@ -131,9 +131,9 @@ def __main__():
             for pos,freq in snvs_freq:
                 snv_file.write('{}\t{}\n'.format(pos,freq))
 
-            depth_profile_file=open(args.depth_profile,'w')
-            for seg in depth_profile:
-                depth_profile_file.write('{}\t{}\t{}\n'.format(*seg))
+            cnv_profile_file=open(args.cnv_profile,'w')
+            for seg in cnv_profile:
+                cnv_profile_file.write('{}\t{}\t{}\n'.format(*seg))
 
             nodes_snvs_file=open(args.nodes_snvs,'w')
             for node in sorted(nodes_snvs.keys()):
@@ -158,7 +158,7 @@ def __main__():
 #CN_Estimate - the copy number estimated for each segment (average value across all subpopulations in the sample)
                 expands_segs_file=open(args.expands+'.segs','w')
                 expands_segs_file.write("chr\tstartpos\tendpos\tCN_Estimate\n")
-                for start,end,copy in depth_profile:
+                for start,end,copy in cnv_profile:
                     expands_segs_file.write('{}\t{}\t{}\t{}\n'.format(chroms,start,end,copy/leaves_number))
 
 if __name__ == '__main__':

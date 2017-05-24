@@ -69,7 +69,7 @@ This file contains logging information, e.g. the command line information and th
 									[-L CNV_LENGTH_MAX] [-c COPY_MAX] [-p PLOID]
 									[-x PRUNE] [-X PRUNE_PROPORTION] [-D DEPTH]
 									[-s RANDOM_SEED] [-V CNV] [-S SNV]
-									[-P DEPTH_PROFILE] [-n NODES_SNVS] [-g LOG]
+									[-P CNV_PROFILE] [-n NODES_SNVS] [-g LOG]
 									[--loglevel {DEBUG,INFO}]
 									[--trunk_vars TRUNK_VARS]
 									[--trunk_length TRUNK_LENGTH]
@@ -108,8 +108,8 @@ This file contains logging information, e.g. the command line information and th
 							the seed for random number generator [None]
 	  -V CNV, --cnv CNV     the output file to save CNVs [raw.cnvs]
 	  -S SNV, --snv SNV     the output file to save SNVs [raw.snvs]
-	  -P DEPTH_PROFILE, --depth_profile DEPTH_PROFILE
-							the file to save depth profile [depth.profile]
+	  -P CNV_PROFILE, --cnv_profile CNV_PROFILE
+							the file to save CNVs profile [cnv.profile]
 	  -n NODES_SNVS, --nodes_snvs NODES_SNVS
 							the file to save SNVs on each nodes [nodes.snvs]
 	  -g LOG, --log LOG     the log file [log.txt]
@@ -124,7 +124,6 @@ This file contains logging information, e.g. the command line information and th
 	  --expands EXPANDS     the basename of the file to output the snv and segment
 							data for EXPANDS [None]
 	  --length LENGTH       the length of the sequence to simulate [100000000]
-
 
 ## Authors
 

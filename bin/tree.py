@@ -406,12 +406,12 @@ class Tree:
         tree_with_snvs=copy.deepcopy(self)
         tree_with_snvs.attach_info(attr='new_snvs',info=all_nodes_snvs)
 
-#construct depth profile list, assuming the whole region start with 1 and end with length
+#construct cnv profile list, assuming the whole region start with 0 and end with length
         all_pos_changes=cnvs2break_points(all_cnvs)
         all_pos_changes.insert(0,[0,background])
         all_pos_changes.append([length,-background])
 
-        depth_profile=pos_changes2region_profile(all_pos_changes)
+        cnv_profile=pos_changes2region_profile(all_pos_changes)
         all_snvs_alt_counts.sort(key=lambda snv: snv[0])
         region_mean_ploid=0
         for snv in all_snvs_alt_counts:
@@ -419,7 +419,7 @@ class Tree:
                 change=all_pos_changes.pop(0)
                 region_mean_ploid+=change[1]
             all_snvs_alt_freq.append([snv[0],snv[1]/region_mean_ploid])
-        return all_snvs_alt_freq,all_cnvs,depth_profile,all_nodes_snvs,tree_with_snvs
+        return all_snvs_alt_freq,all_cnvs,cnv_profile,all_nodes_snvs,tree_with_snvs
 
 ####################################################################################################
 
