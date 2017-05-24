@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import re
 import pickle
@@ -327,7 +327,7 @@ class Tree:
 #FIXME: Should we store all the leaves' names in each node?
     def leaves_names(self):
         '''
-        After this method, all nodes will have the attribute of leaves names.
+        After this method, ALL nodes will have the attribute leaves_names.
         '''
         if not hasattr(self,'leaves_names') or self.leaves_names == None:
             if self.left==None and self.right==None:
@@ -335,9 +335,9 @@ class Tree:
             else:
                 self.leaves_names=[]
                 if self.left!=None:
-                    self.leaves_names+=self.left.leaves_names()
+                    self.leaves_names.extend(self.left.leaves_names())
                 if self.right!=None:
-                    self.leaves_names+=self.right.leaves_names()
+                    self.leaves_names.extend(self.right.leaves_names())
         return self.leaves_names
     
     def attach_info(self,attr,info):
@@ -472,7 +472,6 @@ class Tree:
         snvs_all.sort(key=lambda snv: snv[0])
         all_leaves=self.leaves_names()
         all_genotypes=[]
-#FIXME: try to make sure there will not be two snvs at the same postion 
         for snv in snvs_all:
             genotype=[snv[0]]
             for leaf in all_leaves:

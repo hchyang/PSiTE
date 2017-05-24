@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #########################################################################
 # Author: Hechuan
@@ -67,8 +67,8 @@ def __main__():
     parse.add_argument('-n','--nodes_snvs',type=str,default=default,help='the file to save SNVs on each nodes [{}]'.format(default))
     default='log.txt'
     parse.add_argument('-g','--log',type=str,default=default,help='the log file [{}]'.format(default))
-    default=10
-    parse.add_argument('--loglevel',type=int,default=default,choices=[10,20,30,40,50],help='the logging level [{}]'.format(default))
+    default='DEBUG'
+    parse.add_argument('--loglevel',type=str,default=default,choices=['DEBUG','INFO'],help='the logging level [{}]'.format(default))
     parse.add_argument('--trunk_vars',type=str,help='the trunk variants file')
     default=0
     parse.add_argument('--trunk_length',type=float,help='the trunk length [{}]'.format(default))
