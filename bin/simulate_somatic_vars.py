@@ -31,6 +31,21 @@ def check_max_cnv_length(seq_length,max_cnv_length):
     if max_cnv_length>seq_length:
          raise argparse.ArgumentTypeError("The value of -L/--cnv_length_max ({}) should NOT be larger than --length ({}).".format(max_cnv_length,seq_length))
 
+def cn_dist(copy_max=None,copy_parameter=None):
+    '''
+    When an amplification event happens, it will randomly pick a copy number according to a geometric like distribution,
+    p(n+1)=w*p(n).
+    This function returns the configure of the distribution of CNVs' copy number.
+    '''
+    cn_dist_cfg={}
+    cn_dist_cfg['copy']=[x for x in range(1,copy_max+1)]
+    w=1/sum([copy_parameter**x for x in range(copy_max)])
+    scale=sum([w*copy_parameter**x for x in range(copy_max)])
+    cn_dist_cfg['prob']=[(w*copy_parameter**x)/scale for x in range(copy_max)]
+    print(cn_dist_cfg['copy'])
+    print(cn_dist_cfg['prob'])
+    return cn_dist_cfg
+
 #@profile
 def __main__():
     parse=argparse.ArgumentParser(description='Simulate SNVs/CNVs on a coalescent tree in newick format')
@@ -47,12 +62,16 @@ def __main__():
     parse.add_argument('-L','--cnv_length_max',type=int,default=default,help='the maximium of CNVs length [{}]'.format(default))
     default=5
     parse.add_argument('-c','--copy_max',type=int,default=default,help='the maximium ADDITIONAL copy of a CNVs [{}]'.format(default))
+    default=0.5
+    parse.add_argument('--copy_parameter',type=float,default=default,help="the p parameter of CNVs' copy number distribution [{}]".format(default))
     default=2
-    parse.add_argument('-p','--ploid',type=int,default=default,help='the ploid to simulate [{}]'.format(default))
+    parse.add_argument('-P','--ploid',type=int,default=default,help='the ploid to simulate [{}]'.format(default))
     default=0
     parse.add_argument('-x','--prune',type=int,default=default,help='trim all their children for the branches with equal or less than this number of tips [{}]'.format(default))
     default=0.0
     parse.add_argument('-X','--prune_proportion',type=float,default=default,help='trim all their children for the branches with equal or less than this proportion of tips [{}]'.format(default))
+    default=1.0
+    parse.add_argument('-p','--purity',type=float,default=default,help="the purity of tumor cells in the simulated sample [{}]".format(default))
     default=50
     parse.add_argument('-D','--depth',type=int,default=default,help='the mean depth for simulating coverage data [{}]'.format(default))
     default=None
@@ -62,7 +81,7 @@ def __main__():
     default='raw.snvs'
     parse.add_argument('-S','--snv',type=str,default=default,help='the output file to save SNVs [{}]'.format(default))
     default='cnv.profile'
-    parse.add_argument('-P','--cnv_profile',type=str,default=default,help='the file to save CNVs profile [{}]'.format(default))
+    parse.add_argument('--cnv_profile',type=str,default=default,help='the file to save CNVs profile [{}]'.format(default))
     default='nodes.snvs'
     parse.add_argument('-n','--nodes_snvs',type=str,default=default,help='the file to save SNVs on each nodes [{}]'.format(default))
     default='log.txt'
@@ -110,6 +129,8 @@ def __main__():
             if args.trunk_vars!=None:
                 trunk_snvs,trunk_dels,trunk_cnvs=trunk_vars.classify_vars(args.trunk_vars,args.ploid,args.length,leaves_number,mytree)
 
+            cn_dist_cfg=cn_dist(copy_max=args.copy_max,copy_parameter=args.copy_parameter)
+
             snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs=mytree.snvs_freq_cnvs_profile(
                                                        ploid=args.ploid,
                                                        snv_rate=args.snv_rate,
@@ -117,12 +138,14 @@ def __main__():
                                                        del_prob=args.del_prob,
                                                        cnv_length_beta=args.cnv_length_beta,
                                                        cnv_length_max=args.cnv_length_max,
-                                                       copy_max=args.copy_max,
+                                                       cn_dist_cfg=cn_dist_cfg,
                                                        trunk_snvs=trunk_snvs,
                                                        trunk_dels=trunk_dels,
                                                        trunk_cnvs=trunk_cnvs,
+                                                       purity=args.purity,
                                                        length=args.length,
                                                        )
+
             cnv_file=open(args.cnv,'w')
             for cnv in cnvs:
                 cnv_file.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(cnv['seg'],cnv['start'],cnv['end'],cnv['copy'],cnv['leaves_count'],cnv['pre_snvs']))

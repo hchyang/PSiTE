@@ -1,6 +1,6 @@
 # PhyloVars
 
-PhyloVars is a Python program for simulating somatic mutations in a population of tumor cells. By being fed with a phylogenetic tree in newick format, it can simulate both SNVs and CNVs on it, and reports the coordinates and frequency of each variant.
+PhyloVars is a Python program for simulating somatic mutations in a population of tumor cells. By being fed with a phylogenetic tree in newick format (rooted binary tree), it can simulate both SNVs and CNVs on it, and reports the coordinates and frequency of each variant.
 
 ## Installing
 

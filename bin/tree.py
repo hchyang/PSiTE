@@ -46,7 +46,7 @@ class Tree:
 
     #@profile
     def add_snv_cnv(self,start=None,end=None,inherent_snvs=[],inherent_dels=[],inherent_cnvs=[],
-                    snv_rate=None,cnv_rate=None,del_prob=None,cnv_length_beta=None,cnv_length_max=None,copy_max=None):
+                    snv_rate=None,cnv_rate=None,del_prob=None,cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None):
         '''
         Randomly put SNVs and CNVs on a phylogenetic tree.
         For amplifications, we will build a new tree for every new copy and use this method to add SNVs/CNVs on the new tree.
@@ -178,7 +178,7 @@ class Tree:
                     else:
 #the new cnv is an amplification
                         logging.debug('New CNVs are amplifications.')
-                        cnv_copy=numpy.random.random_integers(copy_max)
+                        cnv_copy=numpy.random.choice(cn_dist_cfg['copy'],p=cn_dist_cfg['prob'])
                         for amp_start,amp_end in new_cnvs:
                             amp_length=amp_end-amp_start
 #collect the old snvs on cnvs. Those snvs are the snvs on the ancestor lineage leading to segment, and locate in the segment.
@@ -212,16 +212,16 @@ class Tree:
                 for segment in cnv['new_copies']:
                     segment.add_snv_cnv(start=cnv['start'],end=cnv['end'],inherent_snvs=cnv['pre_snvs'],
                                         snv_rate=snv_rate*scale,cnv_rate=cnv_rate*scale,del_prob=del_prob,
-                                        cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,copy_max=copy_max)
+                                        cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg)
 
         if self.left != None:
             self.left.add_snv_cnv(start=start,end=end,inherent_snvs=[],
                                   snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
-                                  cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,copy_max=copy_max)
+                                  cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg)
         if self.right != None:
             self.right.add_snv_cnv(start=start,end=end,inherent_snvs=[],
                                    snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
-                                   cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,copy_max=copy_max)
+                                   cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg)
 
     def all_cnvs_collect(self):
         '''
@@ -367,8 +367,8 @@ class Tree:
 
     #@profile
     def snvs_freq_cnvs_profile(self,ploid=None,snv_rate=None,cnv_rate=None,del_prob=None,
-                               cnv_length_beta=None,cnv_length_max=None,copy_max=None,
-                               trunk_snvs=None,trunk_dels=None,trunk_cnvs=None,length=None):
+                               cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,
+                               trunk_snvs=None,trunk_dels=None,trunk_cnvs=None,purity=None,length=None):
         '''
         Produce the true frequency of SNVs in the samples.
         It's a warpper for generating SNVs/CNVs on a tree and summarize their frequency.
@@ -395,7 +395,7 @@ class Tree:
                 hap_trunk_cnvs=trunk_cnvs[i]
             hap_tree.add_snv_cnv(start=0,end=length,inherent_snvs=hap_trunk_snvs,inherent_dels=hap_trunk_dels,inherent_cnvs=hap_trunk_cnvs,
                                  snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
-                                 cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,copy_max=copy_max)
+                                 cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg)
             all_snvs_alt_counts.extend(hap_tree.snvs_alt_count())
             all_cnvs.extend(hap_tree.all_cnvs_collect())
             all_nodes_snvs=merge_two_dict_set(all_nodes_snvs,hap_tree.all_nodes_snvs())
@@ -414,11 +414,14 @@ class Tree:
         cnv_profile=pos_changes2region_profile(all_pos_changes)
         all_snvs_alt_counts.sort(key=lambda snv: snv[0])
         region_mean_ploid=0
+        normal_ploid=background*(1-purity)/purity
         for snv in all_snvs_alt_counts:
             while snv[0]>=all_pos_changes[0][0]:
                 change=all_pos_changes.pop(0)
                 region_mean_ploid+=change[1]
-            all_snvs_alt_freq.append([snv[0],snv[1]/region_mean_ploid])
+#adjust SNVs' frequency by taking the normal cells into account 
+#TODO: adjust CNVs' frequency
+            all_snvs_alt_freq.append([snv[0],snv[1]/(normal_ploid+region_mean_ploid)])
         return all_snvs_alt_freq,all_cnvs,cnv_profile,all_nodes_snvs,tree_with_snvs
 
 ####################################################################################################
