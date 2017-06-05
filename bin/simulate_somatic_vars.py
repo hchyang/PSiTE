@@ -63,32 +63,33 @@ def __main__():
     default=5
     parse.add_argument('-c','--copy_max',type=int,default=default,help='the maximium ADDITIONAL copy of a CNVs [{}]'.format(default))
     default=0.5
-    parse.add_argument('--copy_parameter',type=float,default=default,help="the p parameter of CNVs' copy number distribution [{}]".format(default))
+    parse.add_argument('-C','--copy_parameter',type=float,default=default,help="the p parameter of CNVs' copy number distribution [{}]".format(default))
     default=2
-    parse.add_argument('-P','--ploid',type=int,default=default,help='the ploid to simulate [{}]'.format(default))
-    default=0
-    parse.add_argument('-x','--prune',type=int,default=default,help='trim all their children for the branches with equal or less than this number of tips [{}]'.format(default))
-    default=0.0
-    parse.add_argument('-X','--prune_proportion',type=float,default=default,help='trim all their children for the branches with equal or less than this proportion of tips [{}]'.format(default))
+    parse.add_argument('-P','--ploidy',type=int,default=default,help='the ploidy to simulate [{}]'.format(default))
     default=1.0
     parse.add_argument('-p','--purity',type=float,default=default,help="the purity of tumor cells in the simulated sample [{}]".format(default))
     default=50
     parse.add_argument('-D','--depth',type=int,default=default,help='the mean depth for simulating coverage data [{}]'.format(default))
+    default=0
+    parse.add_argument('-x','--prune',type=int,default=default,help='trim all their children for the branches with equal or less than this number of tips [{}]'.format(default))
+    default=0.0
+    parse.add_argument('-X','--prune_proportion',type=float,default=default,help='trim all their children for the branches with equal or less than this proportion of tips [{}]'.format(default))
     default=None
     parse.add_argument('-s','--random_seed',type=check_seed,help='the seed for random number generator [{}]'.format(default))
-    default='raw.cnvs'
-    parse.add_argument('-V','--cnv',type=str,default=default,help='the output file to save CNVs [{}]'.format(default))
     default='raw.snvs'
     parse.add_argument('-S','--snv',type=str,default=default,help='the output file to save SNVs [{}]'.format(default))
-    default='cnv.profile'
-    parse.add_argument('--cnv_profile',type=str,default=default,help='the file to save CNVs profile [{}]'.format(default))
+    default='raw.cnvs'
+    parse.add_argument('-V','--cnv',type=str,default=default,help='the output file to save CNVs [{}]'.format(default))
     default='nodes.snvs'
     parse.add_argument('-n','--nodes_snvs',type=str,default=default,help='the file to save SNVs on each nodes [{}]'.format(default))
     default='log.txt'
     parse.add_argument('-g','--log',type=str,default=default,help='the log file [{}]'.format(default))
     default='DEBUG'
-    parse.add_argument('--loglevel',type=str,default=default,choices=['DEBUG','INFO'],help='the logging level [{}]'.format(default))
+    parse.add_argument('-G','--loglevel',type=str,default=default,choices=['DEBUG','INFO'],help='the logging level [{}]'.format(default))
+    default='cnv.profile'
+    parse.add_argument('--cnv_profile',type=str,default=default,help='the file to save CNVs profile [{}]'.format(default))
     parse.add_argument('--trunk_vars',type=str,help='the trunk variants file')
+    parse.add_argument('--genotype',type=str,help='the file to save genotypes for each sample')
     default=0
     parse.add_argument('--trunk_length',type=float,help='the trunk length [{}]'.format(default))
     default='tree.dat'
@@ -116,7 +117,8 @@ def __main__():
             mytree=tree.newick2tree(newick)
             if args.trunk_length:
                 mytree.lens=args.trunk_length
-            leaves_number=mytree.leaves_number()
+            leaves_number=mytree.leaves_counting()
+            leaves_names=sorted(mytree.leaves_naming())
             if args.prune>0:
                 mytree.prune(tips=args.prune)
             elif args.prune_proportion>0.0:
@@ -127,24 +129,30 @@ def __main__():
             trunk_dels={}
             trunk_cnvs={}
             if args.trunk_vars!=None:
-                trunk_snvs,trunk_dels,trunk_cnvs=trunk_vars.classify_vars(args.trunk_vars,args.ploid,args.length,leaves_number,mytree)
+                trunk_snvs,trunk_dels,trunk_cnvs=trunk_vars.classify_vars(args.trunk_vars,args.ploidy,args.length,leaves_number,mytree)
 
             cn_dist_cfg=cn_dist(copy_max=args.copy_max,copy_parameter=args.copy_parameter)
 
-            snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs=mytree.snvs_freq_cnvs_profile(
-                                                       ploid=args.ploid,
-                                                       snv_rate=args.snv_rate,
-                                                       cnv_rate=args.cnv_rate,
-                                                       del_prob=args.del_prob,
-                                                       cnv_length_beta=args.cnv_length_beta,
-                                                       cnv_length_max=args.cnv_length_max,
-                                                       cn_dist_cfg=cn_dist_cfg,
-                                                       trunk_snvs=trunk_snvs,
-                                                       trunk_dels=trunk_dels,
-                                                       trunk_cnvs=trunk_cnvs,
-                                                       purity=args.purity,
-                                                       length=args.length,
-                                                       )
+            snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs,leaf_snv_alts,leaf_snv_refs=mytree.snvs_freq_cnvs_profile(
+                ploidy=args.ploidy,
+                snv_rate=args.snv_rate,
+                cnv_rate=args.cnv_rate,
+                del_prob=args.del_prob,
+                cnv_length_beta=args.cnv_length_beta,
+                cnv_length_max=args.cnv_length_max,
+                cn_dist_cfg=cn_dist_cfg,
+                trunk_snvs=trunk_snvs,
+                trunk_dels=trunk_dels,
+                trunk_cnvs=trunk_cnvs,
+                purity=args.purity,
+                length=args.length,
+                )
+
+            if args.genotype!=None:
+                genotype_file=open(args.genotype,'w')
+                for snv in snvs_freq:
+                    genotype_file.write('{}\t{}\n'.format(snv[0],
+                        '\t'.join([str(leaf_snv_alts[leaf][snv[0]])+':'+str(leaf_snv_refs[leaf][snv[0]]) for leaf in leaves_names])))
 
             cnv_file=open(args.cnv,'w')
             for cnv in cnvs:

@@ -116,7 +116,7 @@ class Tree:
                     cnv_end=cnv_start+cnv_length
                     if cnv_end>end:
                         cnv_end=end
-                    leaves_count=self.leaves_number()
+                    leaves_count=self.leaves_counting()
                     new_cnvs=[[cnv_start,cnv_end]]
                     logging.debug('New CNV: %s',str(new_cnvs))
                     logging.debug('Pre deletions: %s',str(self.accumulated_dels))
@@ -258,7 +258,7 @@ class Tree:
         all_alt_count={}
         if self.snvs!=None:
             for snv in self.snvs:
-                all_alt_count[snv]=self.leaves_number()
+                all_alt_count[snv]=self.leaves_counting()
         if self.cnvs!=None:
             for cnv in self.cnvs:
                 if cnv['copy']>0: #amplification
@@ -267,7 +267,7 @@ class Tree:
                 else:  #deletion
                     pre_snvs_dict={}
                     for snv in cnv['pre_snvs']:
-                        pre_snvs_dict[snv]=-self.leaves_number()
+                        pre_snvs_dict[snv]=-self.leaves_counting()
                     all_alt_count=merge_two_dict_count(all_alt_count,pre_snvs_dict)
 
         if self.left!=None:
@@ -298,6 +298,7 @@ class Tree:
             nodes_snvs=merge_two_dict_set(nodes_snvs,self.right.all_nodes_snvs())
         return nodes_snvs
 
+#FIXME: maybe remove this function. No need sorting here.
     def snvs_alt_count(self):
         '''
         In this function, I will count the leaves of each snv and return the list of sorted snvs:
@@ -309,7 +310,7 @@ class Tree:
         snvs_alt_count=[[snv,snvs_alt_count_dict[snv]] for snv in snvs]
         return snvs_alt_count
 
-    def leaves_number(self):
+    def leaves_counting(self):
         '''
         After this method, all nodes will have the attribute of leaves count.
         '''
@@ -319,13 +320,13 @@ class Tree:
             else:
                 self.leaves_count=0
                 if self.left!=None:
-                    self.leaves_count+=self.left.leaves_number()
+                    self.leaves_count+=self.left.leaves_counting()
                 if self.right!=None:
-                    self.leaves_count+=self.right.leaves_number()
+                    self.leaves_count+=self.right.leaves_counting()
         return self.leaves_count
 
 #FIXME: Should we store all the leaves' names in each node?
-    def leaves_names(self):
+    def leaves_naming(self):
         '''
         After this method, ALL nodes will have the attribute leaves_names.
         '''
@@ -335,9 +336,9 @@ class Tree:
             else:
                 self.leaves_names=[]
                 if self.left!=None:
-                    self.leaves_names.extend(self.left.leaves_names())
+                    self.leaves_names.extend(self.left.leaves_naming())
                 if self.right!=None:
-                    self.leaves_names.extend(self.right.leaves_names())
+                    self.leaves_names.extend(self.right.leaves_naming())
         return self.leaves_names
     
     def attach_info(self,attr,info):
@@ -353,7 +354,7 @@ class Tree:
     def prune(self,tips=None):
         '''
         Prune all branches with equal or less than the number of tips specified by the parameter tips.
-        For a Tree object, it should run the leaves_number() method before run this method.
+        For a Tree object, it should run the leaves_counting() method before run this method.
         '''
         if self.leaves_count<=tips:
             logging.debug('Trim %s children of node (nodeid: %s)',self.leaves_count,self.nodeid)
@@ -365,8 +366,56 @@ class Tree:
             self.left.prune(tips=tips)
             self.right.prune(tips=tips)
 
+    def genotyping(self,genotypes={}):
+        '''
+        Collect the genotypes on every SNV site for each leaf.
+        '''
+        if self.snvs!=None:
+            for leaf in self.leaves_naming():
+                if not leaf in genotypes:
+                    genotypes[leaf]={}
+                for snv in self.snvs:
+                    if snv in genotypes[leaf]:
+                        genotypes[leaf][snv]+=1
+                    else:
+                        genotypes[leaf][snv]=1
+        if self.cnvs!=None:
+            for cnv in self.cnvs:
+                if cnv['copy']>0: #amplification
+                    for cp in cnv['new_copies']:
+                        cp.genotyping(genotypes)
+                else:  #deletion
+                    for snv in cnv['pre_snvs']:
+                        for leaf in self.leaves_naming():
+                            genotypes[leaf][snv]-=1
+
+        if self.left!=None:
+            self.left.genotyping(genotypes)
+        if self.right!=None:
+            self.right.genotyping(genotypes)
+
+##################################################
+    def cnv_genotyping(self,genotypes={},length=None,ploidy=None):
+        '''
+        Collect the genotypes on every CNV site for each leaf.
+        '''
+        if self.cnvs!=None:
+            for leaf in self.leaves_naming():
+                if not leaf in genotypes:
+                    genotypes[leaf]=[[0,ploidy],[length,-ploidy]]
+                for cnv in self.cnvs:
+                    genotypes[leaf].extend([[cnv['start'],cnv['copy']],[cnv['end'],-cnv['copy']]])
+                    if cnv['copy']>0: #amplification
+                        for cp in cnv['new_copies']:
+                            cp.cnv_genotyping(genotypes=genotypes,length=length,ploidy=ploidy)
+
+        if self.left!=None:
+            self.left.cnv_genotyping(genotypes=genotypes,length=length,ploidy=ploidy)
+        if self.right!=None:
+            self.right.cnv_genotyping(genotypes=genotypes,length=length,ploidy=ploidy)
+
     #@profile
-    def snvs_freq_cnvs_profile(self,ploid=None,snv_rate=None,cnv_rate=None,del_prob=None,
+    def snvs_freq_cnvs_profile(self,ploidy=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,
                                trunk_snvs=None,trunk_dels=None,trunk_cnvs=None,purity=None,length=None):
         '''
@@ -377,12 +426,16 @@ class Tree:
         all_nodes_snvs={}
         all_snvs_alt_counts=[]
         all_snvs_alt_freq=[]
-        all_leaves=self.leaves_number()
-        background=all_leaves*ploid
+
+#leaf_snv_alts is a hash of hash, {pos1:{leaf1:genotype,leaf2:genotype...},pos2{leaf1:genotype,leaf2:genotype...},...}
+        leaf_snv_alts={}
+        leaf_cnv_pos_changes={}
+
+        background=self.leaves_counting()*ploidy
         logging.debug('Your tree is: %s',self.tree2newick())
 #collect all snvs and cnvs
-        for i in range(ploid):
-            logging.info(' Simulate tree %s (total: %s)',i+1,ploid)
+        for i in range(ploidy):
+            logging.info(' Simulate tree %s (total: %s)',i+1,ploidy)
             hap_tree=copy.deepcopy(self)
             hap_trunk_snvs=[]
             hap_trunk_dels=[]
@@ -400,29 +453,64 @@ class Tree:
             all_cnvs.extend(hap_tree.all_cnvs_collect())
             all_nodes_snvs=merge_two_dict_set(all_nodes_snvs,hap_tree.all_nodes_snvs())
 
-        all_cnvs.sort(key=lambda cnv: cnv['start'])
+            hap_tree.genotyping(genotypes=leaf_snv_alts)
+            hap_tree.cnv_genotyping(genotypes=leaf_cnv_pos_changes,length=length,ploidy=ploidy)
 
-#construct a tree with merged snvs to dump
+#construct a tree with all snvs
+#FIXME: right now, it does not consider the deletion effect on pre_snvs.
         tree_with_snvs=copy.deepcopy(self)
         tree_with_snvs.attach_info(attr='new_snvs',info=all_nodes_snvs)
 
 #construct cnv profile list, assuming the whole region start with 0 and end with length
-        all_pos_changes=cnvs2break_points(all_cnvs)
-        all_pos_changes.insert(0,[0,background])
-        all_pos_changes.append([length,-background])
+        all_cnvs.sort(key=lambda cnv: cnv['start'])
+        cnvs_pos_changes=cnvs2pos_changes(all_cnvs)
+        cnvs_pos_changes.insert(0,[0,background])
+        cnvs_pos_changes.append([length,-background])
 
-        cnv_profile=pos_changes2region_profile(all_pos_changes)
+#translate cnvs_pos_changes to cnv_profile before its changing
+        cnv_profile=pos_changes2region_profile(cnvs_pos_changes)
+
         all_snvs_alt_counts.sort(key=lambda snv: snv[0])
-        region_mean_ploid=0
-        normal_ploid=background*(1-purity)/purity
+        region_mean_ploidy=0
+        normal_dosage=background*(1-purity)/purity
+        print(purity)
+        print(normal_dosage)
         for snv in all_snvs_alt_counts:
-            while snv[0]>=all_pos_changes[0][0]:
-                change=all_pos_changes.pop(0)
-                region_mean_ploid+=change[1]
+            while snv[0]>=cnvs_pos_changes[0][0]:
+                region_mean_ploidy+=cnvs_pos_changes.pop(0)[1]
 #adjust SNVs' frequency by taking the normal cells into account 
 #TODO: adjust CNVs' frequency
-            all_snvs_alt_freq.append([snv[0],snv[1]/(normal_ploid+region_mean_ploid)])
-        return all_snvs_alt_freq,all_cnvs,cnv_profile,all_nodes_snvs,tree_with_snvs
+            all_snvs_alt_freq.append([snv[0],snv[1]/(normal_dosage+region_mean_ploidy)])
+
+#build genotypes for each leaf
+#build genotypes on the variants of each leaf? or on variants on all leaves?
+        leaf_snv_refs={}
+        all_snvs_pos=[x[0] for x in all_snvs_alt_counts]
+        for leaf in self.leaves_naming():
+            if leaf in leaf_cnv_pos_changes:
+                leaf_cnv_pos_changes[leaf].sort(key=lambda pos: pos[0])
+            else:
+                leaf_cnv_pos_changes[leaf]=[[0,ploidy],[length,-ploidy]]
+
+            if leaf in leaf_snv_alts:
+                for snv in all_snvs_pos:
+                    if not snv in leaf_snv_alts[leaf]:
+                        leaf_snv_alts[leaf][snv]=0
+            else:
+                leaf_snv_alts[leaf]={}
+                for snv in all_snvs_pos:
+                    leaf_snv_alts[leaf][snv]=0
+
+            region_mean_ploidy=0
+            leaf_snv_refs[leaf]={}
+            print(leaf)
+            print(leaf_cnv_pos_changes[leaf])
+            for snv in all_snvs_pos:
+                while snv>=leaf_cnv_pos_changes[leaf][0][0]:
+                    region_mean_ploidy+=leaf_cnv_pos_changes[leaf].pop(0)[1]
+                leaf_snv_refs[leaf][snv]=region_mean_ploidy-leaf_snv_alts[leaf][snv]
+
+        return all_snvs_alt_freq,all_cnvs,cnv_profile,all_nodes_snvs,tree_with_snvs,leaf_snv_alts,leaf_snv_refs
 
 ####################################################################################################
 
@@ -451,41 +539,6 @@ class Tree:
             newick_str+=']'
         return newick_str
 
-    def snvs_with_carriers(self):
-        snvs_carriers=[]
-        if self.snvs != None:
-            for snv in self.snvs:
-                snvs_carriers.append([snv]+self.leaves_names())
-        return snvs_carriers
-
-    def snvs_all_raw(self):
-        snvs_all=self.snvs_with_carriers()
-        if self.left != None:
-            snvs_all.extend(self.left.snvs_all_raw())
-        if self.right != None:
-            snvs_all.extend(self.right.snvs_all_raw())
-        return snvs_all
-
-################################################################################
-#FIXME this method is not correct because of the effect of CNVs
-#let's sort snvs by their positions and output genotypes for all samples
-#in each locus
-    def snvs_all(self):
-        snvs_all=self.snvs_all_raw()
-        snvs_all.sort(key=lambda snv: snv[0])
-        all_leaves=self.leaves_names()
-        all_genotypes=[]
-        for snv in snvs_all:
-            genotype=[snv[0]]
-            for leaf in all_leaves:
-                if leaf in snv[1:]:
-                    genotype+=[1]
-                else:
-                    genotype+=[0]
-            all_genotypes+=[genotype]
-        return all_genotypes
-################################################################################
-
     def highlight_snvs(self,snvs):
         if self.left != None:
             self.left.highlight_snvs(snvs)
@@ -494,7 +547,7 @@ class Tree:
         if self.new_snvs !=None and self.new_snvs.intersection(snvs):
             self.C='255.0.0'
             logging.debug('Highlight node %s (with leaves %s) because of variants:\n%s',
-                self.nodeid,self.leaves_number(),self.new_snvs.intersection(snvs))
+                self.nodeid,self.leaves_counting(),self.new_snvs.intersection(snvs))
 
 def waiting_times(span=None,rate=None):
     elapse=0.0
@@ -535,7 +588,7 @@ def merge_two_dict_set(dict1={},dict2={}):
             new_dict[key]=new_dict[key].union(dict2[key])
     return new_dict
     
-def cnvs2break_points(cnvs):
+def cnvs2pos_changes(cnvs):
     '''
     Return a list of lists. Each sublist contain two elements. The first is the postion, and the second 
     is the copy number CHANGES across all the samples between that positon and the next position.
