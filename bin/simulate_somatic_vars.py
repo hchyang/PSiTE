@@ -89,7 +89,8 @@ def __main__():
     default='cnv.profile'
     parse.add_argument('--cnv_profile',type=str,default=default,help='the file to save CNVs profile [{}]'.format(default))
     parse.add_argument('--trunk_vars',type=str,help='the trunk variants file')
-    parse.add_argument('--genotype',type=str,help='the file to save genotypes for each sample')
+    parse.add_argument('--snv_genotype',type=str,help='the file to save SNV genotypes for each sample')
+    parse.add_argument('--ind_cnvs',type=str,help='the file to save CNVs for each sample individual')
     default=0
     parse.add_argument('--trunk_length',type=float,help='the trunk length [{}]'.format(default))
     default='tree.dat'
@@ -133,7 +134,7 @@ def __main__():
 
             cn_dist_cfg=cn_dist(copy_max=args.copy_max,copy_parameter=args.copy_parameter)
 
-            snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs,leaf_snv_alts,leaf_snv_refs=mytree.snvs_freq_cnvs_profile(
+            snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs,leaf_snv_alts,leaf_snv_refs,leaf_cnvs=mytree.snvs_freq_cnvs_profile(
                 ploidy=args.ploidy,
                 snv_rate=args.snv_rate,
                 cnv_rate=args.cnv_rate,
@@ -148,11 +149,19 @@ def __main__():
                 length=args.length,
                 )
 
-            if args.genotype!=None:
-                genotype_file=open(args.genotype,'w')
+            if args.snv_genotype!=None:
+                genotype_file=open(args.snv_genotype,'w')
+                genotype_file.write('{}\t{}\n'.format('Positon','\t'.join(leaves_names)))
                 for snv in snvs_freq:
                     genotype_file.write('{}\t{}\n'.format(snv[0],
                         '\t'.join([str(leaf_snv_alts[leaf][snv[0]])+':'+str(leaf_snv_refs[leaf][snv[0]]) for leaf in leaves_names])))
+
+            if args.ind_cnvs!=None:
+                ind_cnvs_file=open(args.ind_cnvs,'w')
+                ind_cnvs_file.write('Sample\tStart\tEnd\tCopy\n')
+                for leaf in sorted(leaf_cnvs.keys()):
+                    for snv in leaf_cnvs[leaf]:
+                        ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,snv['start'],snv['end'],snv['copy']]])))
 
             cnv_file=open(args.cnv,'w')
             for cnv in cnvs:
