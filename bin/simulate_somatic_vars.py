@@ -56,7 +56,8 @@ def __main__():
     parse.add_argument('-R','--cnv_rate',type=float,default=default,help='the muation rate of CNVs [{}]'.format(default))
     default=0.5
     parse.add_argument('-d','--del_prob',type=int,default=default,help='the probability of being deletion for a CNV mutation [{}]'.format(default))
-    default=4000000
+#https://en.wikipedia.org/wiki/Copy-number_variation
+    default=120000
     parse.add_argument('-l','--cnv_length_beta',type=int,default=default,help='the mean of CNVs length [{}]'.format(default))
     default=20000000
     parse.add_argument('-L','--cnv_length_max',type=int,default=default,help='the maximium of CNVs length [{}]'.format(default))
@@ -76,17 +77,17 @@ def __main__():
     parse.add_argument('-X','--prune_proportion',type=float,default=default,help='trim all their children for the branches with equal or less than this proportion of tips [{}]'.format(default))
     default=None
     parse.add_argument('-s','--random_seed',type=check_seed,help='the seed for random number generator [{}]'.format(default))
-    default='raw.snvs'
+    default='output.snvs'
     parse.add_argument('-S','--snv',type=str,default=default,help='the output file to save SNVs [{}]'.format(default))
-    default='raw.cnvs'
+    default='output.cnvs'
     parse.add_argument('-V','--cnv',type=str,default=default,help='the output file to save CNVs [{}]'.format(default))
-    default='nodes.snvs'
+    default='output.nodes.snvs'
     parse.add_argument('-n','--nodes_snvs',type=str,default=default,help='the file to save SNVs on each nodes [{}]'.format(default))
     default='log.txt'
     parse.add_argument('-g','--log',type=str,default=default,help='the log file [{}]'.format(default))
     default='DEBUG'
     parse.add_argument('-G','--loglevel',type=str,default=default,choices=['DEBUG','INFO'],help='the logging level [{}]'.format(default))
-    default='cnv.profile'
+    default='output.cnv.profile'
     parse.add_argument('--cnv_profile',type=str,default=default,help='the file to save CNVs profile [{}]'.format(default))
     parse.add_argument('--trunk_vars',type=str,help='the trunk variants file')
     parse.add_argument('--snv_genotype',type=str,help='the file to save SNV genotypes for each sample')
@@ -151,14 +152,14 @@ def __main__():
 
             if args.snv_genotype!=None:
                 genotype_file=open(args.snv_genotype,'w')
-                genotype_file.write('{}\t{}\n'.format('Positon','\t'.join(leaves_names)))
+                genotype_file.write('{}\t{}\n'.format('#Positon','\t'.join(leaves_names)))
                 for snv in snvs_freq:
                     genotype_file.write('{}\t{}\n'.format(snv[0],
                         '\t'.join([str(leaf_snv_alts[leaf][snv[0]])+':'+str(leaf_snv_refs[leaf][snv[0]]) for leaf in leaves_names])))
 
             if args.ind_cnvs!=None:
                 ind_cnvs_file=open(args.ind_cnvs,'w')
-                ind_cnvs_file.write('Sample\tStart\tEnd\tCopy\n')
+                ind_cnvs_file.write('#Sample\tStart\tEnd\tCopy\n')
                 for leaf in sorted(leaf_cnvs.keys()):
                     for snv in leaf_cnvs[leaf]:
                         ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,snv['start'],snv['end'],snv['copy']]])))
@@ -168,8 +169,13 @@ def __main__():
                 cnv_file.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(cnv['seg'],cnv['start'],cnv['end'],cnv['copy'],cnv['leaves_count'],cnv['pre_snvs']))
 
             snv_file=open(args.snv,'w')
+            snv_file.write('#Position\tTrue_freq\tTotal_depth\tSimulated_freq\n')
             for pos,freq in snvs_freq:
-                snv_file.write('{}\t{}\n'.format(pos,freq))
+                total_dp,b_allele_dp=tree.simulate_sequence_coverage(args.depth,freq)
+                b_allele_freq=0
+                if total_dp!=0:
+                    b_allele_freq=b_allele_dp/total_dp
+                snv_file.write('{}\t{}\t{}\t{}\n'.format(pos,freq,total_dp,b_allele_freq))
 
             cnv_profile_file=open(args.cnv_profile,'w')
             for seg in cnv_profile:
@@ -191,7 +197,7 @@ def __main__():
                 expands_snps_file.write('chr\tstartpos\tAF_Tumor\tPN_B\n')
                 chroms=1
                 for pos,freq in snvs_freq:
-                    total_dp,b_allele_dp=simulate_sequence_coverage(args.depth,freq)
+                    total_dp,b_allele_dp=tree.simulate_sequence_coverage(args.depth,freq)
                     expands_snps_file.write('{}\t{}\t{}\t{}\n'.format(chroms,pos,b_allele_dp/total_dp,0))
 
 #in the segment input for expands
