@@ -8,7 +8,7 @@ CSiTE is written in Python3 and requires numpy.
 
 CSiTE can be downloaded from github:
 
-    git clone git@github.com:hchyang/CSiTE.git
+    git clone https://github.com/hchyang/CSiTE.git
 
 ## Running CSiTE
 
