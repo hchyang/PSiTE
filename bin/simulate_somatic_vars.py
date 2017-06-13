@@ -159,10 +159,10 @@ def __main__():
 
             if args.ind_cnvs!=None:
                 ind_cnvs_file=open(args.ind_cnvs,'w')
-                ind_cnvs_file.write('#Sample\tStart\tEnd\tCopy\n')
+                ind_cnvs_file.write('#Sample\tParental\tStart\tEnd\tCopy\n')
                 for leaf in sorted(leaf_cnvs.keys()):
-                    for snv in leaf_cnvs[leaf]:
-                        ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,snv['start'],snv['end'],snv['copy']]])))
+                    for cnv in leaf_cnvs[leaf]:
+                        ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,cnv['parental'],cnv['start'],cnv['end'],cnv['copy']]])))
 
             cnv_file=open(args.cnv,'w')
             for cnv in cnvs:

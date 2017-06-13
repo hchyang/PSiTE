@@ -7,6 +7,7 @@ import copy
 import logging
 
 class Tree:
+    treeid=0
     snv_pos={}
     def __init__(self,name=None,lens=None,left=None,right=None,top=None,snvs=None,accumulated_snvs=None,cnvs=None,accumulated_dels=None,C='0.0.0',nodeid=None):
         self.name=name
@@ -88,6 +89,8 @@ class Tree:
                         pos=numpy.random.randint(start,end)
                     Tree.snv_pos[pos]=1
 
+#TODO: Maybe I need to use a dictionary to save more information for each SNVs,
+#like {pos:pos,tree_id:tree_id}. With that information, I can build haplotypes for sequence simulation.
                     self.snvs.append(pos)
                     self.accumulated_snvs.append(pos)
                     logging.debug('New SNV: %s',pos)
@@ -373,7 +376,7 @@ class Tree:
         if self.right!=None:
             self.right.genotyping(genotypes)
 
-    def cnv_genotyping(self,genotypes=None):
+    def cnv_genotyping(self,genotypes={},parental=None):
         '''
         Collect the genotypes on every CNV site for each leaf.
         '''
@@ -382,15 +385,15 @@ class Tree:
                 if not leaf in genotypes:
                     genotypes[leaf]=[]
                 for cnv in self.cnvs:
-                    genotypes[leaf].append({'start':cnv['start'],'end':cnv['end'],'copy':cnv['copy'],'leaves_count':1})
+                    genotypes[leaf].append({'start':cnv['start'],'end':cnv['end'],'copy':cnv['copy'],'leaves_count':1,'parental':parental})
                     if cnv['copy']>0: #amplification
                         for cp in cnv['new_copies']:
-                            cp.cnv_genotyping(genotypes=genotypes)
+                            cp.cnv_genotyping(genotypes=genotypes,parental=parental)
 
         if self.left!=None:
-            self.left.cnv_genotyping(genotypes=genotypes)
+            self.left.cnv_genotyping(genotypes=genotypes,parental=parental)
         if self.right!=None:
-            self.right.cnv_genotyping(genotypes=genotypes)
+            self.right.cnv_genotyping(genotypes=genotypes,parental=parental)
 
     #@profile
     def snvs_freq_cnvs_profile(self,ploidy=None,snv_rate=None,cnv_rate=None,del_prob=None,
@@ -430,7 +433,7 @@ class Tree:
             all_nodes_snvs=merge_two_dict_set(all_nodes_snvs,hap_tree.all_nodes_snvs())
 
             hap_tree.genotyping(genotypes=leaf_snv_alts)
-            hap_tree.cnv_genotyping(genotypes=leaf_cnvs)
+            hap_tree.cnv_genotyping(genotypes=leaf_cnvs,parental=i)
 
 #construct a tree with all snvs
 #FIXME: right now, it does not consider the deletion effect on pre_snvs.
@@ -511,7 +514,10 @@ class Tree:
             newick_str+=']'
         return newick_str
 
-    def highlight_snvs(self,snvs):
+    def highlight_snvs(self,snvs=None):
+        '''
+        Set the color of the nodes with certain SNVs as 255.0.0.
+        '''
         if self.left != None:
             self.left.highlight_snvs(snvs)
         if self.right != None:

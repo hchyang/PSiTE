@@ -24,10 +24,7 @@ Other than the rate of CNVs, there are six other parameters guiding CNVs simulat
 
 `--del_prob`: A CNV event can be a deletion or an amplification. Using this parameter, we can specify the probability that a CNV event is a deletion.
 
-`--copy_max` can be used to set the upper bound of an amplification event. When an amplification event happens, it will randomly pick a copy number according to a geometric like distribution with p(n+1)=w*p(n)
-
-The w parameter can be specified by `-C/--copy_parameter`. The overall distribution will be normalized s.t. the total probability is 1. 
-
+`--copy_max` can be used to set the upper bound of an amplification event. When an amplification event happens, it will randomly pick a copy number according to a geometric like distribution with p(n+1)=w\*p(n). The w parameter can be specified by `-C/--copy_parameter`. The overall distribution will be normalized s.t. the total probability is 1. 
 
 The coalescent tree only describes the polymorphic part of the sample. You can also simulate the truncal part of the tumor evolution (tumorigenesis) through two different approaches: 
 a) specify the trunk length e.g. using `--trunk_length`. `--trunk_length` accepts a single float number that can be used as the branch length leading to the root of the coalescent tree.
