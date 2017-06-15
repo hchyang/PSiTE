@@ -72,7 +72,24 @@ This file contains the frequency information of simulated SNVs. It contains two 
 
 This file contains the genotype of each tumor cell on each SNV locus. Each SNV has one record. The first column is the coordinate of the SNV. Subsequently, there is one column for each tumor cell. The genotype is in the form of ‘M:N’. M denotes the number of alternative allele and N denotes the number of reference allele.
 
-#### CNV file (will add it later)
+#### Individual CNV file (--ind_cnvs)
+
+This file contains the CNVs on each parental copy of each sample individual. There are five clomns in this file:
+    
+    #Sample Parental        Start   End     Copy
+    1       0       7912422 7930111 2
+    1       1       43110140        43341629        1
+    2       0       2255734 2299608 -1
+    2       0       22660687        22788472        -1
+    2       1       59756841        61142076        3
+
+- **Sample**:  the start position of the variant
+- **Parental**:    which parental copy the variant locates in (0 means one parental copy, 1 means another copy, 2 means another copy if your sample is triploid...)
+- **Start**:    the start position of the CNV
+- **End**:   the end position of the CNV
+- **Copy**:   an integer. -1: deletion, +int: amplification
+
+P.S. start and end are 0 based. And the region of each variant is similar to the bed file (inclusive on the left, but exclusive on the right end, i.e.[start,end)).
 
 #### CNV profile file (--cnv_profile)
 
