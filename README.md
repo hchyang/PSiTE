@@ -68,9 +68,9 @@ P.S. start and end are 0 based. And the region of each variant is similar to the
 
 This file contains the frequency information of simulated SNVs. It contains two columns. The first column is the SNV position (0-based), and the second column is the observed frequency across tumor cell population.
 
-#### Genotype file (--genotype)
+#### Genotype file (--snv_genotype)
 
-This file contains the genotype of each tumor cell on each SNV locus. Each SNV has one record. The first column is the coordinate of the SNV. Subsequently, there is one column for each tumor cell. The genotype is in the form of ‘M:N’. M denotes the number of alternative allele and N denotes the number of reference allele.
+This file contains the snv_genotype of each tumor cell on each SNV locus. Each SNV has one record. The first column is the coordinate of the SNV. Subsequently, there is one column for each tumor cell. The snv_genotype is in the form of ‘M:N’. M denotes the number of alternative allele and N denotes the number of reference allele.
 
 #### Individual CNV file (--ind_cnvs)
 
