@@ -37,7 +37,7 @@ Other convenient options including:
 - -P/--purity to set the purity of tumor sample
 - --length to set the length of sequence to simulate
 
-**Note:** By default, the branch length from the ms program is measured in 4N generations. CSiTE will simulate SNVs/CNVs events following the Poisson process. For example, if we set –r 100, this is equivalent to set the population rescaled parameter θ=4Nu as 100 (see ms manual for details). 
+**Note:** By default, the branch length from the ms program is measured in 4N generations. CSiTE will simulate SNVs/CNVs events following the Poisson process. For example, if we set -r 100, this is equivalent to set the population rescaled parameter θ=4Nu as 100 (see ms manual for details). 
 
 ### Input files
 
