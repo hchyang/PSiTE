@@ -182,21 +182,21 @@ This file contains logging information, e.g. the command line parameters and the
 * Simulate the coalescent tree of a sample of 1000 tumor cells, which are sampled from a exponetially growing tumor. 
 (consult the manual of ms for more information)
 
-`ms 1000 1 -T -G 1 |tail -n1 > ms_tree.txt`
+    `ms 1000 1 -T -G 1 |tail -n1 > ms_tree.txt`
 
 * Simulate the somatic SNVs of these samples. We assume the sequencing depth is 60, and the purity of the sample is 0.8, which means there are 250 normal cells other than these 1000 tumor cells. Other settings are: a) the mutation rate of SNVs and CNVs are 10 and 0.1 respectively; b) the sequence length is 135534747 (chr10 of hg19); c) the cells of the sample are diploid. We save the frequncy of the simulated SNVs to file 'snvs\_freq.txt'.
 
-`csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S snvs_freq.txt`
+    `csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S snvs_freq.txt`
 
 * There are no truncal muations in the simulation above. If you want to simulate truncal muations, use the option `--trunk_length`.
 
-`csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S snvs_freq.txt --trunk_length 2.0`
+    `csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S snvs_freq.txt --trunk_length 2.0`
 
 * If you want to save the SNVs genotypes for each single cell for exactly the same simulation as above, use the option `--snv_genotype` and `--random_seed`.
 
-`csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S snvs_freq.txt --trunk_length 2.0 --snv_geneotype snvs_genotype.txt --random_seed xxxx`
+    `csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S snvs_freq.txt --trunk_length 2.0 --snv_geneotype snvs_genotype.txt --random_seed xxxx`
 
-P.S. The random seed xxxx can be found from the log file of the previous simulation.
+    P.S. The random seed xxxx can be found from the log file of the previous simulation.
 
 ## Authors
 
