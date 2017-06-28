@@ -196,7 +196,7 @@ This file contains logging information, e.g. the command line parameters and the
 
     `csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S snvs_freq.txt --trunk_length 2.0 --snv_geneotype snvs_genotype.txt --random_seed xxxx`
 
-    P.S. The random seed xxxx can be found from the log file of the previous simulation.
+    P.S. The random seed xxxx can be found in the log file of the previous simulation.
 
 ## Authors
 
