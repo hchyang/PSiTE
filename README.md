@@ -29,7 +29,7 @@ Other than the rate of CNVs, there are six other parameters guiding CNVs simulat
 The coalescent tree only describes the polymorphic part of the sample. You can also simulate the truncal part of the tumor evolution (tumorigenesis) through two different approaches: 
 a) specify the trunk length e.g. using `--trunk_length`. `--trunk_length` accepts a single float number that can be used as the branch length leading to the root of the coalescent tree.
 b) specify the events on the trunk explicitly in a file through `--trunk_vars filename`. The format of the trunk variants file is described in the later section.
-When the number of simulated cells is very large, the computational load can become very heavy. Given the fact that most of the mutational events are extremely rare, we implemented a pruning algorithm to trim the tree using `--prune` and `--prune_proportion` option to prune the larger phylogeny.
+When the number of simulated cells is very large, the computational load can become very heavy. Given the fact that most of the mutational events are extremely rare, we implemented a pruning algorithm to trim the tree using `--prune` and `--prune_proportion` options. For example, if you want to simulate the somatic variants of a population containing 1000000 cells, after you setting `--prune 100` or `--prune_proportion 0.0001`, all subtrees with <=100 tips will be trimmed into a tip node, which means there will be no polymorphic variants on those subtrees with <=100 tips. So the tips belonging to the same subtree (with <=100 tips) will show the same genotypes.
 
 Other convenient options including:
 - -D/--depth to simulate the variants under different sequencing coverage (i.e. given the specified coverage d, we will simulate a sequence coverage of x, where x is sampled from Poission(d)). 
@@ -192,9 +192,17 @@ This file contains logging information, e.g. the command line parameters and the
 
     `csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S snvs_freq.txt --trunk_length 2.0`
 
-* If you want to save the SNVs genotypes for each single cell for exactly the same simulation as above, use the option `--snv_genotype` and `--random_seed`.
+* If you want to ignore the variants with the frequency <=0.01, you can use `--prune 20` or `--prune_proportion 0.02` (we use `--prune 20` instead of `--prune 10` for the cells are diploid in the our simulation). These two options can be used to accelerate the simulation when your tree is huge.
 
-    `csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S snvs_freq.txt --trunk_length 2.0 --snv_geneotype snvs_genotype.txt --random_seed xxxx`
+    `csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S snvs_freq.txt --trunk_length 2.0 --prune 20`
+
+    or
+
+    `csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S snvs_freq.txt --trunk_length 2.0 --prune_proportion 0.02`
+
+* If you want to save the SNVs genotypes for each single cell for exactly the same simulation as above, use the options `--snv_genotype` and `--random_seed`.
+
+    `csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S snvs_freq.txt --trunk_length 2.0 --prune_proportion 0.02 --snv_geneotype snvs_genotype.txt --random_seed xxxx`
 
     P.S. The random seed xxxx can be found in the log file of the previous simulation.
 
