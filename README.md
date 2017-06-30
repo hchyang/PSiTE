@@ -29,6 +29,7 @@ Other than the rate of CNVs, there are six other parameters guiding CNVs simulat
 The coalescent tree only describes the polymorphic part of the sample. You can also simulate the truncal part of the tumor evolution (tumorigenesis) through two different approaches: 
 a) specify the trunk length e.g. using `--trunk_length`. `--trunk_length` accepts a single float number that can be used as the branch length leading to the root of the coalescent tree.
 b) specify the events on the trunk explicitly in a file through `--trunk_vars filename`. The format of the trunk variants file is described in the later section.
+
 When the number of simulated cells is very large, the computational load can become very heavy. Given the fact that most of the mutational events are extremely rare, we implemented a pruning algorithm to trim the tree using `--prune` and `--prune_proportion` options. For example, if you want to simulate the somatic variants of a population containing 1000000 cells, after you setting `--prune 100` or `--prune_proportion 0.0001`, all subtrees with <=100 tips will be trimmed into a tip node, which means there will be no polymorphic variants on those subtrees with <=100 tips. So the tips belonging to the same subtree (with <=100 tips) will show the same genotypes.
 
 Other convenient options including:
