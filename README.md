@@ -102,6 +102,10 @@ P.S. start and end are 0 based. And the region of each variant is similar to the
 
 This file contains the CNV profile across the whole segment. There are 3 columns in this file. The first column is the start of the CNV region, and the second is the end of the CNV region. Both breakpoints are 0-based, defined CNVs covered on [start, end). The last column is the total copies of each region.
 
+#### parental copy file (--parental\_copy)
+
+This file contains the information of parental copy for each SNV. The first column is the coordinate of the SNV, and followed by N columns if the ploidy is N.
+
 #### Log file (-g/--log)
 
 This file contains logging information, e.g. the command line parameters and the random seed used. You can use these information to replicate the simulation. After setting the `--loglevel` as DEBUG, CSiTE will output detailed information about the simulation process. 
