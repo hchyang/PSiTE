@@ -118,9 +118,10 @@ This file contains logging information, e.g. the command line parameters and the
                     [-X PRUNE_PROPORTION] [-s RANDOM_SEED] [-S SNV] [-V CNV]
                     [-n NODES_SNVS] [-g LOG] [-G {DEBUG,INFO}]
                     [--cnv_profile CNV_PROFILE] [--snv_genotype SNV_GENOTYPE]
-                    [--ind_cnvs IND_CNVS] [--trunk_vars TRUNK_VARS]
-                    [--trunk_length TRUNK_LENGTH] [--tree_data TREE_DATA]
-                    [--expands EXPANDS] [--length LENGTH] [-v]
+                    [--ind_cnvs IND_CNVS] [--parental_copy PARENTAL_COPY]
+                    [--trunk_vars TRUNK_VARS] [--trunk_length TRUNK_LENGTH]
+                    [--tree_data TREE_DATA] [--expands EXPANDS] [--length LENGTH]
+                    [-v]
 
     Simulate SNVs/CNVs on a coalescent tree in newick format
 
@@ -165,12 +166,14 @@ This file contains logging information, e.g. the command line parameters and the
                             [output.nodes.snvs]
       -g LOG, --log LOG     the log file [log.txt]
       -G {DEBUG,INFO}, --loglevel {DEBUG,INFO}
-                            the logging level [DEBUG]
+                            the logging level [INFO]
       --cnv_profile CNV_PROFILE
                             the file to save CNVs profile [output.cnv.profile]
       --snv_genotype SNV_GENOTYPE
                             the file to save SNV genotypes for each sample
       --ind_cnvs IND_CNVS   the file to save CNVs for each sample individual
+      --parental_copy PARENTAL_COPY
+                            the file to save parental copy for each SNV
       --trunk_vars TRUNK_VARS
                             the trunk variants file supplied by user
       --trunk_length TRUNK_LENGTH
