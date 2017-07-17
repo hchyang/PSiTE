@@ -415,6 +415,7 @@ class Tree:
 
         background=self.leaves_counting()*ploidy
         logging.debug('Your tree is: %s',self.tree2newick())
+        hap_cnvs=[]
 #collect all snvs and cnvs
         for i in range(ploidy):
             logging.info(' Simulate tree %s (total: %s)',i+1,ploidy)
@@ -429,7 +430,8 @@ class Tree:
             all_snvs_alt_counts_dict=hap_tree.all_snvs_alt_allele_count()
             all_snvs_alt_counts.extend([[snv,all_snvs_alt_counts_dict[snv]] for snv in all_snvs_alt_counts_dict])
 
-            all_cnvs.extend(hap_tree.all_cnvs_collect())
+            hap_cnvs.append(hap_tree.all_cnvs_collect())
+            all_cnvs.extend(hap_cnvs[-1])
             all_nodes_snvs=merge_two_dict_set(all_nodes_snvs,hap_tree.all_nodes_snvs())
 
             hap_tree.genotyping(genotypes=leaf_snv_alts)
@@ -439,25 +441,28 @@ class Tree:
 #FIXME: right now, it does not consider the deletion effect on pre_snvs.
         tree_with_snvs=copy.deepcopy(self)
         tree_with_snvs.attach_info(attr='new_snvs',info=all_nodes_snvs)
+        all_snvs_alt_counts.sort(key=lambda snv: snv[0])
 
 #construct cnv profile list, assuming the whole region start with 0 and end with length
         all_cnvs.sort(key=lambda cnv: cnv['start'])
         cnvs_pos_changes=cnvs2pos_changes(cnvs=all_cnvs,length=length,background=background)
 
+#construct cnv profile for each hap_tree, assuming the whole region start with 0 and end with length
+        hap_local_copy_for_all_snvs=hap_local_leaves(positions=[snp[0] for snp in all_snvs_alt_counts],hap_cnvs=hap_cnvs,length=length,background=self.leaves_counting(),ploidy=ploidy)
+
 #translate cnvs_pos_changes to cnv_profile before its changing
         cnv_profile=pos_changes2region_profile(cnvs_pos_changes)
 
-        all_snvs_alt_counts.sort(key=lambda snv: snv[0])
         region_mean_ploidy=0
         normal_dosage=background*(1-purity)/purity
-        print(purity)
-        print(normal_dosage)
+#        print(purity)
+#        print(normal_dosage)
         for snv in all_snvs_alt_counts:
             while snv[0]>=cnvs_pos_changes[0][0]:
                 region_mean_ploidy+=cnvs_pos_changes.pop(0)[1]
 #adjust SNVs' frequency by taking the normal cells into account 
-#TODO: adjust CNVs' frequency
             all_snvs_alt_freq.append([snv[0],snv[1]/(normal_dosage+region_mean_ploidy)])
+#TODO: what information of CNVs should I output? logR? Frequency? Adjust CNVs' frequency?
 
 #build genotypes for each leaf
 #build genotypes on the variants of each leaf? or on variants on all leaves?
@@ -480,14 +485,14 @@ class Tree:
 
             region_mean_ploidy=0
             leaf_snv_refs[leaf]={}
-            print(leaf)
-            print(leaf_cnvs_pos_changes[leaf])
+#            print(leaf)
+#            print(leaf_cnvs_pos_changes[leaf])
             for snv in all_snvs_pos:
                 while snv>=leaf_cnvs_pos_changes[leaf][0][0]:
                     region_mean_ploidy+=leaf_cnvs_pos_changes[leaf].pop(0)[1]
                 leaf_snv_refs[leaf][snv]=region_mean_ploidy-leaf_snv_alts[leaf][snv]
 
-        return all_snvs_alt_freq,all_cnvs,cnv_profile,all_nodes_snvs,tree_with_snvs,leaf_snv_alts,leaf_snv_refs,leaf_cnvs
+        return all_snvs_alt_freq,all_cnvs,cnv_profile,all_nodes_snvs,tree_with_snvs,leaf_snv_alts,leaf_snv_refs,leaf_cnvs,hap_local_copy_for_all_snvs
 
     def tree2newick(self,lens=False,attrs=None):
         '''
@@ -574,7 +579,7 @@ def cnvs2pos_changes(cnvs=None,length=None,background=None):
     '''
     pos_changes=[[0,background],[length,-background]]
     for cnv in cnvs:
-        print(cnv)
+#        print(cnv)
         change=cnv['copy']*cnv['leaves_count']
         pos_changes.extend([[cnv['start'],change],[cnv['end'],-change]])
     pos_changes.sort(key=lambda pos: pos[0])
@@ -646,6 +651,32 @@ def simulate_sequence_coverage(mean_coverage=None,baf=None):
     coverage=numpy.random.poisson(mean_coverage)
     b_allele_coverage=numpy.random.binomial(n=coverage,p=baf)
     return [coverage,b_allele_coverage]
+
+def hap_local_leaves(positions=None,hap_cnvs=None,length=None,background=None,ploidy=None):
+    '''
+    Calculates the local copy on each haplotype for each snvs.
+    Return a list of lists, each sublist is have these elements:
+    Position
+    local_copy_on_hap1
+    local_copy_on_hap2
+    ...
+    local_copy_on_hapN
+    '''
+    all_pos_local_copy=[]
+    hap_cnvs_pos_changes=[]
+    hap_local_copy=[]
+    for i in range(ploidy):
+        hap_cnvs[i].sort(key=lambda cnv: cnv['start'])
+        hap_cnvs_pos_changes.append(cnvs2pos_changes(cnvs=hap_cnvs[i],length=length,background=background))
+        hap_local_copy.append(0)
+
+    for pos in positions:
+        all_pos_local_copy.append([pos])
+        for i in range(ploidy):
+            while pos>=hap_cnvs_pos_changes[i][0][0]:
+                hap_local_copy[i]+=hap_cnvs_pos_changes[i].pop(0)[1]
+            all_pos_local_copy[-1].append(hap_local_copy[i])
+    return all_pos_local_copy
 
 class TooManyMutationsError(Exception):
     pass

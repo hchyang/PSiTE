@@ -47,8 +47,8 @@ def cn_dist(copy_max=None,copy_parameter=None):
     w=1/sum([copy_parameter**x for x in range(copy_max)])
     scale=sum([w*copy_parameter**x for x in range(copy_max)])
     cn_dist_cfg['prob']=[(w*copy_parameter**x)/scale for x in range(copy_max)]
-    print(cn_dist_cfg['copy'])
-    print(cn_dist_cfg['prob'])
+    #print(cn_dist_cfg['copy'])
+    #print(cn_dist_cfg['prob'])
     return cn_dist_cfg
 
 #@profile
@@ -90,12 +90,13 @@ def main():
     parse.add_argument('-n','--nodes_snvs',type=str,default=default,help='the file to save SNVs on each nodes [{}]'.format(default))
     default='log.txt'
     parse.add_argument('-g','--log',type=str,default=default,help='the log file [{}]'.format(default))
-    default='DEBUG'
+    default='INFO'
     parse.add_argument('-G','--loglevel',type=str,default=default,choices=['DEBUG','INFO'],help='the logging level [{}]'.format(default))
     default='output.cnv.profile'
     parse.add_argument('--cnv_profile',type=str,default=default,help='the file to save CNVs profile [{}]'.format(default))
     parse.add_argument('--snv_genotype',type=str,help='the file to save SNV genotypes for each sample')
     parse.add_argument('--ind_cnvs',type=str,help='the file to save CNVs for each sample individual')
+    parse.add_argument('--parental_copy',type=str,help='the file to save parental copy for each SNV')
     parse.add_argument('--trunk_vars',type=str,help='the trunk variants file supplied by user')
     default=0
     parse.add_argument('--trunk_length',type=float,help='the length of the truncal branch [{}]'.format(default))
@@ -141,7 +142,7 @@ def main():
 
             cn_dist_cfg=cn_dist(copy_max=args.copy_max,copy_parameter=args.copy_parameter)
 
-            snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs,leaf_snv_alts,leaf_snv_refs,leaf_cnvs=mytree.snvs_freq_cnvs_profile(
+            snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs,leaf_snv_alts,leaf_snv_refs,leaf_cnvs,hap_local_copy_for_all_snvs=mytree.snvs_freq_cnvs_profile(
                 ploidy=args.ploidy,
                 snv_rate=args.snv_rate,
                 cnv_rate=args.cnv_rate,
@@ -169,6 +170,12 @@ def main():
                 for leaf in sorted(leaf_cnvs.keys()):
                     for cnv in leaf_cnvs[leaf]:
                         ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,cnv['parental'],cnv['start'],cnv['end'],cnv['copy']]])))
+
+            if args.parental_copy!=None:
+                parental_copy_file=open(args.parental_copy,'w')
+                parental_copy_file.write('#position\t{}\n'.format('\t'.join(['haplotype'+str(x) for x in range(args.ploidy)])))
+                for snv in hap_local_copy_for_all_snvs:
+                    parental_copy_file.write('\t'.join([str(x) for x in snv])+'\n')
 
             cnv_file=open(args.cnv,'w')
             for cnv in cnvs:

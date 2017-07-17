@@ -22,7 +22,7 @@ Other than the rate of CNVs, there are six other parameters guiding CNVs simulat
 
 `--cnv_length_max` can be used to set the upper limit of CNVs' length (This will effectively truncate the exponential distribution at this limit). 
 
-`--del_prob`: A CNV event can be a deletion or an amplification. Using this parameter, we can specify the probability that a CNV event is a deletion.
+`--del_prob` A CNV event can be a deletion or an amplification. Using this parameter, we can specify the probability that a CNV event is a deletion.
 
 `--copy_max` can be used to set the upper bound of an amplification event. When an amplification event happens, it will randomly pick a copy number according to a geometric like distribution with Pr(n+1)=p\*Pr(n). The p parameter can be specified by `-c/--copy_parameter`. The overall distribution will be normalized s.t. the total probability is 1. 
 
