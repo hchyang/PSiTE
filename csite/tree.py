@@ -354,7 +354,7 @@ class Tree:
         '''
         if self.snvs!=None:
             for leaf in self.leaves_naming():
-                if not leaf in genotypes:
+                if leaf not in genotypes:
                     genotypes[leaf]={}
                 for snv in self.snvs:
                     if snv in genotypes[leaf]:
@@ -375,14 +375,14 @@ class Tree:
             self.left.genotyping(genotypes)
         if self.right!=None:
             self.right.genotyping(genotypes)
-
+    #@profile
     def cnv_genotyping(self,genotypes={},parental=None):
         '''
         Collect the genotypes on every CNV site for each leaf.
         '''
-        if self.cnvs!=None:
+        if self.cnvs:
             for leaf in self.leaves_naming():
-                if not leaf in genotypes:
+                if leaf not in genotypes:
                     genotypes[leaf]=[]
                 for cnv in self.cnvs:
                     genotypes[leaf].append({'start':cnv['start'],'end':cnv['end'],'copy':cnv['copy'],'leaves_count':1,'parental':parental})
@@ -469,14 +469,14 @@ class Tree:
         leaf_snv_refs={}
         all_snvs_pos=[x[0] for x in all_snvs_alt_counts]
         for leaf in self.leaves_naming():
-            if not leaf in leaf_cnvs:
+            if leaf not in leaf_cnvs:
                 leaf_cnvs[leaf]=[]
             leaf_cnvs[leaf].sort(key=lambda cnv:(cnv['start'],cnv['end']))
             leaf_cnvs_pos_changes[leaf]=cnvs2pos_changes(cnvs=leaf_cnvs[leaf],length=length,background=ploidy)
 
             if leaf in leaf_snv_alts:
                 for snv in all_snvs_pos:
-                    if not snv in leaf_snv_alts[leaf]:
+                    if snv not in leaf_snv_alts[leaf]:
                         leaf_snv_alts[leaf][snv]=0
             else:
                 leaf_snv_alts[leaf]={}

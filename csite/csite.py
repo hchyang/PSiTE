@@ -28,7 +28,8 @@ __version__='0.7.0'
 
 def check_seed(value):
     ivalue=int(value)
-    if not 0<=ivalue<=4294967296: #2**32: Must be convertible to 32 bit unsigned integers.
+#2**32: Must be convertible to 32 bit unsigned integers.
+    if not 0<=ivalue<=4294967296: 
          raise argparse.ArgumentTypeError("{} is an invalid value for random seed. It should be an interger between 0 and 4294967296.".format(value))
     return ivalue
 
@@ -51,70 +52,103 @@ def cn_dist(copy_max=None,copy_parameter=None):
     #print(cn_dist_cfg['prob'])
     return cn_dist_cfg
 
+#use kernprof -l -v script.py to profile
 #@profile
 def main():
-    parse=argparse.ArgumentParser(description='Simulate SNVs/CNVs on a coalescent tree in newick format')
-    parse.add_argument('-t','--tree',required=True,help='a tree in newick format')
+    parse=argparse.ArgumentParser(
+        description='Simulate SNVs/CNVs on a coalescent tree in newick format')
+    parse.add_argument('-t','--tree',required=True,
+        help='a tree in newick format')
     default=300
-    parse.add_argument('-r','--snv_rate',type=float,default=default,help='the muation rate of SNVs [{}]'.format(default))
+    parse.add_argument('-r','--snv_rate',type=float,default=default,
+        help='the muation rate of SNVs [{}]'.format(default))
     default=3
-    parse.add_argument('-R','--cnv_rate',type=float,default=default,help='the muation rate of CNVs [{}]'.format(default))
+    parse.add_argument('-R','--cnv_rate',type=float,default=default,
+        help='the muation rate of CNVs [{}]'.format(default))
     default=0.5
-    parse.add_argument('-d','--del_prob',type=int,default=default,help='the probability of being deletion for a CNV mutation [{}]'.format(default))
+    parse.add_argument('-d','--del_prob',type=int,default=default,
+        help='the probability of being deletion for a CNV mutation [{}]'.format(default))
 #https://en.wikipedia.org/wiki/Copy-number_variation
-    default=120000
-    parse.add_argument('-l','--cnv_length_beta',type=int,default=default,help='the mean of CNVs length [{}]'.format(default))
     default=20000000
-    parse.add_argument('-L','--cnv_length_max',type=int,default=default,help='the maximium of CNVs length [{}]'.format(default))
+    parse.add_argument('-l','--cnv_length_beta',type=int,default=default,
+        help='the mean of CNVs length [{}]'.format(default))
+    default=40000000
+    parse.add_argument('-L','--cnv_length_max',type=int,default=default,
+        help='the maximium of CNVs length [{}]'.format(default))
     default=0.5
-    parse.add_argument('-c','--copy_parameter',type=float,default=default,help="the p parameter of CNVs' copy number distribution [{}]".format(default))
+    parse.add_argument('-c','--copy_parameter',type=float,default=default,
+        help="the p parameter of CNVs' copy number distribution [{}]".format(default))
     default=5
-    parse.add_argument('-C','--copy_max',type=int,default=default,help='the maximium ADDITIONAL copy of a CNVs [{}]'.format(default))
+    parse.add_argument('-C','--copy_max',type=int,default=default,
+        help='the maximium ADDITIONAL copy of a CNVs [{}]'.format(default))
     default=2
-    parse.add_argument('-p','--ploidy',type=int,default=default,help='the ploidy to simulate [{}]'.format(default))
+    parse.add_argument('-p','--ploidy',type=int,default=default,
+        help='the ploidy to simulate [{}]'.format(default))
     default=1.0
-    parse.add_argument('-P','--purity',type=float,default=default,help="the purity of tumor cells in the simulated sample [{}]".format(default))
+    parse.add_argument('-P','--purity',type=float,default=default,
+        help="the purity of tumor cells in the simulated sample [{}]".format(default))
     default=50
-    parse.add_argument('-D','--depth',type=int,default=default,help='the mean depth for simulating coverage data [{}]'.format(default))
+    parse.add_argument('-D','--depth',type=int,default=default,
+        help='the mean depth for simulating coverage data [{}]'.format(default))
     default=0
-    parse.add_argument('-x','--prune',type=int,default=default,help='trim all their children for the branches with equal or less than this number of tips [{}]'.format(default))
+    parse.add_argument('-x','--prune',type=int,default=default,
+        help='trim all the children of the nodes with equal or less than this number of tips [{}]'.format(default))
     default=0.0
-    parse.add_argument('-X','--prune_proportion',type=float,default=default,help='trim all their children for the branches with equal or less than this proportion of tips [{}]'.format(default))
+    parse.add_argument('-X','--prune_proportion',type=float,default=default,
+        help='trim all the children of the nodes with equal or less than this proportion of tips [{}]'.format(default))
     default=None
-    parse.add_argument('-s','--random_seed',type=check_seed,help='the seed for random number generator [{}]'.format(default))
+    parse.add_argument('-s','--random_seed',type=check_seed,
+        help='the seed for random number generator [{}]'.format(default))
     default='output.snvs'
-    parse.add_argument('-S','--snv',type=str,default=default,help='the output file to save SNVs [{}]'.format(default))
+    parse.add_argument('-S','--snv',type=str,default=default,
+        help='the output file to save SNVs [{}]'.format(default))
     default='output.cnvs'
-    parse.add_argument('-V','--cnv',type=str,default=default,help='the output file to save CNVs [{}]'.format(default))
-    default='output.nodes.snvs'
-    parse.add_argument('-n','--nodes_snvs',type=str,default=default,help='the file to save SNVs on each nodes [{}]'.format(default))
+    parse.add_argument('-V','--cnv',type=str,default=default,
+        help='the output file to save CNVs [{}]'.format(default))
+    default='output.nodes_vars'
+    parse.add_argument('-n','--nodes_snvs',type=str,default=default,
+        help='the output file to save SNVs/CNVs on each node [{}]'.format(default))
+    default='output.named_tree.nhx'
+    parse.add_argument('-T','--named_tree',type=str,default=default,
+        help='the output file in NHX format to save the tree with all nodes named [{}]'.format(default))
     default='log.txt'
-    parse.add_argument('-g','--log',type=str,default=default,help='the log file [{}]'.format(default))
+    parse.add_argument('-g','--log',type=str,default=default,
+        help='the log file [{}]'.format(default))
     default='INFO'
-    parse.add_argument('-G','--loglevel',type=str,default=default,choices=['DEBUG','INFO'],help='the logging level [{}]'.format(default))
+    parse.add_argument('-G','--loglevel',type=str,default=default,choices=['DEBUG','INFO'],
+        help='the logging level [{}]'.format(default))
     default='output.cnv.profile'
-    parse.add_argument('--cnv_profile',type=str,default=default,help='the file to save CNVs profile [{}]'.format(default))
-    parse.add_argument('--snv_genotype',type=str,help='the file to save SNV genotypes for each sample')
-    parse.add_argument('--ind_cnvs',type=str,help='the file to save CNVs for each sample individual')
-    parse.add_argument('--parental_copy',type=str,help='the file to save parental copy for each SNV')
-    parse.add_argument('--trunk_vars',type=str,help='the trunk variants file supplied by user')
+    parse.add_argument('--cnv_profile',type=str,default=default,
+        help='the file to save CNVs profile [{}]'.format(default))
+    parse.add_argument('--snv_genotype',type=str,
+        help='the file to save SNV genotypes for each cell')
+    parse.add_argument('--ind_cnvs',type=str,
+        help='the file to save CNVs for each cell individual')
+    parse.add_argument('--parental_copy',type=str,
+        help='the file to save parental copy for each SNV')
+    parse.add_argument('--trunk_vars',type=str,
+        help='the trunk variants file supplied by user')
     default=0
-    parse.add_argument('--trunk_length',type=float,help='the length of the truncal branch [{}]'.format(default))
-    default='tree.dat'
-    parse.add_argument('--tree_data',type=str,default=default,help='the file to dump the tree data [{}]'.format(default))
+    parse.add_argument('--trunk_length',type=float,
+        help='the length of the truncal branch [{}]'.format(default))
     default=None
-    parse.add_argument('--expands',type=str,default=default,help='the basename of the file to output the snv and segment data for EXPANDS [{}]'.format(default))
+    parse.add_argument('--expands',type=str,default=default,
+        help='the basename of the file to output the snv and segment data for EXPANDS [{}]'.format(default))
     default=100000000
-    parse.add_argument('--length',type=int,default=default,help='the length of the sequence to simulate [{}]'.format(default))
+    parse.add_argument('--length',type=int,default=default,
+        help='the length of the sequence to simulate [{}]'.format(default))
     parse.add_argument('-v','--version',action='version',version=__version__)
     args=parse.parse_args()
 
     check_max_cnv_length(args.length,args.cnv_length_max)
 
-    logging.basicConfig(filename=args.log, filemode='w', format='%(levelname)s: %(message)s', level=args.loglevel)
+    logging.basicConfig(filename=args.log, filemode='w',
+        format='[%(asctime)s] %(levelname)s: %(message)s',
+        datefmt='%m-%d %H:%M:%S',level=args.loglevel)
     logging.info(' Command: %s',' '.join(sys.argv))
     if args.random_seed==None:
-        seed=numpy.random.randint(4294967296) #2**32: Must be convertible to 32 bit unsigned integers.
+#2**32: Must be convertible to 32 bit unsigned integers.
+        seed=numpy.random.randint(4294967296) 
     else:
         seed=args.random_seed
     logging.info(' Random seed: %s',seed)
@@ -138,11 +172,15 @@ def main():
             trunk_dels={}
             trunk_cnvs={}
             if args.trunk_vars!=None:
-                trunk_snvs,trunk_dels,trunk_cnvs=csite.trunk_vars.classify_vars(args.trunk_vars,args.ploidy,args.length,leaves_number,mytree)
+                trunk_snvs,trunk_dels,trunk_cnvs=csite.trunk_vars.classify_vars(
+                    args.trunk_vars,args.ploidy,args.length,leaves_number,mytree)
 
             cn_dist_cfg=cn_dist(copy_max=args.copy_max,copy_parameter=args.copy_parameter)
 
-            snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs,leaf_snv_alts,leaf_snv_refs,leaf_cnvs,hap_local_copy_for_all_snvs=mytree.snvs_freq_cnvs_profile(
+            (snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs,
+                leaf_snv_alts,leaf_snv_refs,leaf_cnvs,
+                hap_local_copy_for_all_snvs,
+                )=mytree.snvs_freq_cnvs_profile(
                 ploidy=args.ploidy,
                 snv_rate=args.snv_rate,
                 cnv_rate=args.cnv_rate,
@@ -166,7 +204,7 @@ def main():
 
             if args.ind_cnvs!=None:
                 ind_cnvs_file=open(args.ind_cnvs,'w')
-                ind_cnvs_file.write('#sample\tparental\tstart\tend\tcopy\n')
+                ind_cnvs_file.write('#cell\tparental\tstart\tend\tcopy\n')
                 for leaf in sorted(leaf_cnvs.keys()):
                     for cnv in leaf_cnvs[leaf]:
                         ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,cnv['parental'],cnv['start'],cnv['end'],cnv['copy']]])))
@@ -210,7 +248,7 @@ def main():
                 expands_snps_file.write('chr\tstartpos\tAF_Tumor\tPN_B\n')
                 chroms=1
                 for pos,freq in snvs_freq:
-                    total_dp,b_allele_dp=tree.simulate_sequence_coverage(args.depth,freq)
+                    total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(args.depth,freq)
                     expands_snps_file.write('{}\t{}\t{}\t{}\n'.format(chroms,pos,b_allele_dp/total_dp,0))
 
 #in the segment input for expands
