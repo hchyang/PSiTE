@@ -28,7 +28,7 @@ complex demographic histories of the sample.
 The two most important parameters in the simulation is the mutation rate of SNVs
 (`--snv_rate`) and CNVs (`--cnv_rate`). The mutational events in CSiTE are
 simulated according to the Poisson process with user specified parameters [see
-notes for extra discussions].  
+[Notes](https://github.com/hchyang/CSiTE#Notes) for extra discussions].  
 
 Other than the rate of CNVs, there are five other parameters guiding CNVs
 simulation. 
@@ -76,7 +76,8 @@ Other convenient options including:
 - -P/--purity to set the purity of tumor sample
 - --length to set the length of sequence to simulate
 
-**Notes:** By default, the branch length from the ms program is measured in 4N
+###### Notes
+By default, the branch length from the ms program is measured in 4N
 generations. CSiTE will simulate SNVs/CNVs events following the Poisson process.
 For example, if we set -r 100, this is equivalent to set the population rescaled
 parameter θ=4Nu as 100 (see ms manual for details). 
