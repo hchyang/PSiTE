@@ -27,8 +27,8 @@ complex demographic histories of the sample.
 
 The two most important parameters in the simulation is the mutation rate of SNVs
 (`--snv_rate`) and CNVs (`--cnv_rate`). The mutational events in CSiTE are
-simulated according to the Poisson process with user specified parameters [see
-[Notes](https://github.com/hchyang/CSiTE#notes) for extra discussions].  
+simulated according to the Poisson process with user specified parameters (see
+[Notes](https://github.com/hchyang/CSiTE#notes) for extra discussions).  
 
 Other than the rate of CNVs, there are five other parameters guiding CNVs
 simulation. 
