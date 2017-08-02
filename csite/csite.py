@@ -106,7 +106,7 @@ def main():
     parse.add_argument('-V','--cnv',type=str,default=default,
         help='the output file to save CNVs [{}]'.format(default))
     default='output.nodes_vars'
-    parse.add_argument('-n','--nodes_snvs',type=str,default=default,
+    parse.add_argument('-n','--nodes_vars',type=str,default=default,
         help='the output file to save SNVs/CNVs on each node [{}]'.format(default))
     default='output.named_tree.nhx'
     parse.add_argument('-T','--named_tree',type=str,default=default,
@@ -232,14 +232,15 @@ def main():
             for seg in cnv_profile:
                 cnv_profile_file.write('{}\t{}\t{}\n'.format(*seg))
 
-            nodes_snvs_file=open(args.nodes_snvs,'w')
+#FIXME: output SNVs/CNVs, not only SNVs
+            nodes_snvs_file=open(args.nodes_vars,'w')
             for node in sorted(nodes_snvs.keys()):
                 for snv in sorted(nodes_snvs[node]):
                     nodes_snvs_file.write('{}\t{}\n'.format(node,snv))
 
 #TODO: Should we change pickle to json or yaml?
 #http://stackoverflow.com/questions/4677012/python-cant-pickle-type-x-attribute-lookup-failed
-            tree_data_file=open(args.tree_data,'wb')
+            tree_data_file=open(args.named_tree,'wb')
             #pickle.dump(tree_with_snvs,tree_data_file)
 
             if args.expands != None:
