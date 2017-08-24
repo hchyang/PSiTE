@@ -376,30 +376,6 @@ class Tree:
         if self.right!=None:
             self.right.genotyping(genotypes)
 
-#    @profile
-#    def cnv_genotyping(self,genotypes={},parental=None):
-#        '''
-#        Collect the genotypes on every CNV site for each leaf.
-#        '''
-#        #logging.debug('cnv_genotyping: %s',self.nodeid)
-#        if self.cnvs:
-#            for leaf in self.leaves_naming():
-#                if leaf not in genotypes:
-#                    genotypes[leaf]=[]
-#                else:
-#                    for cnv in self.cnvs:
-##In order to use cnvs2pos_changes later, we set leaves_count as 1 here.
-##Actully, it makes sense, as each leaf's leaf count is 1.
-#                        genotypes[leaf].append({'start':cnv['start'],'end':cnv['end'],'copy':cnv['copy'],'leaves_count':1,'parental':parental})
-#            for cnv in self.cnvs:
-#                if cnv['copy']>0: #amplification
-#                    for cp in cnv['new_copies']:
-#                        cp.cnv_genotyping(genotypes=genotypes,parental=parental)
-#        if self.left!=None:
-#            self.left.cnv_genotyping(genotypes=genotypes,parental=parental)
-#        if self.right!=None:
-#            self.right.cnv_genotyping(genotypes=genotypes,parental=parental)
-
     @profile
     def cnv_genotyping(self,genotypes={},parental=None):
         '''
