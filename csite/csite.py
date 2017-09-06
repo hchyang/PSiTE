@@ -169,10 +169,9 @@ def main():
                 mytree.prune(tips=trim)
 #trunk vars
             trunk_snvs={}
-            trunk_dels={}
             trunk_cnvs={}
             if args.trunk_vars!=None:
-                trunk_snvs,trunk_dels,trunk_cnvs=csite.trunk_vars.classify_vars(
+                trunk_snvs,trunk_cnvs=csite.trunk_vars.classify_vars(
                     args.trunk_vars,args.ploidy,args.length,leaves_number,mytree)
 
             cn_dist_cfg=cn_dist(copy_max=args.copy_max,copy_parameter=args.copy_parameter)
@@ -189,7 +188,6 @@ def main():
                 cnv_length_max=args.cnv_length_max,
                 cn_dist_cfg=cn_dist_cfg,
                 trunk_snvs=trunk_snvs,
-                trunk_dels=trunk_dels,
                 trunk_cnvs=trunk_cnvs,
                 purity=args.purity,
                 length=args.length,

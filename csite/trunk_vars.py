@@ -56,10 +56,12 @@ def classify_vars(vars_file,ploid,seq_length,leaves_number,tree):
                                     })
 
                 if copy==-1:
+                    cnvs[chrom][-1]['type']='DEL'
                     if not chrom in dels:
                         dels[chrom]=[]
                     dels[chrom].append([start,end])
                 elif isinstance(copy,int) and copy>0:
+                    cnvs[chrom][-1]['type']='AMP'
                     if not chrom in amps:
                         amps[chrom]=[]
                     amps[chrom].append([start,end])
@@ -77,7 +79,7 @@ def classify_vars(vars_file,ploid,seq_length,leaves_number,tree):
     logging.debug('trunk AMPs:%s',amps)
     logging.debug('trunk DELs:%s',dels)
     logging.debug('trunk CNVs:%s',cnvs)
-    return snvs,dels,cnvs
+    return snvs,cnvs
 
 def check_vars(snvs,amps,dels,ploid):
     '''
