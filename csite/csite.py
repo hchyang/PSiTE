@@ -14,7 +14,8 @@ import argparse
 import logging
 import csite.trunk_vars
 import csite.tree
-#import pdb; pdb.set_trace()
+import re
+import os
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe 
@@ -24,18 +25,43 @@ signal(SIGPIPE,SIG_DFL)
 #TODO: SNV true_freq
 #rewrite the description of the output of SNVs 
 
-__version__='0.7.0'
+__version__='0.8.0'
 
-def check_seed(value):
+def check_seed(value=None):
     ivalue=int(value)
 #2**32: Must be convertible to 32 bit unsigned integers.
     if not 0<=ivalue<=4294967296: 
-         raise argparse.ArgumentTypeError("{} is an invalid value for random seed. It should be an interger between 0 and 4294967296.".format(value))
+        raise argparse.ArgumentTypeError("{} is an invalid value for random seed. ".format(value)+
+            "It should be an interger between 0 and 4294967296.")
     return ivalue
 
-def check_max_cnv_length(seq_length,max_cnv_length):
+def check_prune(value=None):
+    ivalue=int(float(value))
+    if ivalue<2: 
+        raise argparse.ArgumentTypeError("{} is an invalid value for prune. ".format(value)+
+            "It should be an interger >=2 and <=the number of leaves of the tree.")
+    return ivalue
+
+def check_proportion(value=None):
+    fvalue=float(value)
+    if not 0<=fvalue<=1: 
+        raise argparse.ArgumentTypeError("{} is an invalid value for prune proportion. ".format(value)+
+            "It should be an float between 0 and 1.")
+    return fvalue
+
+def check_folder(directory=None):
+    good_charactors=re.compile('^[0-9a-zA-Z_-]+$') 
+    if not good_charactors.match(directory):
+        raise argparse.ArgumentTypeError("{} is an invalid string for --genome. ".format(directory)+
+            "Please only use number, alphabet, - and _ in the directory name.")
+    if os.path.exists(directory):
+        raise argparse.ArgumentTypeError("{} is already exist. Delete it or use another name instead.".format(directory))
+    return directory
+    
+def check_max_cnv_length(seq_length=None,max_cnv_length=None):
     if max_cnv_length>seq_length:
-         raise argparse.ArgumentTypeError("The value of -L/--cnv_length_max ({}) should NOT be larger than --length ({}).".format(max_cnv_length,seq_length))
+         raise argparse.ArgumentTypeError("The value of -L/--cnv_length_max "+
+            "({}) should NOT be larger than --length ({}).".format(max_cnv_length,seq_length))
 
 def cn_dist(copy_max=None,copy_parameter=None):
     '''
@@ -48,8 +74,6 @@ def cn_dist(copy_max=None,copy_parameter=None):
     w=1/sum([copy_parameter**x for x in range(copy_max)])
     scale=sum([w*copy_parameter**x for x in range(copy_max)])
     cn_dist_cfg['prob']=[(w*copy_parameter**x)/scale for x in range(copy_max)]
-    #print(cn_dist_cfg['copy'])
-    #print(cn_dist_cfg['prob'])
     return cn_dist_cfg
 
 #use kernprof -l -v script.py to profile
@@ -59,6 +83,9 @@ def main():
         description='Simulate SNVs/CNVs on a coalescent tree in newick format')
     parse.add_argument('-t','--tree',required=True,
         help='a tree in newick format')
+    default='1'
+    parse.add_argument('-n','--name',type=str,default=default,
+        help='the name of the sequence to be simulated [{}]'.format(default))
     default=300
     parse.add_argument('-r','--snv_rate',type=float,default=default,
         help='the muation rate of SNVs [{}]'.format(default))
@@ -91,10 +118,10 @@ def main():
     parse.add_argument('-D','--depth',type=int,default=default,
         help='the mean depth for simulating coverage data [{}]'.format(default))
     default=0
-    parse.add_argument('-x','--prune',type=int,default=default,
+    parse.add_argument('-x','--prune',type=check_prune,default=default,
         help='trim all the children of the nodes with equal or less than this number of tips [{}]'.format(default))
     default=0.0
-    parse.add_argument('-X','--prune_proportion',type=float,default=default,
+    parse.add_argument('-X','--prune_proportion',type=check_proportion,default=default,
         help='trim all the children of the nodes with equal or less than this proportion of tips [{}]'.format(default))
     default=None
     parse.add_argument('-s','--random_seed',type=check_seed,
@@ -106,7 +133,7 @@ def main():
     parse.add_argument('-V','--cnv',type=str,default=default,
         help='the output file to save CNVs [{}]'.format(default))
     default='output.nodes_vars'
-    parse.add_argument('-n','--nodes_vars',type=str,default=default,
+    parse.add_argument('-N','--nodes_vars',type=str,default=default,
         help='the output file to save SNVs/CNVs on each node [{}]'.format(default))
     default='output.named_tree.nhx'
     parse.add_argument('-T','--named_tree',type=str,default=default,
@@ -137,6 +164,9 @@ def main():
     default=100000000
     parse.add_argument('--length',type=int,default=default,
         help='the length of the sequence to simulate [{}]'.format(default))
+    default=None
+    parse.add_argument('--genome',type=check_folder,default=default,
+        help='the directory to output the perturbed genome for each sample [{}]'.format(default))
     parse.add_argument('-v','--version',action='version',version=__version__)
     args=parse.parse_args()
 
@@ -163,10 +193,24 @@ def main():
             leaves_number=mytree.leaves_counting()
             leaves_names=sorted(mytree.leaves_naming())
             if args.prune>0:
-                mytree.prune(tips=args.prune)
+                if args.prune>leaves_number:
+                    raise argparse.ArgumentTypeError("There are only {} leaves on the tree. It's impossible to prune {} leaves.".format(
+                        leaves_number,args.prune))
+                if args.prune>=2:
+                    mytree.prune(tips=args.prune)
             elif args.prune_proportion>0.0:
                 trim=leaves_number*args.prune_proportion
-                mytree.prune(tips=trim)
+                if trim>=2:
+                    mytree.prune(tips=trim)
+#output the map of tip_node:leaf
+            if args.genome:
+                tip_leaves=mytree.tip_node_leaves()
+                os.mkdir(args.genome,mode=0o755)
+                with open(args.genome+'/tip_node_sample.map','w') as tip_leaves_f:
+                    tip_leaves_f.write('#tip_node\tsample\n')
+                    for tip_node in sorted(tip_leaves.keys()):
+                        for leaf in sorted(tip_leaves[tip_node]):
+                            tip_leaves_f.write('node{}\t{}\n'.format(tip_node,leaf))
 #trunk vars
             trunk_snvs={}
             trunk_cnvs={}
@@ -175,7 +219,7 @@ def main():
                     args.trunk_vars,args.ploidy,args.length,leaves_number,mytree)
 
             cn_dist_cfg=cn_dist(copy_max=args.copy_max,copy_parameter=args.copy_parameter)
-
+            
             (snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs,
                 leaf_snv_alts,leaf_snv_refs,leaf_cnvs,
                 hap_local_copy_for_all_snvs,
@@ -191,6 +235,8 @@ def main():
                 trunk_cnvs=trunk_cnvs,
                 purity=args.purity,
                 length=args.length,
+                genome=args.genome,
+                chroms=args.name,
                 )
 
             if args.snv_genotype!=None:
@@ -245,7 +291,7 @@ def main():
 #output for expands
                 expands_snps_file=open(args.expands+'.snps','w')
                 expands_snps_file.write('chr\tstartpos\tAF_Tumor\tPN_B\n')
-                chroms=1
+                chroms=args.name
                 for pos,freq in snvs_freq:
                     total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(args.depth,freq)
                     expands_snps_file.write('{}\t{}\t{}\t{}\n'.format(chroms,pos,b_allele_dp/total_dp,0))
@@ -257,5 +303,3 @@ def main():
                 for start,end,copy in cnv_profile:
                     expands_segs_file.write('{}\t{}\t{}\t{}\n'.format(chroms,start,end,copy/leaves_number))
 
-#if __name__ == '__main__':
-#    main()

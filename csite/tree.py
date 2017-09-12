@@ -5,6 +5,7 @@ import pickle
 import numpy
 import copy
 import logging
+import os
 
 class Tree:
     snv_pos={}
@@ -14,10 +15,10 @@ class Tree:
         self.left=left
         self.right=right
         self.top=top
-#it's a list of dictionary and each dictionary contains those keys {start,ref,alt,mutation} of each snv that occured on its top branch
+#it's a list of dictionary and each dictionary contains those keys {type,start,end,ref,alt,mutation} of each snv that occured on its top branch
         self.snvs=snvs 
         self.accumulated_snvs=accumulated_snvs #it contains pos for all snvs on the lineage leading to that node 
-#it's a list of dictionary and each dictionary contains those keys {start,end,copy,leaves_count,pre_snvs,new_copies} of each cnv that occured on its top branch
+#it's a list of dictionary and each dictionary contains those keys {type,start,end,copy,leaves_count,pre_snvs,new_copies} of each cnv that occured on its top branch
         self.cnvs=cnvs                         
         self.accumulated_cnvs=accumulated_cnvs 
         self.C=C
@@ -102,6 +103,7 @@ class Tree:
                         Tree.snv_pos[pos]=1
                         snv={'type':'SNV',
                              'start':pos,
+                             'end':pos+1,
                              'ref':None,
                              'alt':None,
                              'mutation':None}
@@ -443,6 +445,20 @@ class Tree:
 #Each layer has 5 sub-layers.
 #######################################
 
+    def tip_node_leaves(self,tip_leaves=None):
+        '''
+        Return a dictionary {tip_node1:[leaf_name1,leaf_name2...],tip_node2:[...],...}.
+        '''
+        if tip_leaves==None:
+            tip_leaves={}
+        if self.left!=None:
+            self.left.tip_node_leaves(tip_leaves=tip_leaves)
+        if self.right!=None:
+            self.right.tip_node_leaves(tip_leaves=tip_leaves)
+        if self.left==None and self.right==None:
+            tip_leaves[self.nodeid]=self.leaves_naming()
+        return tip_leaves
+
     def leaf_vars(self,start=None,end=None,tip_vars=None):
         '''
         Only return the vars on the main tree level, will not trace the vars on the new copies of each CNVs.
@@ -492,22 +508,19 @@ class Tree:
         {'start':start,'end':end,'vars':{'tip_node1':[SNVs+CNVs],'tip_node2':[SNVs+CNVs],...}}
         !!!In this structure, each haplotype of each haplotypes in CNVs will have the same structure as above.!!!
         '''
-        #logging.debug('start: %s; end: %s',start,end)
         self.add_cnvs_haps_key()
         try:
             logging.debug('tip_vars : %s',tip_vars)
         except NameError:
             logging.debug('not exist yet')
-        logging.debug('???start: %s; end: %s',start,end)
         leaf_haplotype=self.leaf_vars(start=start,end=end)
-        #leaf_haplotype=self.leaf_vars(start=start,end=end)
-        #logging.debug('start: %s; end: %s',start,end)
         return leaf_haplotype
 
     #@profile
     def snvs_freq_cnvs_profile(self,ploidy=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,
-                               trunk_snvs=None,trunk_dels=None,trunk_cnvs=None,purity=None,length=None):
+                               trunk_snvs=None,trunk_dels=None,trunk_cnvs=None,purity=None,
+                               length=None,genome=None,chroms=None):
         '''
         Produce the true frequency of SNVs in the samples.
         It's a warpper for generating SNVs/CNVs on a tree and summarize their frequency.
@@ -544,8 +557,10 @@ class Tree:
 
             hap_tree.genotyping(genotypes=leaf_snv_alts)
             hap_tree.cnv_genotyping(genotypes=leaf_cnvs,parental=i)
-            haplotypes=hap_tree.construct_leaf_haplotype(start=0,end=length)
-            logging.debug('Haplotypes: %s',haplotypes)
+            if genome!=None:
+                leaf_haplotype=hap_tree.construct_leaf_haplotype(start=0,end=length)
+                logging.debug('Haplotypes: %s',leaf_haplotype)
+                output_leaf_haplotype(leaf_haplotype=leaf_haplotype,directory=genome,chroms=chroms,haplotype=i)
 
 #construct a tree with all snvs
 #FIXME: right now, it does not consider the deletion effect on pre_snvs.
@@ -795,30 +810,61 @@ def hap_local_leaves(positions=None,hap_cnvs=None,length=None,background=None,pl
             all_pos_local_copy[-1].append(hap_local_copy[i])
     return all_pos_local_copy
 
-def print_tip_vars(tip_vars=None):
+def output_leaf_haplotype(leaf_haplotype=None,directory=None,chroms=None,haplotype=None):
     '''
-    Print out vars of each node in the order of coordinate.
+    Output the variants of each tip node in the order of coordinate.
     '''
-    for node in tip_vars['vars'].keys():
-        print(node)
-        retrieve_tip_vars(tip_vars=tip_vars,tip=node)
+    #if not os.path.isdir(directory):
+    #    os.mkdir(directory,mode=0o755)
+    for node in leaf_haplotype['vars'].keys():
+        with open(directory+'/node'+node+'.genome.cfg','a') as cfg_file:
+            cfg_file.write('>{}\tHaplotype{}\n'.format(chroms,haplotype))
+            retrieve_tip_vars(tip_vars=leaf_haplotype,tip=node,out_file=cfg_file,chroms=chroms)
 
-def retrieve_tip_vars(tip_vars=None,tip=None):
+def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
     '''
     The data structure of tip_vars is:
     {'start':start,'end':end,'vars':{'tip_node1':[SNVs+CNVs],'tip_node2':[SNVs+CNVs],...}}
     In this structure, each copy of each CNV in CNVs will have the same structure as above.
     '''
     seq_seg=[]
+    breakpoint=tip_vars['start']
     for var in tip_vars['vars'][tip]:
-        if var['type']=='AMP': #amplification
-            for copy in var['new_copies']:
-                retrieve_tip_vars(tip_vars=copy,tip=tip)
-        elif var['type']=='DEL': #amplification
-            pass
-        else: #SNV
-            pass
+        if var['type']=='SNV' or var['type']=='DEL': #snv or deletion
+            if var['start']>breakpoint:
+                out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'ref']))
+                out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type']]))
+            elif var['start']==breakpoint:
+                out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type']]))
+            else:
+                raise ShouldNotBeHereError
+            breakpoint=var['end']
+        elif var['type']=='AMP': #amplification
+            if var['start']<breakpoint:
+                raise ShouldNotBeHereError
+            else:
+                if var['start']>breakpoint:
+                    out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'ref']))
+                for haplotype in var['haplotypes']:
+                    retrieve_tip_vars(tip_vars=haplotype,tip=tip,out_file=out_file,chroms=chroms)
+                breakpoint=var['start']
+        else: 
+            raise ShouldNotBeHereError
+    if tip_vars['end']>breakpoint:
+        out_file.write(build_line(elements=[chroms,breakpoint,tip_vars['end'],'ref']))
+    elif tip_vars['end']==breakpoint:
+        pass
+    else:
+        raise ShouldNotBeHereError
 
+def build_line(elements=None):
+    '''
+    elements should be a list.
+    I will join them with '\t' and append a '\n' at the tail.
+    '''
+    return '{}\n'.format('\t'.join([str(x) for x in elements]))
 
 class TooManyMutationsError(Exception):
+    pass
+class ShouldNotBeHereError(Exception):
     pass
