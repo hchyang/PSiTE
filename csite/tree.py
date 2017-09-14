@@ -15,7 +15,7 @@ class Tree:
         self.left=left
         self.right=right
         self.top=top
-#it's a list of dictionary and each dictionary contains those keys {type,start,end,ref,alt,mutation} of each snv that occured on its top branch
+#it's a list of dictionary and each dictionary contains those keys {type,start,end,mutation} of each snv that occured on its top branch
         self.snvs=snvs 
         self.accumulated_snvs=accumulated_snvs #it contains pos for all snvs on the lineage leading to that node 
 #it's a list of dictionary and each dictionary contains those keys {type,start,end,copy,leaves_count,pre_snvs,new_copies} of each cnv that occured on its top branch
@@ -38,12 +38,13 @@ class Tree:
             node.top=self
             self=node
         else:
-            print('Should not be here!1')
+            raise ShouldNotBeHereError
         return self
 
     #@profile
     def add_snv_cnv(self,start=None,end=None,inherent_snvs=None,inherent_cnvs=None,
-                    snv_rate=None,cnv_rate=None,del_prob=None,cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None):
+                    snv_rate=None,cnv_rate=None,del_prob=None,cnv_length_beta=None,
+                    cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None):
         '''
         Randomly put SNVs and CNVs on a phylogenetic tree.
         For amplifications, we will build a new tree for every new copy and use this method to add SNVs/CNVs on the new tree.
@@ -104,9 +105,7 @@ class Tree:
                         snv={'type':'SNV',
                              'start':pos,
                              'end':pos+1,
-                             'ref':None,
-                             'alt':None,
-                             'mutation':None}
+                             'mutation':numpy.random.choice(tstv_dist_cfg['form'],p=tstv_dist_cfg['prob'])}
                         self.snvs.append(snv)
                         self.accumulated_snvs.append(snv)
                         logging.debug('New SNV: %s',pos)
@@ -150,7 +149,7 @@ class Tree:
                                 elif cnv[1]>del_end:
                                     cnv[0]=del_end
                                 else:
-                                    print('Should not be here!3')
+                                    raise ShouldNotBeHereError
                     logging.debug('New CNVs after adjusting to previous deletions: %s',str(new_cnvs))
                     if len(new_cnvs)==0 or len(new_cnvs[0])==0:
                         continue
@@ -223,16 +222,19 @@ class Tree:
 #But we have compared all new cnvs with accumulated_cnvs, so no pre_cnvs will affect our new copies.
                     segment.add_snv_cnv(start=cnv['start'],end=cnv['end'],inherent_snvs=cnv['pre_snvs'],
                                         snv_rate=snv_rate*scale,cnv_rate=cnv_rate*scale,del_prob=del_prob,
-                                        cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg)
+                                        cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
+                                        cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg)
 #only root node have inherent_snvs and inherent_cnvs
         if self.left != None:
             self.left.add_snv_cnv(start=start,end=end,inherent_snvs=[],inherent_cnvs=[],
                                   snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
-                                  cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg)
+                                  cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
+                                  cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg)
         if self.right != None:
             self.right.add_snv_cnv(start=start,end=end,inherent_snvs=[],inherent_cnvs=[],
                                    snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
-                                   cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg)
+                                   cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
+                                   cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg)
 
     def all_cnvs_collect(self):
         '''
@@ -518,7 +520,7 @@ class Tree:
 
     #@profile
     def snvs_freq_cnvs_profile(self,ploidy=None,snv_rate=None,cnv_rate=None,del_prob=None,
-                               cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,
+                               cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,
                                trunk_snvs=None,trunk_dels=None,trunk_cnvs=None,purity=None,
                                length=None,genome=None,chroms=None):
         '''
@@ -546,7 +548,7 @@ class Tree:
             hap_tree.add_snv_cnv(start=0,end=length,inherent_snvs=hap_trunk_snvs,
                 inherent_cnvs=hap_trunk_cnvs,snv_rate=snv_rate,
                 cnv_rate=cnv_rate,del_prob=del_prob,cnv_length_beta=cnv_length_beta,
-                cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg)
+                cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg)
 
             all_snvs_alt_counts_dict=hap_tree.all_snvs_alt_allele_count()
             all_snvs_alt_counts.extend([[snv,all_snvs_alt_counts_dict[snv]] for snv in all_snvs_alt_counts_dict])
@@ -771,8 +773,8 @@ def newick2tree(newick=None):
             elif branch==';':
                 break
             else:
-                print('Should not be here!4')
                 print('Check your newick tree! Or maybe there are something I do not know about newick!')
+                raise ShouldNotBeHereError
         else:
             mytree=mytree.top
     return mytree
@@ -818,7 +820,7 @@ def output_leaf_haplotype(leaf_haplotype=None,directory=None,chroms=None,haploty
     #    os.mkdir(directory,mode=0o755)
     for node in leaf_haplotype['vars'].keys():
         with open(directory+'/node'+node+'.genome.cfg','a') as cfg_file:
-            cfg_file.write('>{}\tHaplotype{}\n'.format(chroms,haplotype))
+            cfg_file.write('>{}_Haplotype{}\n'.format(chroms,haplotype))
             retrieve_tip_vars(tip_vars=leaf_haplotype,tip=node,out_file=cfg_file,chroms=chroms)
 
 def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
@@ -830,7 +832,16 @@ def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
     seq_seg=[]
     breakpoint=tip_vars['start']
     for var in tip_vars['vars'][tip]:
-        if var['type']=='SNV' or var['type']=='DEL': #snv or deletion
+        if var['type']=='SNV': #snv
+            if var['start']>breakpoint:
+                out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'ref']))
+                out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type'],var['mutation']]))
+            elif var['start']==breakpoint:
+                out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type'],var['mutation']]))
+            else:
+                raise ShouldNotBeHereError
+            breakpoint=var['end']
+        elif var['type']=='DEL': #deletion
             if var['start']>breakpoint:
                 out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'ref']))
                 out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type']]))

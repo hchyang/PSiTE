@@ -8,14 +8,14 @@
 #########################################################################
 
 import sys
-import pickle
-import numpy
+import os
+import re
 import argparse
+import numpy
 import logging
 import csite.trunk_vars
 import csite.tree
-import re
-import os
+#import pickle
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe 
@@ -31,22 +31,29 @@ def check_seed(value=None):
     ivalue=int(value)
 #2**32: Must be convertible to 32 bit unsigned integers.
     if not 0<=ivalue<=4294967296: 
-        raise argparse.ArgumentTypeError("{} is an invalid value for random seed. ".format(value)+
+        raise argparse.ArgumentTypeError("{} is an invalid value for --random_seed. ".format(value)+
             "It should be an interger between 0 and 4294967296.")
     return ivalue
 
 def check_prune(value=None):
     ivalue=int(float(value))
     if ivalue<2: 
-        raise argparse.ArgumentTypeError("{} is an invalid value for prune. ".format(value)+
+        raise argparse.ArgumentTypeError("{} is an invalid value for --prune. ".format(value)+
             "It should be an interger >=2 and <=the number of leaves of the tree.")
     return ivalue
 
 def check_proportion(value=None):
     fvalue=float(value)
     if not 0<=fvalue<=1: 
-        raise argparse.ArgumentTypeError("{} is an invalid value for prune proportion. ".format(value)+
+        raise argparse.ArgumentTypeError("{} is an invalid value for --prune_proportion. ".format(value)+
             "It should be an float between 0 and 1.")
+    return fvalue
+
+def check_tstv(value=None):
+    fvalue=float(value)
+    if fvalue<=0: 
+        raise argparse.ArgumentTypeError("{} is an invalid value for --tstv. ".format(value)+
+            "It should be an float larger than 0.")
     return fvalue
 
 def check_folder(directory=None):
@@ -75,6 +82,21 @@ def cn_dist(copy_max=None,copy_parameter=None):
     scale=sum([w*copy_parameter**x for x in range(copy_max)])
     cn_dist_cfg['prob']=[(w*copy_parameter**x)/scale for x in range(copy_max)]
     return cn_dist_cfg
+
+def tstv_dist(tstv=None):
+    '''
+    For a SNV:
+    ts+tv=1 in which tv=tv1+tv2 and ts/tv=tstv
+    This function returns the configure of the distribution of different form of SNV mutation.
+    '''
+    tstv_dist_cfg={}
+    tv=1/(1+tstv)
+    ts=1-tv
+    tv1=tv/2
+    tv2=1-ts-tv1
+    tstv_dist_cfg['form']=[0,1,2]
+    tstv_dist_cfg['prob']=[ts,tv1,tv2]
+    return tstv_dist_cfg
 
 #use kernprof -l -v script.py to profile
 #@profile
@@ -161,6 +183,9 @@ def main():
     default=None
     parse.add_argument('--expands',type=str,default=default,
         help='the basename of the file to output the snv and segment data for EXPANDS [{}]'.format(default))
+    default=2.0
+    parse.add_argument('--tstv',type=check_tstv,default=default,
+        help='the ratio of ts/tv of SNV [{}]'.format(default))
     default=100000000
     parse.add_argument('--length',type=int,default=default,
         help='the length of the sequence to simulate [{}]'.format(default))
@@ -184,122 +209,128 @@ def main():
     logging.info(' Random seed: %s',seed)
     numpy.random.seed(seed)
 
+#read newick str and build tree
+    newick=''
     with open(args.tree) as input:
         for line in input:
-            newick=line.rstrip()
-            mytree=csite.tree.newick2tree(newick)
-            if args.trunk_length:
-                mytree.lens=args.trunk_length
-            leaves_number=mytree.leaves_counting()
-            leaves_names=sorted(mytree.leaves_naming())
-            if args.prune>0:
-                if args.prune>leaves_number:
-                    raise argparse.ArgumentTypeError("There are only {} leaves on the tree. It's impossible to prune {} leaves.".format(
-                        leaves_number,args.prune))
-                if args.prune>=2:
-                    mytree.prune(tips=args.prune)
-            elif args.prune_proportion>0.0:
-                trim=leaves_number*args.prune_proportion
-                if trim>=2:
-                    mytree.prune(tips=trim)
+            newick+=line.rstrip()
+#TODO: We should do make sure the newick string is valided before processing it.
+    mytree=csite.tree.newick2tree(newick)
+
+    if args.trunk_length:
+        mytree.lens=args.trunk_length
+    leaves_number=mytree.leaves_counting()
+    leaves_names=sorted(mytree.leaves_naming())
+    if args.prune>0:
+        if args.prune>leaves_number:
+            raise argparse.ArgumentTypeError("There are only {} leaves on the tree. It's impossible to prune {} leaves.".format(
+                leaves_number,args.prune))
+        if args.prune>=2:
+            mytree.prune(tips=args.prune)
+    elif args.prune_proportion>0.0:
+        trim=leaves_number*args.prune_proportion
+        if trim>=2:
+            mytree.prune(tips=trim)
 #output the map of tip_node:leaf
-            if args.genome:
-                tip_leaves=mytree.tip_node_leaves()
-                os.mkdir(args.genome,mode=0o755)
-                with open(args.genome+'/tip_node_sample.map','w') as tip_leaves_f:
-                    tip_leaves_f.write('#tip_node\tsample\n')
-                    for tip_node in sorted(tip_leaves.keys()):
-                        for leaf in sorted(tip_leaves[tip_node]):
-                            tip_leaves_f.write('node{}\t{}\n'.format(tip_node,leaf))
+    if args.genome:
+        tip_leaves=mytree.tip_node_leaves()
+        os.mkdir(args.genome,mode=0o755)
+        with open(args.genome+'/tip_node_sample.map','w') as tip_leaves_f:
+            tip_leaves_f.write('#tip_node\tsample\n')
+            for tip_node in sorted(tip_leaves.keys()):
+                for leaf in sorted(tip_leaves[tip_node]):
+                    tip_leaves_f.write('node{}\t{}\n'.format(tip_node,leaf))
 #trunk vars
-            trunk_snvs={}
-            trunk_cnvs={}
-            if args.trunk_vars!=None:
-                trunk_snvs,trunk_cnvs=csite.trunk_vars.classify_vars(
-                    args.trunk_vars,args.ploidy,args.length,leaves_number,mytree)
+    trunk_snvs={}
+    trunk_cnvs={}
+    if args.trunk_vars!=None:
+        trunk_snvs,trunk_cnvs=csite.trunk_vars.classify_vars(
+            args.trunk_vars,args.ploidy,args.length,leaves_number,mytree)
 
-            cn_dist_cfg=cn_dist(copy_max=args.copy_max,copy_parameter=args.copy_parameter)
-            
-            (snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs,
-                leaf_snv_alts,leaf_snv_refs,leaf_cnvs,
-                hap_local_copy_for_all_snvs,
-                )=mytree.snvs_freq_cnvs_profile(
-                ploidy=args.ploidy,
-                snv_rate=args.snv_rate,
-                cnv_rate=args.cnv_rate,
-                del_prob=args.del_prob,
-                cnv_length_beta=args.cnv_length_beta,
-                cnv_length_max=args.cnv_length_max,
-                cn_dist_cfg=cn_dist_cfg,
-                trunk_snvs=trunk_snvs,
-                trunk_cnvs=trunk_cnvs,
-                purity=args.purity,
-                length=args.length,
-                genome=args.genome,
-                chroms=args.name,
-                )
+    cn_dist_cfg=cn_dist(copy_max=args.copy_max,copy_parameter=args.copy_parameter)
+    tstv_dist_cfg=tstv_dist(tstv=args.tstv)
+    
+    (snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs,
+        leaf_snv_alts,leaf_snv_refs,leaf_cnvs,
+        hap_local_copy_for_all_snvs,
+        )=mytree.snvs_freq_cnvs_profile(
+        ploidy=args.ploidy,
+        snv_rate=args.snv_rate,
+        cnv_rate=args.cnv_rate,
+        del_prob=args.del_prob,
+        cnv_length_beta=args.cnv_length_beta,
+        cnv_length_max=args.cnv_length_max,
+        cn_dist_cfg=cn_dist_cfg,
+        tstv_dist_cfg=tstv_dist_cfg,
+        trunk_snvs=trunk_snvs,
+        trunk_cnvs=trunk_cnvs,
+        purity=args.purity,
+        length=args.length,
+        genome=args.genome,
+        chroms=args.name,
+        )
 
-            if args.snv_genotype!=None:
-                genotype_file=open(args.snv_genotype,'w')
-                genotype_file.write('{}\t{}\n'.format('#positon','\t'.join(leaves_names)))
-                for snv in snvs_freq:
-                    genotype_file.write('{}\t{}\n'.format(snv[0],
-                        '\t'.join([str(leaf_snv_alts[leaf][snv[0]])+':'+str(leaf_snv_refs[leaf][snv[0]]) for leaf in leaves_names])))
+    if args.snv_genotype!=None:
+        with open(args.snv_genotype,'w') as genotype_file:
+            genotype_file.write('{}\t{}\n'.format('#positon','\t'.join(leaves_names)))
+            for snv in snvs_freq:
+                genotype_file.write('{}\t{}\n'.format(snv[0],
+                    '\t'.join([str(leaf_snv_alts[leaf][snv[0]])+':'+str(leaf_snv_refs[leaf][snv[0]]) for leaf in leaves_names])))
 
-            if args.ind_cnvs!=None:
-                ind_cnvs_file=open(args.ind_cnvs,'w')
-                ind_cnvs_file.write('#cell\tparental\tstart\tend\tcopy\n')
-                for leaf in sorted(leaf_cnvs.keys()):
-                    for cnv in leaf_cnvs[leaf]:
-                        ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,cnv['parental'],cnv['start'],cnv['end'],cnv['copy']]])))
+    if args.ind_cnvs!=None:
+        with open(args.ind_cnvs,'w') as ind_cnvs_file:
+            ind_cnvs_file.write('#cell\tparental\tstart\tend\tcopy\n')
+            for leaf in sorted(leaf_cnvs.keys()):
+                for cnv in leaf_cnvs[leaf]:
+                    ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,cnv['parental'],cnv['start'],cnv['end'],cnv['copy']]])))
 
-            if args.parental_copy!=None:
-                parental_copy_file=open(args.parental_copy,'w')
-                parental_copy_file.write('#position\t{}\n'.format('\t'.join(['haplotype'+str(x) for x in range(args.ploidy)])))
-                for snv in hap_local_copy_for_all_snvs:
-                    parental_copy_file.write('\t'.join([str(x) for x in snv])+'\n')
+    if args.parental_copy!=None:
+        with open(args.parental_copy,'w') as parental_copy_file:
+            parental_copy_file.write('#position\t{}\n'.format('\t'.join(['haplotype'+str(x) for x in range(args.ploidy)])))
+            for snv in hap_local_copy_for_all_snvs:
+                parental_copy_file.write('\t'.join([str(x) for x in snv])+'\n')
 
-            cnv_file=open(args.cnv,'w')
-            for cnv in cnvs:
-                cnv_file.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(cnv['seg'],cnv['start'],cnv['end'],cnv['copy'],cnv['leaves_count'],cnv['pre_snvs']))
+    with open(args.cnv,'w') as cnv_file:
+        for cnv in cnvs:
+            cnv_file.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(cnv['seg'],cnv['start'],cnv['end'],cnv['copy'],cnv['leaves_count'],cnv['pre_snvs']))
 
-            snv_file=open(args.snv,'w')
-            snv_file.write('#position\ttrue_freq\ttotal_depth\tsimulated_freq\n')
-            for pos,freq in snvs_freq:
-                total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(args.depth,freq)
-                b_allele_freq=0
-                if total_dp!=0:
-                    b_allele_freq=b_allele_dp/total_dp
-                snv_file.write('{}\t{}\t{}\t{}\n'.format(pos,freq,total_dp,b_allele_freq))
+    with open(args.snv,'w') as snv_file:
+        snv_file.write('#position\ttrue_freq\ttotal_depth\tsimulated_freq\n')
+        for pos,freq in snvs_freq:
+            total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(args.depth,freq)
+            b_allele_freq=0
+            if total_dp!=0:
+                b_allele_freq=b_allele_dp/total_dp
+            snv_file.write('{}\t{}\t{}\t{}\n'.format(pos,freq,total_dp,b_allele_freq))
 
-            cnv_profile_file=open(args.cnv_profile,'w')
-            for seg in cnv_profile:
-                cnv_profile_file.write('{}\t{}\t{}\n'.format(*seg))
+    with open(args.cnv_profile,'w') as cnv_profile_file:
+        for seg in cnv_profile:
+            cnv_profile_file.write('{}\t{}\t{}\n'.format(*seg))
 
 #FIXME: output SNVs/CNVs, not only SNVs
-            nodes_snvs_file=open(args.nodes_vars,'w')
-            for node in sorted(nodes_snvs.keys()):
-                for snv in sorted(nodes_snvs[node]):
-                    nodes_snvs_file.write('{}\t{}\n'.format(node,snv))
+    with open(args.nodes_vars,'w') as nodes_snvs_file:
+        for node in sorted(nodes_snvs.keys()):
+            for snv in sorted(nodes_snvs[node]):
+                nodes_snvs_file.write('{}\t{}\n'.format(node,snv))
 
-#TODO: Should we change pickle to json or yaml?
-#http://stackoverflow.com/questions/4677012/python-cant-pickle-type-x-attribute-lookup-failed
-            tree_data_file=open(args.named_tree,'wb')
-            #pickle.dump(tree_with_snvs,tree_data_file)
-
-            if args.expands != None:
 #output for expands
-                expands_snps_file=open(args.expands+'.snps','w')
-                expands_snps_file.write('chr\tstartpos\tAF_Tumor\tPN_B\n')
-                chroms=args.name
-                for pos,freq in snvs_freq:
-                    total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(args.depth,freq)
-                    expands_snps_file.write('{}\t{}\t{}\t{}\n'.format(chroms,pos,b_allele_dp/total_dp,0))
+    if args.expands != None:
+        with open(args.expands+'.snps','w') as expands_snps_file:
+            expands_snps_file.write('chr\tstartpos\tAF_Tumor\tPN_B\n')
+            chroms=args.name
+            for pos,freq in snvs_freq:
+                total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(args.depth,freq)
+                expands_snps_file.write('{}\t{}\t{}\t{}\n'.format(chroms,pos,b_allele_dp/total_dp,0))
 
 #in the segment input for expands
 #CN_Estimate - the copy number estimated for each segment (average value across all subpopulations in the sample)
-                expands_segs_file=open(args.expands+'.segs','w')
-                expands_segs_file.write("chr\tstartpos\tendpos\tCN_Estimate\n")
-                for start,end,copy in cnv_profile:
-                    expands_segs_file.write('{}\t{}\t{}\t{}\n'.format(chroms,start,end,copy/leaves_number))
+        with open(args.expands+'.segs','w') as expands_segs_file:
+            expands_segs_file.write("chr\tstartpos\tendpos\tCN_Estimate\n")
+            for start,end,copy in cnv_profile:
+                expands_segs_file.write('{}\t{}\t{}\t{}\n'.format(chroms,start,end,copy/leaves_number))
+
+#TODO: Should we change pickle to json or yaml?
+#http://stackoverflow.com/questions/4677012/python-cant-pickle-type-x-attribute-lookup-failed
+    #with open(args.named_tree,'wb') as tree_data_file:
+    #    pickle.dump(tree_with_snvs,tree_data_file)
 
