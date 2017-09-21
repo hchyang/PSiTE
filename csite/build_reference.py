@@ -14,14 +14,13 @@ import argparse
 import pyfaidx
 import glob
 import numpy
-from collections import defaultdict
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe 
 from signal import signal, SIGPIPE, SIG_DFL 
 signal(SIGPIPE,SIG_DFL) 
 
-def check_genome_folder(directory=None):
+def check_perturbed_folder(directory=None):
     if not os.path.isdir(directory):
         raise argparse.ArgumentTypeError("{} is not exist or not a folder.".format(directory))
     return directory
@@ -42,11 +41,11 @@ def check_sequence_folder(directory=None):
     
 def main():
     parse=argparse.ArgumentParser(description='Build reference genomes for ART to simulate short reads')
-    parse.add_argument('-g','--genome',required=True,type=check_genome_folder,
+    parse.add_argument('-p','--perturbed',required=True,type=check_perturbed_folder,
         help='the folder contain the configure file of perturbed genomes')
     parse.add_argument('-r','--reference',required=True,type=check_reference_file,
         help='reference file')
-    default='perturbed_genomes'
+    default='perturbed_seqs'
     parse.add_argument('-s','--sequence',default=default,type=check_sequence_folder,
         help='the folder to save the built genome sequences [{}]'.format(default))
     default=60
@@ -56,7 +55,7 @@ def main():
 
     reference=pyfaidx.Fasta(args.reference)
     os.mkdir(args.sequence,mode=0o755)
-    for node_cfg in glob.glob(args.genome+'/node*.cfg'):
+    for node_cfg in glob.glob(args.perturbed+'/node*.cfg'):
         with open(args.sequence+'/'+os.path.basename(node_cfg)+'.fa','w') as outputf:
             with open(node_cfg) as inputf:
                 seq_name=''

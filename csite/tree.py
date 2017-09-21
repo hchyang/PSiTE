@@ -522,7 +522,7 @@ class Tree:
     def snvs_freq_cnvs_profile(self,ploidy=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,
                                trunk_snvs=None,trunk_dels=None,trunk_cnvs=None,purity=None,
-                               length=None,genome=None,chroms=None):
+                               length=None,perturbed=None,chroms=None):
         '''
         Produce the true frequency of SNVs in the samples.
         It's a warpper for generating SNVs/CNVs on a tree and summarize their frequency.
@@ -559,10 +559,10 @@ class Tree:
 
             hap_tree.genotyping(genotypes=leaf_snv_alts)
             hap_tree.cnv_genotyping(genotypes=leaf_cnvs,parental=i)
-            if genome!=None:
+            if perturbed!=None:
                 leaf_haplotype=hap_tree.construct_leaf_haplotype(start=0,end=length)
                 logging.debug('Haplotypes: %s',leaf_haplotype)
-                output_leaf_haplotype(leaf_haplotype=leaf_haplotype,directory=genome,chroms=chroms,haplotype=i)
+                output_leaf_haplotype(leaf_haplotype=leaf_haplotype,directory=perturbed,chroms=chroms,haplotype=i)
 
 #construct a tree with all snvs
 #FIXME: right now, it does not consider the deletion effect on pre_snvs.
@@ -877,5 +877,6 @@ def build_line(elements=None):
 
 class TooManyMutationsError(Exception):
     pass
+
 class ShouldNotBeHereError(Exception):
     pass

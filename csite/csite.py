@@ -15,6 +15,7 @@ import numpy
 import logging
 import csite.trunk_vars
 import csite.tree
+import yaml
 #import pickle
 
 #handle the error below
@@ -52,23 +53,26 @@ def check_proportion(value=None):
 def check_tstv(value=None):
     fvalue=float(value)
     if fvalue<=0: 
-        raise argparse.ArgumentTypeError("{} is an invalid value for --tstv. ".format(value)+
+        raise argparse.ArgumentTypeError("{} is an invalid value for transition/transversion ratio. ".format(value)+
             "It should be an float larger than 0.")
     return fvalue
 
 def check_folder(directory=None):
     good_charactors=re.compile('^[0-9a-zA-Z_-]+$') 
     if not good_charactors.match(directory):
-        raise argparse.ArgumentTypeError("{} is an invalid string for --genome. ".format(directory)+
+        raise argparse.ArgumentTypeError("{} is an invalid string for --perturbed. ".format(directory)+
             "Please only use number, alphabet, - and _ in the directory name.")
     if os.path.exists(directory):
         raise argparse.ArgumentTypeError("{} is already exist. Delete it or use another name instead.".format(directory))
     return directory
     
-def check_max_cnv_length(seq_length=None,max_cnv_length=None):
-    if max_cnv_length>seq_length:
-         raise argparse.ArgumentTypeError("The value of -L/--cnv_length_max "+
-            "({}) should NOT be larger than --length ({}).".format(max_cnv_length,seq_length))
+def check_cnv_length_cfg(chroms=None,cnv_length_beta=None,cnv_length_max=None,chr_length=None):
+    if cnv_length_max>chr_length:
+         raise argparse.ArgumentTypeError("{}: The value of cnv_length_max ".format(chroms)+
+            "({}) should NOT be larger than the length of chromosome ({}).".format(cnv_length_max,chr_length))
+    if cnv_length_max<cnv_length_beta:
+         raise argparse.ArgumentTypeError("{}: The value of cnv_length_max ".format(chroms)+
+            "({}) should be larger than the cnv_length_beta ({}).".format(cnv_length_max,cnv_length_beta))
 
 def cn_dist(copy_max=None,copy_parameter=None):
     '''
@@ -98,13 +102,43 @@ def tstv_dist(tstv=None):
     tstv_dist_cfg['prob']=[ts,tv1,tv2]
     return tstv_dist_cfg
 
+def check_config_file(config=None,cfg_params=None):
+    '''
+    Check the validation of your config file.
+    '''
+#TODO: we should collect all invalid keys and print all of them in one time
+    if config and not isinstance(config,dict):
+        raise ConfigFileError('Check your config file. The format is not correct.')
+    for key in set(config.keys())-set(['genome','chromosomes']):
+        raise ConfigFileError('{} is not acceptable '.format(key)+
+            'as the the 1st level key in your configure file!')
+    if 'genome' in config and config['genome']:
+        if not isinstance(config['genome'],dict):
+            raise ConfigFileError('Check your config file. The format in genome section is not correct.')
+        for key in set(config['genome'].keys())-set(cfg_params):
+            raise ConfigFileError('{} is not an acceptable key '.format(key)+
+                'in the genome section of your configure file!')
+    if 'chromosomes' in config and config['chromosomes']:
+        if not isinstance(config['chromosomes'],list):
+            raise ConfigFileError('Check your config file. The format in chromosomes section is not correct.')
+        for chroms in config['chromosomes']: 
+            if not isinstance(chroms,dict) or len(chroms)>1:
+                raise ConfigFileError('Check your config file. The format in chromosomes section is not correct.')
+            for chroms_n,chroms_cfg in chroms.items():
+                for key in set(chroms_cfg.keys())-set(cfg_params):
+                    raise ConfigFileError('{} is not an acceptable key '.format(key)+
+                        'in the section of chromosome {} in your configure file!'.format(chroms))
+
+class ConfigFileError(Exception):
+    pass
+
 #use kernprof -l -v script.py to profile
 #@profile
 def main():
     parse=argparse.ArgumentParser(
         description='Simulate SNVs/CNVs on a coalescent tree in newick format')
     parse.add_argument('-t','--tree',required=True,
-        help='a tree in newick format')
+        help='a file contains ONE tree in newick format')
     default='1'
     parse.add_argument('-n','--name',type=str,default=default,
         help='the name of the sequence to be simulated [{}]'.format(default))
@@ -190,13 +224,48 @@ def main():
     parse.add_argument('--length',type=int,default=default,
         help='the length of the sequence to simulate [{}]'.format(default))
     default=None
-    parse.add_argument('--genome',type=check_folder,default=default,
-        help='the directory to output the perturbed genome for each sample [{}]'.format(default))
+    parse.add_argument('--perturbed',type=check_folder,default=default,
+        help='directory to output the perturbed genome for each sample [{}]'.format(default))
+    default=None
+    parse.add_argument('--config',type=str,default=default,
+        help='configure file contains the configuration of the simulation in YAML format [{}]'.format(default))
     parse.add_argument('-v','--version',action='version',version=__version__)
     args=parse.parse_args()
 
-    check_max_cnv_length(args.length,args.cnv_length_max)
+###### check config file
+#only those params in cfg_params are acceptable in configure file
+    cfg_params=('snv_rate','cnv_rate','del_prob','cnv_length_beta','cnv_length_max',
+        'copy_parameter','copy_max','ploidy','tstv','length')
+    config={}
+    if args.config:
+        with open(args.config,'r') as configfile:
+            config=yaml.safe_load(configfile)
+        check_config_file(config=config,cfg_params=cfg_params)
 
+###### figure out the simulation setting for each chroms
+#1. The setting in configure YAML file will override the setting in command line.
+#2. In the configure file, the setting for individual chr will override the setting of genome.
+    genome_cfg={}
+    if 'genome' in config and config['genome']:
+        for parameter in cfg_params:
+            genome_cfg[parameter]=config['genome'].get(parameter,getattr(args,parameter))
+    else:
+        for parameter in cfg_params:
+            genome_cfg[parameter]=getattr(args,parameter)
+
+    final_chroms_cfg={} 
+    if 'chromosomes' in config and config['chromosomes']:
+        for i in config['chromosomes']:
+            for chroms,chroms_cfg in i.items():
+                final_chroms_cfg[chroms]={}
+                for parameter in cfg_params:
+                    final_chroms_cfg[chroms][parameter]=chroms_cfg.get(parameter,genome_cfg[parameter])
+    else:
+        final_chroms_cfg[args.name]={}
+        for parameter in cfg_params:
+            final_chroms_cfg[args.name][parameter]=genome_cfg[parameter]
+
+###### logging and random seed setting
     logging.basicConfig(filename=args.log, filemode='w',
         format='[%(asctime)s] %(levelname)s: %(message)s',
         datefmt='%m-%d %H:%M:%S',level=args.loglevel)
@@ -209,7 +278,7 @@ def main():
     logging.info(' Random seed: %s',seed)
     numpy.random.seed(seed)
 
-#read newick str and build tree
+###### build tree from newick string
     newick=''
     with open(args.tree) as input:
         for line in input:
@@ -221,6 +290,8 @@ def main():
         mytree.lens=args.trunk_length
     leaves_number=mytree.leaves_counting()
     leaves_names=sorted(mytree.leaves_naming())
+
+####### prune the tree if required
     if args.prune>0:
         if args.prune>leaves_number:
             raise argparse.ArgumentTypeError("There are only {} leaves on the tree. It's impossible to prune {} leaves.".format(
@@ -231,71 +302,95 @@ def main():
         trim=leaves_number*args.prune_proportion
         if trim>=2:
             mytree.prune(tips=trim)
-#output the map of tip_node:leaf
-    if args.genome:
+
+###### output the map of tip_node:leaf
+    if args.perturbed:
         tip_leaves=mytree.tip_node_leaves()
-        os.mkdir(args.genome,mode=0o755)
-        with open(args.genome+'/tip_node_sample.map','w') as tip_leaves_f:
+        os.mkdir(args.perturbed,mode=0o755)
+        with open(args.perturbed+'/tip_node_sample.map','w') as tip_leaves_f:
             tip_leaves_f.write('#tip_node\tsample\n')
             for tip_node in sorted(tip_leaves.keys()):
                 for leaf in sorted(tip_leaves[tip_node]):
                     tip_leaves_f.write('node{}\t{}\n'.format(tip_node,leaf))
-#trunk vars
+
+###### add trunk vars if supplied
+#FIXME: Can not use args.length here!!!!!!!!!!!
     trunk_snvs={}
     trunk_cnvs={}
     if args.trunk_vars!=None:
         trunk_snvs,trunk_cnvs=csite.trunk_vars.classify_vars(
             args.trunk_vars,args.ploidy,args.length,leaves_number,mytree)
 
-    cn_dist_cfg=cn_dist(copy_max=args.copy_max,copy_parameter=args.copy_parameter)
-    tstv_dist_cfg=tstv_dist(tstv=args.tstv)
-    
-    (snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs,
-        leaf_snv_alts,leaf_snv_refs,leaf_cnvs,
-        hap_local_copy_for_all_snvs,
-        )=mytree.snvs_freq_cnvs_profile(
-        ploidy=args.ploidy,
-        snv_rate=args.snv_rate,
-        cnv_rate=args.cnv_rate,
-        del_prob=args.del_prob,
-        cnv_length_beta=args.cnv_length_beta,
-        cnv_length_max=args.cnv_length_max,
-        cn_dist_cfg=cn_dist_cfg,
-        tstv_dist_cfg=tstv_dist_cfg,
-        trunk_snvs=trunk_snvs,
-        trunk_cnvs=trunk_cnvs,
-        purity=args.purity,
-        length=args.length,
-        genome=args.genome,
-        chroms=args.name,
-        )
+###### open all required output file and output the headers 
+#TODO: some file's headers are missing
+    cnv_file=open(args.cnv,'w')
+    snv_file=open(args.snv,'w')
+    snv_file.write('#position\ttrue_freq\ttotal_depth\tsimulated_freq\n')
+    cnv_profile_file=open(args.cnv_profile,'w')
+    nodes_snvs_file=open(args.nodes_vars,'w')
 
     if args.snv_genotype!=None:
-        with open(args.snv_genotype,'w') as genotype_file:
-            genotype_file.write('{}\t{}\n'.format('#positon','\t'.join(leaves_names)))
+        genotype_file=open(args.snv_genotype,'w')
+        genotype_file.write('{}\t{}\n'.format('#positon','\t'.join(leaves_names)))
+    
+    if args.ind_cnvs!=None:
+        ind_cnvs_file=open(args.ind_cnvs,'w')
+        ind_cnvs_file.write('#cell\tparental\tstart\tend\tcopy\n')
+
+    if args.parental_copy!=None:
+        parental_copy_file=open(args.parental_copy,'w')
+        parental_copy_file.write('#position\t{}\n'.format('\t'.join(['haplotype'+str(x) for x in range(chroms['ploidy'])])))
+
+    if args.expands != None:
+        expands_snps_file=open(args.expands+'.snps','w')
+        expands_snps_file.write('chr\tstartpos\tAF_Tumor\tPN_B\n')
+        expands_segs_file=open(args.expands+'.segs','w')
+        expands_segs_file.write("chr\tstartpos\tendpos\tCN_Estimate\n")
+
+###### simulate variants for each chroms
+    for chroms,chroms_cfg in final_chroms_cfg.items():
+        check_cnv_length_cfg(chroms=chroms,cnv_length_beta=chroms_cfg['cnv_length_beta'],
+            cnv_length_max=chroms_cfg['cnv_length_max'],chr_length=chroms_cfg['length'])
+        cn_dist_cfg=cn_dist(copy_max=chroms_cfg['copy_max'],copy_parameter=chroms_cfg['copy_parameter'])
+        tstv_dist_cfg=tstv_dist(tstv=chroms_cfg['tstv'])
+        
+        (snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs,
+            leaf_snv_alts,leaf_snv_refs,leaf_cnvs,
+            hap_local_copy_for_all_snvs,
+            )=mytree.snvs_freq_cnvs_profile(
+                ploidy=chroms_cfg['ploidy'],
+                snv_rate=chroms_cfg['snv_rate'],
+                cnv_rate=chroms_cfg['cnv_rate'],
+                del_prob=chroms_cfg['del_prob'],
+                cnv_length_beta=chroms_cfg['cnv_length_beta'],
+                cnv_length_max=chroms_cfg['cnv_length_max'],
+                cn_dist_cfg=cn_dist_cfg,
+                tstv_dist_cfg=tstv_dist_cfg,
+                trunk_snvs=trunk_snvs,
+                trunk_cnvs=trunk_cnvs,
+                purity=args.purity,
+                length=chroms_cfg['length'],
+                perturbed=args.perturbed,
+                chroms=chroms,
+            )
+
+        if args.snv_genotype!=None:
             for snv in snvs_freq:
                 genotype_file.write('{}\t{}\n'.format(snv[0],
                     '\t'.join([str(leaf_snv_alts[leaf][snv[0]])+':'+str(leaf_snv_refs[leaf][snv[0]]) for leaf in leaves_names])))
 
-    if args.ind_cnvs!=None:
-        with open(args.ind_cnvs,'w') as ind_cnvs_file:
-            ind_cnvs_file.write('#cell\tparental\tstart\tend\tcopy\n')
+        if args.ind_cnvs!=None:
             for leaf in sorted(leaf_cnvs.keys()):
                 for cnv in leaf_cnvs[leaf]:
                     ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,cnv['parental'],cnv['start'],cnv['end'],cnv['copy']]])))
 
-    if args.parental_copy!=None:
-        with open(args.parental_copy,'w') as parental_copy_file:
-            parental_copy_file.write('#position\t{}\n'.format('\t'.join(['haplotype'+str(x) for x in range(args.ploidy)])))
+        if args.parental_copy!=None:
             for snv in hap_local_copy_for_all_snvs:
                 parental_copy_file.write('\t'.join([str(x) for x in snv])+'\n')
 
-    with open(args.cnv,'w') as cnv_file:
         for cnv in cnvs:
             cnv_file.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(cnv['seg'],cnv['start'],cnv['end'],cnv['copy'],cnv['leaves_count'],cnv['pre_snvs']))
 
-    with open(args.snv,'w') as snv_file:
-        snv_file.write('#position\ttrue_freq\ttotal_depth\tsimulated_freq\n')
         for pos,freq in snvs_freq:
             total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(args.depth,freq)
             b_allele_freq=0
@@ -303,34 +398,45 @@ def main():
                 b_allele_freq=b_allele_dp/total_dp
             snv_file.write('{}\t{}\t{}\t{}\n'.format(pos,freq,total_dp,b_allele_freq))
 
-    with open(args.cnv_profile,'w') as cnv_profile_file:
         for seg in cnv_profile:
             cnv_profile_file.write('{}\t{}\t{}\n'.format(*seg))
 
 #FIXME: output SNVs/CNVs, not only SNVs
-    with open(args.nodes_vars,'w') as nodes_snvs_file:
         for node in sorted(nodes_snvs.keys()):
             for snv in sorted(nodes_snvs[node]):
                 nodes_snvs_file.write('{}\t{}\n'.format(node,snv))
 
 #output for expands
-    if args.expands != None:
-        with open(args.expands+'.snps','w') as expands_snps_file:
-            expands_snps_file.write('chr\tstartpos\tAF_Tumor\tPN_B\n')
-            chroms=args.name
+        if args.expands != None:
             for pos,freq in snvs_freq:
                 total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(args.depth,freq)
                 expands_snps_file.write('{}\t{}\t{}\t{}\n'.format(chroms,pos,b_allele_dp/total_dp,0))
 
 #in the segment input for expands
 #CN_Estimate - the copy number estimated for each segment (average value across all subpopulations in the sample)
-        with open(args.expands+'.segs','w') as expands_segs_file:
-            expands_segs_file.write("chr\tstartpos\tendpos\tCN_Estimate\n")
             for start,end,copy in cnv_profile:
                 expands_segs_file.write('{}\t{}\t{}\t{}\n'.format(chroms,start,end,copy/leaves_number))
 
 #TODO: Should we change pickle to json or yaml?
 #http://stackoverflow.com/questions/4677012/python-cant-pickle-type-x-attribute-lookup-failed
-    #with open(args.named_tree,'wb') as tree_data_file:
-    #    pickle.dump(tree_with_snvs,tree_data_file)
+        #with open(args.named_tree,'wb') as tree_data_file:
+        #    pickle.dump(tree_with_snvs,tree_data_file)
 
+###### close all opened files
+    cnv_file.close()
+    snv_file.close()
+    cnv_profile_file.close()
+    nodes_snvs_file.close()
+
+    if args.snv_genotype!=None:
+        genotype_file.close()
+    
+    if args.ind_cnvs!=None:
+        ind_cnvs_file.close()
+
+    if args.parental_copy!=None:
+        parental_copy_file.close()
+
+    if args.expands != None:
+        expands_snps_file.close()
+        expands_segs_file.close()
