@@ -324,7 +324,7 @@ same simulation as above, use the options `--snv_genotype` and
 `--random_seed`.
 
     `csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S
-    snvs_freq.txt --trunk_length 2.0 --prune_proportion 0.02 --snv_geneotype
+    snvs_freq.txt --trunk_length 2.0 --prune_proportion 0.02 --snv_genotype
     snvs_genotype.txt --random_seed xxxx`
 
     P.S. The random seed xxxx can be found in the log file of the previous

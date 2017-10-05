@@ -25,7 +25,7 @@ with open("README.md", "rb") as f:
 setup(
     name = "CSiTE",
     packages = ["csite"],
-    install_requires=['numpy','pyfaidx'],
+    install_requires=['numpy','pyfaidx','yaml'],
     entry_points = {
         "console_scripts": ['csite = csite.csite:main']
         },

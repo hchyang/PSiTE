@@ -14,7 +14,7 @@ class Tree:
         self.lens=lens
         self.left=left
         self.right=right
-        self.top=top
+        self.top=top #ancestor node
 #it's a list of dictionary and each dictionary contains those keys {type,start,end,mutation} of each snv that occured on its top branch
         self.snvs=snvs 
         self.accumulated_snvs=accumulated_snvs #it contains pos for all snvs on the lineage leading to that node 

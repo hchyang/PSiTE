@@ -49,8 +49,8 @@ def main():
     parse.add_argument('-s','--sequence',default=default,type=check_sequence_folder,
         help='the folder to save the built genome sequences [{}]'.format(default))
     default=60
-    parse.add_argument('-l','--length',default=default,type=int,
-        help='the length of sequence in each line of output fasta [{}]'.format(default))
+    parse.add_argument('-w','--width',default=default,type=int,
+        help='the line width of output fasta [{}]'.format(default))
     args=parse.parse_args()
 
     reference=pyfaidx.Fasta(args.reference)
@@ -96,8 +96,8 @@ class Mutation:
     '''
     Mutation form are fixed in configure file. We just need to retrieve the alternative
     allele according the reference nuleotide.
-    If we do not fix the mutation form first, the same mutation in different individuals
-    will have different alternative alleles.
+    If we do not fix the mutation form first, the same mutation (occured in the common 
+    ancestor) in different individuals will have different alternative alleles.
     '''
     _mutation_matrix={'N':['N','N','N'],
                       'A':['G','C','T'],

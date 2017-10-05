@@ -3,7 +3,7 @@
 #########################################################################
 # Author: Hechuan
 # Created Time: 2017-04-04 18:00:34
-# File Name: csite.py
+# File Name: somatic_sim.py
 # Description: 
 #########################################################################
 
@@ -25,8 +25,6 @@ signal(SIGPIPE,SIG_DFL)
 
 #TODO: SNV true_freq
 #rewrite the description of the output of SNVs 
-
-__version__='0.8.0'
 
 def check_seed(value=None):
     ivalue=int(value)
@@ -228,8 +226,7 @@ def main():
         help='directory to output the perturbed genome for each sample [{}]'.format(default))
     default=None
     parse.add_argument('--config',type=str,default=default,
-        help='configure file contains the configuration of the simulation in YAML format [{}]'.format(default))
-    parse.add_argument('-v','--version',action='version',version=__version__)
+        help='configure file contains the setting of the somatic simulation in YAML format [{}]'.format(default))
     args=parse.parse_args()
 
 ###### check config file
@@ -254,16 +251,20 @@ def main():
             genome_cfg[parameter]=getattr(args,parameter)
 
     final_chroms_cfg={} 
+    max_ploidy=0
     if 'chromosomes' in config and config['chromosomes']:
         for i in config['chromosomes']:
             for chroms,chroms_cfg in i.items():
                 final_chroms_cfg[chroms]={}
                 for parameter in cfg_params:
                     final_chroms_cfg[chroms][parameter]=chroms_cfg.get(parameter,genome_cfg[parameter])
+                if max_ploidy<final_chroms_cfg[chroms]['ploidy']:
+                    max_ploidy=final_chroms_cfg[chroms]['ploidy']
     else:
         final_chroms_cfg[args.name]={}
         for parameter in cfg_params:
             final_chroms_cfg[args.name][parameter]=genome_cfg[parameter]
+        max_ploidy=final_chroms_cfg[args.name]['ploidy']
 
 ###### logging and random seed setting
     logging.basicConfig(filename=args.log, filemode='w',
@@ -321,6 +322,7 @@ def main():
         trunk_snvs,trunk_cnvs=csite.trunk_vars.classify_vars(
             args.trunk_vars,args.ploidy,args.length,leaves_number,mytree)
 
+#TODO: check the output of nodes_snvs/nodes_vars and parental_copy
 ###### open all required output file and output the headers 
 #TODO: some file's headers are missing
     cnv_file=open(args.cnv,'w')
@@ -339,7 +341,7 @@ def main():
 
     if args.parental_copy!=None:
         parental_copy_file=open(args.parental_copy,'w')
-        parental_copy_file.write('#position\t{}\n'.format('\t'.join(['haplotype'+str(x) for x in range(chroms['ploidy'])])))
+        parental_copy_file.write('#position\t{}\n'.format('\t'.join(['haplotype'+str(x) for x in range(max_ploidy)])))
 
     if args.expands != None:
         expands_snps_file=open(args.expands+'.snps','w')
