@@ -39,8 +39,10 @@ def check_sequence_folder(directory=None):
         raise argparse.ArgumentTypeError("{} is already exist. Delete it or use another name instead.".format(directory))
     return directory
     
-def main():
-    parse=argparse.ArgumentParser(description='Build reference genomes for ART to simulate short reads')
+def main(progname=None):
+    parse=argparse.ArgumentParser(
+        description='Build reference genomes for ART to simulate short reads',
+        prog=progname if progname else sys.argv[0])
     parse.add_argument('-p','--perturbed',required=True,type=check_perturbed_folder,
         help='the folder contain the configure file of perturbed genomes')
     parse.add_argument('-r','--reference',required=True,type=check_reference_file,

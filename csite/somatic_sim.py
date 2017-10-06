@@ -132,9 +132,10 @@ class ConfigFileError(Exception):
 
 #use kernprof -l -v script.py to profile
 #@profile
-def main():
+def main(progname=None):
     parse=argparse.ArgumentParser(
-        description='Simulate SNVs/CNVs on a coalescent tree in newick format')
+        description='Simulate SNVs/CNVs on a coalescent tree in newick format',
+        prog=progname if progname else sys.argv[0])
     parse.add_argument('-t','--tree',required=True,
         help='a file contains ONE tree in newick format')
     default='1'

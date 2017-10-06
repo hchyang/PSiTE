@@ -18,9 +18,10 @@ import pyfaidx
 from signal import signal, SIGPIPE, SIG_DFL 
 signal(SIGPIPE,SIG_DFL) 
 
-def main():
+def main(progname=None):
     parse=argparse.ArgumentParser(
-        description='Generate perturbed genome by integrating SNPs from a VCF.')
+        description='Generate perturbed genome by integrating SNPs from a VCF.',
+        prog=progname if progname else sys.argv[0])
     parse.add_argument('-r','--reference',required=True,
         help='a fasta file contains the reference genome')
     default=None
