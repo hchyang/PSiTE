@@ -3,7 +3,7 @@
 #########################################################################
 # Author: Hechuan Yang
 # Created Time: 2017-09-27 10:50:14
-# File Name: integrate_germline_snp.py
+# File Name: vcf2fa.py
 # Description: 
 #########################################################################
 
@@ -41,7 +41,7 @@ def main(progname=None):
 
     os.mkdir(args.output) 
     for i in range(args.haplotype):
-        with open('{}/genome_hap{}.fa'.format(args.output,i),'w') as output:
+        with open('{}/normal_hap{}.fa'.format(args.output,i),'w') as output:
             for chroms in genome_profile['order']:
                 start=0
                 segments=[]

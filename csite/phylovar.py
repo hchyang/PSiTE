@@ -3,7 +3,7 @@
 #########################################################################
 # Author: Hechuan
 # Created Time: 2017-04-04 18:00:34
-# File Name: somatic_sim.py
+# File Name: phylovar.py
 # Description: 
 #########################################################################
 
@@ -26,12 +26,20 @@ signal(SIGPIPE,SIG_DFL)
 #TODO: SNV true_freq
 #rewrite the description of the output of SNVs 
 
+largest=2**32
+def random_int():
+    '''
+    The random seed for numpy must be convertible to 32 bit unsigned integers.
+    Let's use this to generate a integers can be used.
+    '''
+    return numpy.random.randint(largest) 
+
 def check_seed(value=None):
     ivalue=int(value)
 #2**32: Must be convertible to 32 bit unsigned integers.
-    if not 0<=ivalue<=4294967296: 
+    if not 0<=ivalue<=largest: 
         raise argparse.ArgumentTypeError("{} is an invalid value for --random_seed. ".format(value)+
-            "It should be an interger between 0 and 4294967296.")
+            "It should be an interger between 0 and {}.".format(largest))
     return ivalue
 
 def check_prune(value=None):
@@ -56,10 +64,10 @@ def check_tstv(value=None):
     return fvalue
 
 def check_folder(directory=None):
-    good_charactors=re.compile('^[0-9a-zA-Z_-]+$') 
+    good_charactors=re.compile('^[0-9a-zA-Z/_\-]+$') 
     if not good_charactors.match(directory):
-        raise argparse.ArgumentTypeError("{} is an invalid string for --perturbed. ".format(directory)+
-            "Please only use number, alphabet, - and _ in the directory name.")
+        raise argparse.ArgumentTypeError("{} is an invalid string for --draft. ".format(directory)+
+            "Please only use number, alphabet and _/- in the directory name.")
     if os.path.exists(directory):
         raise argparse.ArgumentTypeError("{} is already exist. Delete it or use another name instead.".format(directory))
     return directory
@@ -163,9 +171,9 @@ def main(progname=None):
     default=5
     parse.add_argument('-C','--copy_max',type=int,default=default,
         help='the maximium ADDITIONAL copy of a CNVs [{}]'.format(default))
-    default=2
-    parse.add_argument('-p','--ploidy',type=int,default=default,
-        help='the ploidy to simulate [{}]'.format(default))
+    default='01'
+    parse.add_argument('-p','--parental',type=str,default=default,
+        help='the parental to simulate [{}]'.format(default))
     default=1.0
     parse.add_argument('-P','--purity',type=float,default=default,
         help="the purity of tumor cells in the simulated sample [{}]".format(default))
@@ -193,7 +201,7 @@ def main(progname=None):
     default='output.named_tree.nhx'
     parse.add_argument('-T','--named_tree',type=str,default=default,
         help='the output file in NHX format to save the tree with all nodes named [{}]'.format(default))
-    default='log.txt'
+    default='phylovar.log'
     parse.add_argument('-g','--log',type=str,default=default,
         help='the log file [{}]'.format(default))
     default='INFO'
@@ -223,8 +231,8 @@ def main(progname=None):
     parse.add_argument('--length',type=int,default=default,
         help='the length of the sequence to simulate [{}]'.format(default))
     default=None
-    parse.add_argument('--perturbed',type=check_folder,default=default,
-        help='directory to output the perturbed genome for each sample [{}]'.format(default))
+    parse.add_argument('--draft',type=check_folder,default=default,
+        help='directory to output the draft genome for each sample [{}]'.format(default))
     default=None
     parse.add_argument('--config',type=str,default=default,
         help='configure file contains the setting of the somatic simulation in YAML format [{}]'.format(default))
@@ -233,7 +241,7 @@ def main(progname=None):
 ###### check config file
 #only those params in cfg_params are acceptable in configure file
     cfg_params=('snv_rate','cnv_rate','del_prob','cnv_length_beta','cnv_length_max',
-        'copy_parameter','copy_max','ploidy','tstv','length')
+        'copy_parameter','copy_max','parental','tstv','length')
     config={}
     if args.config:
         with open(args.config,'r') as configfile:
@@ -259,13 +267,13 @@ def main(progname=None):
                 final_chroms_cfg[chroms]={}
                 for parameter in cfg_params:
                     final_chroms_cfg[chroms][parameter]=chroms_cfg.get(parameter,genome_cfg[parameter])
-                if max_ploidy<final_chroms_cfg[chroms]['ploidy']:
-                    max_ploidy=final_chroms_cfg[chroms]['ploidy']
+                if max_ploidy<len(final_chroms_cfg[chroms]['parental']):
+                    max_ploidy=len(final_chroms_cfg[chroms]['parental'])
     else:
         final_chroms_cfg[args.name]={}
         for parameter in cfg_params:
             final_chroms_cfg[args.name][parameter]=genome_cfg[parameter]
-        max_ploidy=final_chroms_cfg[args.name]['ploidy']
+        max_ploidy=len(final_chroms_cfg[args.name]['parental'])
 
 ###### logging and random seed setting
     logging.basicConfig(filename=args.log, filemode='w',
@@ -273,8 +281,7 @@ def main(progname=None):
         datefmt='%m-%d %H:%M:%S',level=args.loglevel)
     logging.info(' Command: %s',' '.join(sys.argv))
     if args.random_seed==None:
-#2**32: Must be convertible to 32 bit unsigned integers.
-        seed=numpy.random.randint(4294967296) 
+        seed=random_int()
     else:
         seed=args.random_seed
     logging.info(' Random seed: %s',seed)
@@ -306,17 +313,22 @@ def main(progname=None):
             mytree.prune(tips=trim)
 
 ###### output the map of tip_node:leaf
-    if args.perturbed:
+    if args.draft:
         tip_leaves=mytree.tip_node_leaves()
-        os.mkdir(args.perturbed,mode=0o755)
-        with open(args.perturbed+'/tip_node_sample.map','w') as tip_leaves_f:
+        os.mkdir(args.draft,mode=0o755)
+        with open(args.draft+'/tip_node_sample.map','w') as tip_leaves_f:
             tip_leaves_f.write('#tip_node\tsample\n')
             for tip_node in sorted(tip_leaves.keys()):
                 for leaf in sorted(tip_leaves[tip_node]):
                     tip_leaves_f.write('node{}\t{}\n'.format(tip_node,leaf))
+        with open(args.draft+'/tip_node_sample.count','w') as tip_leaves_count_f:
+            tip_leaves_count_f.write('#tip_node\tsample_count\n')
+            for tip_node in sorted(tip_leaves.keys()):
+                tip_leaves_count_f.write('node{}\t{}\n'.format(tip_node,len(tip_leaves[tip_node])))
 
 ###### add trunk vars if supplied
 #FIXME: Can not use args.length here!!!!!!!!!!!
+#FIXME: Can not use args.ploidy here!!!!!!!!!!!
     trunk_snvs={}
     trunk_cnvs={}
     if args.trunk_vars!=None:
@@ -340,6 +352,7 @@ def main(progname=None):
         ind_cnvs_file=open(args.ind_cnvs,'w')
         ind_cnvs_file.write('#cell\tparental\tstart\tend\tcopy\n')
 
+#TODO: check the format of this file. parental? haplotype?
     if args.parental_copy!=None:
         parental_copy_file=open(args.parental_copy,'w')
         parental_copy_file.write('#position\t{}\n'.format('\t'.join(['haplotype'+str(x) for x in range(max_ploidy)])))
@@ -361,7 +374,7 @@ def main(progname=None):
             leaf_snv_alts,leaf_snv_refs,leaf_cnvs,
             hap_local_copy_for_all_snvs,
             )=mytree.snvs_freq_cnvs_profile(
-                ploidy=chroms_cfg['ploidy'],
+                parental=chroms_cfg['parental'],
                 snv_rate=chroms_cfg['snv_rate'],
                 cnv_rate=chroms_cfg['cnv_rate'],
                 del_prob=chroms_cfg['del_prob'],
@@ -373,7 +386,7 @@ def main(progname=None):
                 trunk_cnvs=trunk_cnvs,
                 purity=args.purity,
                 length=chroms_cfg['length'],
-                perturbed=args.perturbed,
+                draft=args.draft,
                 chroms=chroms,
             )
 

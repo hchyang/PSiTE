@@ -9,7 +9,6 @@
 
 import os
 import sys
-import argparse
 import logging
 import pyfaidx
 
@@ -27,27 +26,33 @@ def usage():
     print("")
     print("Usage:   csite.py <command> [options]")
     print("")
-    print("Command: germlinev   integrate germline snp")
-    print("         somaticv    simulate somatic vars")
-    print("         buildref    build reference")
+    print("Command: vcf2fa      integrate germline snp")
+    print("         phylovar    simulate somatic vars")
+    print("         draft2fa    build reference")
+    print("         quaternity  a wrapper for the whole pipeline")
     print("")
 
 def main():
-    if len(sys.argv)==1:
+    if len(sys.argv)==1 or sys.argv[1]=='-h':
         usage()
     else:
-        progname=' '.join(sys.argv[0:2])
-        if sys.argv[1]=='germlinev':
-            import csite.integrate_germline_snp 
-            csite.integrate_germline_snp.main(progname=progname)
-        elif sys.argv[1]=='somaticv':
-            import csite.somatic_sim
-            csite.somatic_sim.main(progname=progname)
-        elif sys.argv[1]=='buildref':
-            import csite.build_reference
-            csite.build_reference.main(progname=progname)
+        command=sys.argv[1]
+        progname='csite.py '+command
+        del sys.argv[1]
+        if command=='vcf2fa':
+            import csite.vcf2fa 
+            csite.vcf2fa.main(progname=progname)
+        elif command=='phylovar':
+            import csite.phylovar
+            csite.phylovar.main(progname=progname)
+        elif command=='draft2fa':
+            import csite.draft2fa
+            csite.draft2fa.main(progname=progname)
+        elif command=='quaternity':
+            import csite.quaternity
+            csite.quaternity.main(progname=progname)
         else:
-            print('Do not have this command in csite: {}'.format(sys.argv[1]))
+            print('Do not have this command in csite: {}'.format(command))
             exit()
         
 if __name__ == '__main__':

@@ -3,7 +3,7 @@
 #########################################################################
 # Author: Hechuan
 # Created Time: 2017-09-12 16:28:34
-# File Name: build_reference.py
+# File Name: draft2fa.py
 # Description: 
 #########################################################################
 
@@ -20,21 +20,22 @@ import numpy
 from signal import signal, SIGPIPE, SIG_DFL 
 signal(SIGPIPE,SIG_DFL) 
 
-def check_perturbed_folder(directory=None):
+def check_draft_folder(directory=None):
     if not os.path.isdir(directory):
         raise argparse.ArgumentTypeError("{} is not exist or not a folder.".format(directory))
     return directory
     
 def check_reference_file(reference=None):
-    if not os.path.isfile(reference):
-        raise argparse.ArgumentTypeError("{} is not exist or not a file.".format(reference))
+    for fa in reference.split(','):
+        if not os.path.isfile(fa):
+            raise argparse.ArgumentTypeError("{} is not exist or not a file.".format(fa))
     return reference
     
 def check_sequence_folder(directory=None):
-    good_charactors=re.compile('^[0-9a-zA-Z_-]+$') 
+    good_charactors=re.compile('^[0-9a-zA-Z/_\-]+$') 
     if not good_charactors.match(directory):
         raise argparse.ArgumentTypeError("{} is an invalid string for --sequence. ".format(directory)+
-            "Please only use number, alphabet, - and _ in the directory name.")
+            "Please only use number, alphabet and _/- in the directory name.")
     if os.path.exists(directory):
         raise argparse.ArgumentTypeError("{} is already exist. Delete it or use another name instead.".format(directory))
     return directory
@@ -43,8 +44,8 @@ def main(progname=None):
     parse=argparse.ArgumentParser(
         description='Build reference genomes for ART to simulate short reads',
         prog=progname if progname else sys.argv[0])
-    parse.add_argument('-p','--perturbed',required=True,type=check_perturbed_folder,
-        help='the folder contain the configure file of perturbed genomes')
+    parse.add_argument('-d','--draft',required=True,type=check_draft_folder,
+        help='the folder contain the draft file of genomes')
     parse.add_argument('-r','--reference',required=True,type=check_reference_file,
         help='reference file')
     default='perturbed_seqs'
@@ -55,21 +56,34 @@ def main(progname=None):
         help='the line width of output fasta [{}]'.format(default))
     args=parse.parse_args()
 
-    reference=pyfaidx.Fasta(args.reference)
+    refs=[]
+    for fa in args.reference.split(','):
+        refs.append(pyfaidx.Fasta(fa))
     os.mkdir(args.sequence,mode=0o755)
-    for node_cfg in glob.glob(args.perturbed+'/node*.cfg'):
+    parentalre=re.compile('^parental:[0-9]$')
+    for node_cfg in glob.glob(args.draft+'/node*.cfg'):
         with open(args.sequence+'/'+os.path.basename(node_cfg)+'.fa','w') as outputf:
+            reference=None
             with open(node_cfg) as inputf:
-                seq_name=''
+                seq_name=None
                 seq=[]
                 for line in inputf:
                     line=line.rstrip()
                     if line.startswith('>'):
                         if seq:
                             outputf.write('>{}\n'.format(seq_name))
-                            for outputline in pyfaidx.wrap_sequence(args.length,''.join(seq)):
+                            for outputline in pyfaidx.wrap_sequence(args.width,''.join(seq)):
                                 outputf.write(outputline)
-                        seq_name=line[1:]
+                        seq_name,parental=line[1:].split()
+                        if parentalre.match(parental):
+                            parental=int(parental.split(':')[1])
+                            try:
+                                reference=refs[parental]
+                            except IndexError:
+                                raise ReferenceFileError('The is no parental {} avalible!\n'.format(parental)+
+                                    'Which is required in the record:\n{}\n'.format(line))
+                        else:
+                            raise DraftFileError('This format of the line below in Draft file is not correct:\n{}\n'.format(line))
                         seq=[]
                     else:
                         record=line.split()
@@ -91,7 +105,7 @@ def main(progname=None):
                         seq.append(segment)
                 if seq:
                     outputf.write('>{}\n'.format(seq_name))
-                    for outputline in pyfaidx.wrap_sequence(args.length,''.join(seq)):
+                    for outputline in pyfaidx.wrap_sequence(args.width,''.join(seq)):
                         outputf.write(outputline)
                             
 class Mutation:
@@ -119,6 +133,12 @@ class Mutation:
                 '\nOnly 0 (transition), 1 and 2 (transversion) are acceptable.') from e
 
 class ShouldNotBeHereError(Exception):
+    pass
+         
+class DraftFileError(Exception):
+    pass
+         
+class ReferenceFileError(Exception):
     pass
          
 if __name__ == '__main__':

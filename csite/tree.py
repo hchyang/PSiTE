@@ -519,10 +519,10 @@ class Tree:
         return leaf_haplotype
 
     #@profile
-    def snvs_freq_cnvs_profile(self,ploidy=None,snv_rate=None,cnv_rate=None,del_prob=None,
+    def snvs_freq_cnvs_profile(self,parental=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,
                                trunk_snvs=None,trunk_dels=None,trunk_cnvs=None,purity=None,
-                               length=None,perturbed=None,chroms=None):
+                               length=None,draft=None,chroms=None):
         '''
         Produce the true frequency of SNVs in the samples.
         It's a warpper for generating SNVs/CNVs on a tree and summarize their frequency.
@@ -535,6 +535,7 @@ class Tree:
         leaf_snv_alts={}
         leaf_cnvs={}
         leaf_cnvs_pos_changes={}
+        ploidy=len(parental)
 
         background=self.leaves_counting()*ploidy
         logging.debug('Your tree is: %s',self.tree2newick())
@@ -543,8 +544,8 @@ class Tree:
         for i in range(ploidy):
             logging.info(' Simulate tree %s (total: %s)',i+1,ploidy)
             hap_tree=copy.deepcopy(self)
-            hap_trunk_snvs=trunk_snvs.get(i,[])
-            hap_trunk_cnvs=trunk_cnvs.get(i,[])
+            hap_trunk_snvs=trunk_snvs.get(parental[i],[])
+            hap_trunk_cnvs=trunk_cnvs.get(parental[i],[])
             hap_tree.add_snv_cnv(start=0,end=length,inherent_snvs=hap_trunk_snvs,
                 inherent_cnvs=hap_trunk_cnvs,snv_rate=snv_rate,
                 cnv_rate=cnv_rate,del_prob=del_prob,cnv_length_beta=cnv_length_beta,
@@ -558,11 +559,11 @@ class Tree:
             nodes_snvs=merge_two_dict_set(nodes_snvs,hap_tree.nodes_snvs_collect())
 
             hap_tree.genotyping(genotypes=leaf_snv_alts)
-            hap_tree.cnv_genotyping(genotypes=leaf_cnvs,parental=i)
-            if perturbed!=None:
+            hap_tree.cnv_genotyping(genotypes=leaf_cnvs,parental=parental[i])
+            if draft!=None:
                 leaf_haplotype=hap_tree.construct_leaf_haplotype(start=0,end=length)
                 logging.debug('Haplotypes: %s',leaf_haplotype)
-                output_leaf_haplotype(leaf_haplotype=leaf_haplotype,directory=perturbed,chroms=chroms,haplotype=i)
+                output_leaf_haplotype(leaf_haplotype=leaf_haplotype,directory=draft,chroms=chroms,haplotype=i,parental=parental[i])
 
 #construct a tree with all snvs
 #FIXME: right now, it does not consider the deletion effect on pre_snvs.
@@ -812,15 +813,13 @@ def hap_local_leaves(positions=None,hap_cnvs=None,length=None,background=None,pl
             all_pos_local_copy[-1].append(hap_local_copy[i])
     return all_pos_local_copy
 
-def output_leaf_haplotype(leaf_haplotype=None,directory=None,chroms=None,haplotype=None):
+def output_leaf_haplotype(leaf_haplotype=None,directory=None,chroms=None,haplotype=None,parental=None):
     '''
     Output the variants of each tip node in the order of coordinate.
     '''
-    #if not os.path.isdir(directory):
-    #    os.mkdir(directory,mode=0o755)
     for node in leaf_haplotype['vars'].keys():
         with open(directory+'/node'+node+'.genome.cfg','a') as cfg_file:
-            cfg_file.write('>{}_Haplotype{}\n'.format(chroms,haplotype))
+            cfg_file.write('>{}_Haplotype{} parental:{}\n'.format(chroms,haplotype,parental))
             retrieve_tip_vars(tip_vars=leaf_haplotype,tip=node,out_file=cfg_file,chroms=chroms)
 
 def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
@@ -832,6 +831,10 @@ def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
     seq_seg=[]
     breakpoint=tip_vars['start']
     for var in tip_vars['vars'][tip]:
+#There will be no SNV overlap with DEL.
+#But AMP can overlap with SNV or DEL. As AMP will not change the breakpoint to its start,
+#and all VARs are sorted by start, so the situation of breakpoint>start will only occure
+#in AMP events.
         if var['type']=='SNV': #snv
             if var['start']>breakpoint:
                 out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'ref']))
@@ -851,14 +854,11 @@ def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
                 raise ShouldNotBeHereError
             breakpoint=var['end']
         elif var['type']=='AMP': #amplification
-            if var['start']<breakpoint:
-                raise ShouldNotBeHereError
-            else:
-                if var['start']>breakpoint:
-                    out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'ref']))
-                for haplotype in var['haplotypes']:
-                    retrieve_tip_vars(tip_vars=haplotype,tip=tip,out_file=out_file,chroms=chroms)
+            if var['start']>breakpoint:
+                out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'ref']))
                 breakpoint=var['start']
+            for haplotype in var['haplotypes']:
+                retrieve_tip_vars(tip_vars=haplotype,tip=tip,out_file=out_file,chroms=chroms)
         else: 
             raise ShouldNotBeHereError
     if tip_vars['end']>breakpoint:

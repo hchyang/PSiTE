@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #########################################################################
 # Author: Hechuan Yang
@@ -35,7 +35,10 @@ setup(
     author = "Hechuan Yang",
     author_email = "yanghechuan@gmail.com",
     url = "https://github.com/hchyang/CSiTE.git",
-    python_requires='>=3'
+#https://docs.python.org/3/library/subprocess.html
+#The run() function was added in Python 3.5
+#TODO: test CSiTE on Python>=3.5
+    python_requires='>=3.5'
     )
 
 

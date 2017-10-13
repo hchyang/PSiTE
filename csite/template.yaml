@@ -6,14 +6,13 @@ genome:
     cnv_length_max: 40000000
     copy_parameter: 0.5
     copy_max: 5
-    ploidy: 2
+    parental: '01'
     tstv: 2.0
     length: 100000000
 chromosomes:
     - 1:
+        parental: '00'
     - 2:
+        length: 1000000
     - 3:
         length: 1200000
-    - 4:
-        length: 1000000
-      5:
