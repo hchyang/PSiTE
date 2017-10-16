@@ -36,7 +36,7 @@ setup(
     author_email = "yanghechuan@gmail.com",
     url = "https://github.com/hchyang/CSiTE.git",
 #https://docs.python.org/3/library/subprocess.html
-#The run() function was added in Python 3.5
+#The subprocess.run() function was added in Python 3.5
 #TODO: test CSiTE on Python>=3.5
     python_requires='>=3.5'
     )

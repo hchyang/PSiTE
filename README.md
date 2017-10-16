@@ -1,22 +1,46 @@
 # Coalescent Simulator for Tumor Evolution (CSiTE)
 
-CSiTE is a Python program for jointly simulating Single Nucleotide Variants
-(SNVs) and Copy Number Variants (CNVs) for a sample of tumor cells. It takes a
-coalescent tree (in the newick format) and simulates both types of somatic
-mutations along the history of the genealogy. At the end of the simulation, the
-program can output simulated variants (in the setting of a bulk tumor).  The
-program also allows for simulating genotypes of individual tumor cells (i.e.
-single cell data). 
+CSiTE is a Python program for simulating short reads for tumor samples.
+It takes a coalescent tree (in the newick format) and simulates both types of somatic
+mutations along the history of the genealogy. By integrating those somatic variants into the normal genome, perturbed 
+genome of each tumor cell can be built, which are then piped to ART to simulate NGS short reads. 
+Germline variants can also be integrated to the genome to make the data more realistic. 
+CSiTE can be used for both bulk tumor and single cell data simulation.
 
 ## Installing
 
-CSiTE is written in Python3 and requires numpy.
+CSiTE is written in Python3 (>=3.5), and requires numpy, pyfaidx and yaml. 
+[ART](https://www.niehs.nih.gov/research/resources/software/biostatistics/art/index.cfm) 
+is also required if you want to simulate short reads with CSiTE.
 
 CSiTE can be downloaded from github:
 
     git clone https://github.com/hchyang/CSiTE.git
 
 ## Running CSiTE
+
+There are four modules in CSiTE. 
+
+	Program: csite.py (a Coalescent Simulator for Tumor Evolution)
+	Version: 0.9.0
+
+	Usage:   csite.py <command> [options]
+
+	Command: vcf2fa      integrate germline snp
+			 phylovar    simulate somatic vars
+			 draft2fa    build reference
+			 quaternity  a wrapper for the whole pipeline
+
+### Module vcf2fa 
+
+The `vcf2fa` module can be used to build the genome of normal cells. It takes a 
+reference genome (e.g. hg19.fa) and a list of SNPs in VCF format as input (only
+SNPs are acceptable). The variants in VCF should be phased. The sequence of each 
+haplotype, which contains the variants on each them, will be output.
+
+### Module phylovar
+
+This module the the core module of CSiTE.
 
 To run the program, a coalescent tree which captures the ancestral relationships
 of the tumor cells in a sample is required. The input tree file should be in the
@@ -76,21 +100,21 @@ Other convenient options including:
 - -P/--purity to set the purity of tumor sample
 - --length to set the length of sequence to simulate
 
-##### Notes
+###### Notes
 By default, the branch length from the ms program is measured in 4N
 generations. CSiTE will simulate SNVs/CNVs events following the Poisson process.
 For example, if we set -r 100, this is equivalent to set the population rescaled
 parameter θ=4Nu as 100 (see ms manual for details). 
 
-### Input files
+#### Input files
 
-#### Tree file (-t/--tree)
+##### Tree file (-t/--tree)
 
 Tree file should be in newick format, for example:
 
     ((2:0.083,4:0.083):0.345,(5:0.322,(1:0.030,3:0.030):0.292):0.105);
 
-#### Trunk variants file (--trunk\_vars)
+##### Trunk variants file (--trunk\_vars)
 
 You can simulate truncal variants by specify `--trunk_length`, or import trunk
 variants directly using `--trunk_vars` option.  The file format of truncal
@@ -111,9 +135,9 @@ P.S. start and end are 0 based. And the region of each variant is similar to the
 bed file (inclusive on the left, but exclusive on the right end,
 i.e.\[start,end)).
 
-### Output files
+#### Output files
 
-#### SNVs file (-S/--snv)
+##### SNVs file (-S/--snv)
 
 This file contains the frequency information of simulated SNVs. It contains four
 columns. 
@@ -125,7 +149,7 @@ columns.
 - **simulated\_freq**: the observed frequency of alternative allele across tumor
   and normal cell population.
 
-#### Genotype file (--snv\_genotype)
+##### Genotype file (--snv\_genotype)
 
 This file contains the snv\_genotype of each tumor cell at SNV loci. Each SNV
 has one record. The first column is the coordinate of the SNV. Subsequently,
@@ -133,7 +157,7 @@ there is one column for each tumor cell. The snv\_genotype is in the form of
 ‘M:N’. M denotes the number of alternative allele and N denotes the number of
 reference allele.
 
-#### Individual CNV file (--ind\_cnvs)
+##### Individual CNV file (--ind\_cnvs)
 
 This file contains the CNVs on each parental copy of each single cell in the
 sample. There are five columns in this file:
@@ -157,7 +181,7 @@ P.S. start and end are 0 based. And the region of each variant is similar to the
 bed file (inclusive on the left, but exclusive on the right end,
 i.e.\[start,end)).
 
-#### Named tree file (-T/--named\_tree)
+##### Named tree file (-T/--named\_tree)
 
 CSiTE can output a [NHX
 file](https://sites.google.com/site/cmzmasek/home/software/forester/nhx) with
@@ -167,7 +191,7 @@ format 'Node:XXX', XXX is an integer and start from N+1, where N is the number
 of leaves in the input tree. And 'Node:N+1' is the name of the root node. The
 names of each leaf will be kept as the input tree.
 
-#### Nodes variants file (-n/--nodes\_vars)
+##### Nodes variants file (-n/--nodes\_vars)
 
 CSiTE can output the variants (SNVs/CNVs) occured on the branch leading to each
 node. There are five columns in this file:
@@ -186,100 +210,43 @@ node. There are five columns in this file:
 - **copy**:     an integer. 0: SNV; -1: deletion; positive integer:
   amplification
 
-#### CNV profile file (--cnv\_profile)
+##### CNV profile file (--cnv\_profile)
 
 This file contains the CNV profile across the whole segment. There are 3 columns
 in this file. The first column is the start of the CNV region, and the second is
 the end of the CNV region. Both breakpoints are 0-based, defined CNVs covered on
 \[start, end). The last column is the total copies of each region.
 
-#### parental copy file (--parental\_copy)
+##### parental copy file (--parental\_copy)
 
 This file contains the information of parental copy for each SNV. The first
 column is the coordinate of the SNV, and followed by N columns if the ploidy is
 N.
 
-#### Log file (-g/--log)
+##### Log file (-g/--log)
 
 This file contains logging information, e.g. the command line parameters and the
 random seed used. You can use these information to replicate the simulation.
 After setting the `--loglevel` as DEBUG, CSiTE will output detailed information
 of the simulation process. 
 
-### All options
+#### draft file (--draft)
 
-    usage: csite.py [-h] -t TREE [-r SNV_RATE] [-R CNV_RATE] [-d DEL_PROB]
-                    [-l CNV_LENGTH_BETA] [-L CNV_LENGTH_MAX] [-c COPY_PARAMETER]
-                    [-C COPY_MAX] [-p PLOIDY] [-P PURITY] [-D DEPTH] [-x PRUNE]
-                    [-X PRUNE_PROPORTION] [-s RANDOM_SEED] [-S SNV] [-V CNV]
-                    [-n NODES_SNVS] [-T NAMED_TREE] [-g LOG] [-G {DEBUG,INFO}]
-                    [--cnv_profile CNV_PROFILE] [--snv_genotype SNV_GENOTYPE]
-                    [--ind_cnvs IND_CNVS] [--parental_copy PARENTAL_COPY]
-                    [--trunk_vars TRUNK_VARS] [--trunk_length TRUNK_LENGTH]
-                    [--expands EXPANDS] [--length LENGTH] [-v]
+This file contains the information of perturbed genome of simulated tumor cell.
 
-    Simulate SNVs/CNVs on a coalescent tree in newick format
+### Module draft2fa
 
-    optional arguments:
-      -h, --help            show this help message and exit
-      -t TREE, --tree TREE  a tree in newick format
-      -r SNV_RATE, --snv_rate SNV_RATE
-                            the muation rate of SNVs [300]
-      -R CNV_RATE, --cnv_rate CNV_RATE
-                            the muation rate of CNVs [3]
-      -d DEL_PROB, --del_prob DEL_PROB
-                            the probability of being deletion for a CNV mutation
-                            [0.5]
-      -l CNV_LENGTH_BETA, --cnv_length_beta CNV_LENGTH_BETA
-                            the mean of CNVs length [20000000]
-      -L CNV_LENGTH_MAX, --cnv_length_max CNV_LENGTH_MAX
-                            the maximium of CNVs length [40000000]
-      -c COPY_PARAMETER, --copy_parameter COPY_PARAMETER
-                            the p parameter of CNVs' copy number distribution
-                            [0.5]
-      -C COPY_MAX, --copy_max COPY_MAX
-                            the maximium ADDITIONAL copy of a CNVs [5]
-      -p PLOIDY, --ploidy PLOIDY
-                            the ploidy to simulate [2]
-      -P PURITY, --purity PURITY
-                            the purity of tumor cells in the simulated sample
-                            [1.0]
-      -D DEPTH, --depth DEPTH
-                            the mean depth for simulating coverage data [50]
-      -x PRUNE, --prune PRUNE
-                            trim all the children of the nodes with equal or less
-                            than this number of tips [0]
-      -X PRUNE_PROPORTION, --prune_proportion PRUNE_PROPORTION
-                            trim all the children of the nodes with equal or less
-                            than this proportion of tips [0.0]
-      -s RANDOM_SEED, --random_seed RANDOM_SEED
-                            the seed for random number generator [None]
-      -S SNV, --snv SNV     the output file to save SNVs [output.snvs]
-      -V CNV, --cnv CNV     the output file to save CNVs [output.cnvs]
-      -n NODES_SNVS, --nodes_snvs NODES_SNVS
-                            the output file to save SNVs/CNVs on each node
-                            [output.nodes_vars]
-      -T NAMED_TREE, --named_tree NAMED_TREE
-                            the output file in NHX format to save the tree with
-                            all nodes named [output.named_tree.nhx]
-      -g LOG, --log LOG     the log file [log.txt]
-      -G {DEBUG,INFO}, --loglevel {DEBUG,INFO}
-                            the logging level [INFO]
-      --cnv_profile CNV_PROFILE
-                            the file to save CNVs profile [output.cnv.profile]
-      --snv_genotype SNV_GENOTYPE
-                            the file to save SNV genotypes for each cell
-      --ind_cnvs IND_CNVS   the file to save CNVs for each cell individual
-      --parental_copy PARENTAL_COPY
-                            the file to save parental copy for each SNV
-      --trunk_vars TRUNK_VARS
-                            the trunk variants file supplied by user
-      --trunk_length TRUNK_LENGTH
-                            the length of the truncal branch [0]
-      --expands EXPANDS     the basename of the file to output the snv and segment
-                            data for EXPANDS [None]
-      --length LENGTH       the length of the sequence to simulate [100000000]
-      -v, --version         show program's version number and exit
+After generating genomes of normal cells with `vcf2fa` and genome draft of tumor
+cells with `phylovar`, we can build the genome sequences for each tumor sample. 
+This work is done by the module `draft2fa`. And the genomes of tumor cells and 
+normal cells can then be used by ART to simulate short reads.
+
+### Module quaternity
+
+This is a convenient wrapper for simulating reads for tumor sample. It calls the
+module `vcf2fa` to build the genome of normal cells, and calls the modules `phylovar`
+and `draft2fa` to build the genomes of tumor cells. And then according the settings
+customised by user, `quaternity` calls ART to simulte short reads for them.
 
 ### Examples
 
