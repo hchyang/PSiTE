@@ -1,8 +1,9 @@
 # Coalescent Simulator for Tumor Evolution (CSiTE)
 
 CSiTE is a Python program for simulating short reads for tumor samples.
-It takes a coalescent tree (in the newick format) and simulates both types of somatic
-mutations along the history of the genealogy. By integrating those somatic variants into the normal genome, perturbed 
+It takes a coalescent tree (in the newick format) and simulates Single Nucleotide Variants
+(SNVs) and Copy Number Variants (CNVs) along the history of the genealogy. 
+By integrating those somatic variants into the normal genome, perturbed 
 genome of each tumor cell can be built, which are then piped to ART to simulate NGS short reads. 
 Germline variants can also be integrated to the genome to make the data more realistic. 
 CSiTE can be used for both bulk tumor and single cell data simulation.
@@ -21,15 +22,15 @@ CSiTE can be downloaded from github:
 
 There are four modules in CSiTE. 
 
-	Program: csite.py (a Coalescent Simulator for Tumor Evolution)
-	Version: 0.9.0
+    Program: csite.py (a Coalescent Simulator for Tumor Evolution)
+    Version: 0.9.0
 
-	Usage:   csite.py <command> [options]
+    Usage:   csite.py <command> [options]
 
-	Command: vcf2fa      integrate germline snp
-			 phylovar    simulate somatic vars
-			 draft2fa    build reference
-			 quaternity  a wrapper for the whole pipeline
+    Command: vcf2fa      integrate germline snp
+             phylovar    simulate somatic vars
+             draft2fa    build reference
+             quaternity  a wrapper for the whole pipeline
 
 ### Module vcf2fa 
 
