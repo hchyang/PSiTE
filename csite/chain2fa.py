@@ -3,7 +3,7 @@
 #########################################################################
 # Author: Hechuan
 # Created Time: 2017-09-12 16:28:34
-# File Name: draft2fa.py
+# File Name: chain2fa.py
 # Description: 
 #########################################################################
 
@@ -20,7 +20,7 @@ import numpy
 from signal import signal, SIGPIPE, SIG_DFL 
 signal(SIGPIPE,SIG_DFL) 
 
-def check_draft_folder(directory=None):
+def check_chain_folder(directory=None):
     if not os.path.isdir(directory):
         raise argparse.ArgumentTypeError("{} is not exist or not a folder.".format(directory))
     return directory
@@ -44,8 +44,8 @@ def main(progname=None):
     parse=argparse.ArgumentParser(
         description='Build reference genomes for ART to simulate short reads',
         prog=progname if progname else sys.argv[0])
-    parse.add_argument('-d','--draft',required=True,type=check_draft_folder,
-        help='the folder contain the draft file of genomes')
+    parse.add_argument('-d','--chain',required=True,type=check_chain_folder,
+        help='the folder contain the chain file of genomes')
     parse.add_argument('-r','--reference',required=True,type=check_reference_file,
         help='reference file')
     default='perturbed_seqs'
@@ -61,7 +61,7 @@ def main(progname=None):
         refs.append(pyfaidx.Fasta(fa))
     os.mkdir(args.sequence,mode=0o755)
     parentalre=re.compile('^parental:[0-9]$')
-    for node_cfg in glob.glob(args.draft+'/node*.cfg'):
+    for node_cfg in glob.glob(args.chain+'/node*.cfg'):
         with open(args.sequence+'/'+os.path.basename(node_cfg)+'.fa','w') as outputf:
             reference=None
             with open(node_cfg) as inputf:

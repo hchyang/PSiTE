@@ -522,7 +522,7 @@ class Tree:
     def snvs_freq_cnvs_profile(self,parental=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,
                                trunk_snvs=None,trunk_dels=None,trunk_cnvs=None,purity=None,
-                               length=None,draft=None,chroms=None):
+                               length=None,chain=None,chroms=None):
         '''
         Produce the true frequency of SNVs in the samples.
         It's a warpper for generating SNVs/CNVs on a tree and summarize their frequency.
@@ -560,10 +560,10 @@ class Tree:
 
             hap_tree.genotyping(genotypes=leaf_snv_alts)
             hap_tree.cnv_genotyping(genotypes=leaf_cnvs,parental=parental[i])
-            if draft!=None:
+            if chain!=None:
                 leaf_haplotype=hap_tree.construct_leaf_haplotype(start=0,end=length)
                 logging.debug('Haplotypes: %s',leaf_haplotype)
-                output_leaf_haplotype(leaf_haplotype=leaf_haplotype,directory=draft,chroms=chroms,haplotype=i,parental=parental[i])
+                output_leaf_haplotype(leaf_haplotype=leaf_haplotype,directory=chain,chroms=chroms,haplotype=i,parental=parental[i])
 
 #construct a tree with all snvs
 #FIXME: right now, it does not consider the deletion effect on pre_snvs.

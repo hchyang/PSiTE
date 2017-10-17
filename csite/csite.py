@@ -26,10 +26,10 @@ def usage():
     print("")
     print("Usage:   csite.py <command> [options]")
     print("")
-    print("Command: vcf2fa      integrate germline snp")
-    print("         phylovar    simulate somatic vars")
-    print("         draft2fa    build reference")
-    print("         quaternity  a wrapper for the whole pipeline")
+    print("Command: vcf2fa     build normal genome from input (germline) vcf file")
+    print("         phylovar   simulate somatic variations on a phylogeny")
+    print("         chain2fa   build tumor genomes from somatic mutations (chain file)")
+    print("         allinone   a wrapper for short reads simulation")
     print("")
 
 def main():
@@ -45,12 +45,12 @@ def main():
         elif command=='phylovar':
             import csite.phylovar
             csite.phylovar.main(progname=progname)
-        elif command=='draft2fa':
-            import csite.draft2fa
-            csite.draft2fa.main(progname=progname)
-        elif command=='quaternity':
-            import csite.quaternity
-            csite.quaternity.main(progname=progname)
+        elif command=='chain2fa':
+            import csite.chain2fa
+            csite.chain2fa.main(progname=progname)
+        elif command=='allinone':
+            import csite.allinone
+            csite.allinone.main(progname=progname)
         else:
             print('Do not have this command in csite: {}'.format(command))
             exit()

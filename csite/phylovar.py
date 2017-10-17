@@ -66,7 +66,7 @@ def check_tstv(value=None):
 def check_folder(directory=None):
     good_charactors=re.compile('^[0-9a-zA-Z/_\-]+$') 
     if not good_charactors.match(directory):
-        raise argparse.ArgumentTypeError("{} is an invalid string for --draft. ".format(directory)+
+        raise argparse.ArgumentTypeError("{} is an invalid string for --chain. ".format(directory)+
             "Please only use number, alphabet and _/- in the directory name.")
     if os.path.exists(directory):
         raise argparse.ArgumentTypeError("{} is already exist. Delete it or use another name instead.".format(directory))
@@ -231,8 +231,8 @@ def main(progname=None):
     parse.add_argument('--length',type=int,default=default,
         help='the length of the sequence to simulate [{}]'.format(default))
     default=None
-    parse.add_argument('--draft',type=check_folder,default=default,
-        help='directory to output the draft genome for each sample [{}]'.format(default))
+    parse.add_argument('--chain',type=check_folder,default=default,
+        help='directory to output chain files for each sample [{}]'.format(default))
     default=None
     parse.add_argument('--config',type=str,default=default,
         help='configure file contains the setting of the somatic simulation in YAML format [{}]'.format(default))
@@ -313,15 +313,15 @@ def main(progname=None):
             mytree.prune(tips=trim)
 
 ###### output the map of tip_node:leaf
-    if args.draft:
+    if args.chain:
         tip_leaves=mytree.tip_node_leaves()
-        os.mkdir(args.draft,mode=0o755)
-        with open(args.draft+'/tip_node_sample.map','w') as tip_leaves_f:
+        os.mkdir(args.chain,mode=0o755)
+        with open(args.chain+'/tip_node_sample.map','w') as tip_leaves_f:
             tip_leaves_f.write('#tip_node\tsample\n')
             for tip_node in sorted(tip_leaves.keys()):
                 for leaf in sorted(tip_leaves[tip_node]):
                     tip_leaves_f.write('node{}\t{}\n'.format(tip_node,leaf))
-        with open(args.draft+'/tip_node_sample.count','w') as tip_leaves_count_f:
+        with open(args.chain+'/tip_node_sample.count','w') as tip_leaves_count_f:
             tip_leaves_count_f.write('#tip_node\tsample_count\n')
             for tip_node in sorted(tip_leaves.keys()):
                 tip_leaves_count_f.write('node{}\t{}\n'.format(tip_node,len(tip_leaves[tip_node])))
@@ -386,7 +386,7 @@ def main(progname=None):
                 trunk_cnvs=trunk_cnvs,
                 purity=args.purity,
                 length=chroms_cfg['length'],
-                draft=args.draft,
+                chain=args.chain,
                 chroms=chroms,
             )
 

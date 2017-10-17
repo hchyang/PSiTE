@@ -3,7 +3,7 @@
 #########################################################################
 # Author: Hechuan
 # Created Time: 2017-04-04 18:00:34
-# File Name: quaternity.py
+# File Name: allinone.py
 # Description: 
 #########################################################################
 
@@ -59,7 +59,7 @@ def main(progname=None):
     default=None
     parse.add_argument('-s','--random_seed',type=check_seed,
         help='the seed for random number generator [{}]'.format(default))
-    default='quaternity.log'
+    default='allinone.log'
     parse.add_argument('-g','--log',type=str,default=default,
         help='the log file to save the settings of each command [{}]'.format(default))
     args=parse.parse_args()
@@ -75,15 +75,14 @@ def main(progname=None):
     try:
         os.mkdir(outdir)
     except FileExistsError:
-        print('{} already exists. Try another directory to output! (-o/--output)'.format(outdir))
-        exit()
+        exit('{} already exists. Try another directory to output! (-o/--output)'.format(outdir))
     os.chdir(outdir)
 
 ###### logging and random seed setting
     logging.basicConfig(filename=args.log, filemode='w',
         format='[%(asctime)s] %(levelname)s: %(message)s',
         datefmt='%m-%d %H:%M:%S',level='INFO')
-    logging.info(' Command: %s',' '.join(sys.argv[0:1]+['quaternity']+sys.argv[1:]))
+    logging.info(' Command: %s',' '.join(sys.argv[0:1]+['allinone']+sys.argv[1:]))
     if args.random_seed==None:
         seed=random_int()
     else:
@@ -104,7 +103,7 @@ def main(progname=None):
                 '--tree',tree,
                 '--config',config,
                 '--random_seed',str(random_int()),
-                '--draft','tumor_draft']
+                '--chain','tumor_chain']
     if args.trunk_vars:
         cmd_params.extend(['--trunk_vars',trunk_vars])
     if args.trunk_length:
@@ -116,10 +115,10 @@ def main(progname=None):
     logging.info(' Command: %s',' '.join([str(x) for x in cmd_params]))
     subprocess.run(args=cmd_params,check=True)
 
-#draft2fa
-    cmd_params=[sys.argv[0],'draft2fa',
+#chain2fa
+    cmd_params=[sys.argv[0],'chain2fa',
                 '--reference','normal_ref/normal_hap0.fa,normal_ref/normal_hap1.fa',
-                '--draft','tumor_draft',
+                '--chain','tumor_chain',
                 '--sequence','tumor_ref']
     logging.info(' Command: %s',' '.join(cmd_params))
     subprocess.run(args=cmd_params,check=True)
@@ -132,7 +131,7 @@ def main(progname=None):
     total_seq_bases=normal_gsize/2*args.depth
     #print(total_seq_bases)
 
-    tip_node_leaves=tip_node_leaves_counting(f='tumor_draft/tip_node_sample.count')
+    tip_node_leaves=tip_node_leaves_counting(f='tumor_chain/tip_node_sample.count')
     tumor_cells=sum(tip_node_leaves.values())
     normal_cells=tumor_cells/args.purity-tumor_cells
     #print(normal_cells)
