@@ -91,10 +91,11 @@ def main(progname=None):
     numpy.random.seed(seed)
 
 #vcf2fa
+    normal_fa='normal_fa'
     cmd_params=[sys.argv[0],'vcf2fa',
                 '--vcf',vcf,
                 '--reference',reference,
-                '--output','normal_fa']
+                '--output',normal_fa]
     logging.info(' Command: %s',' '.join(cmd_params))
     subprocess.run(args=cmd_params,check=True)
 
@@ -116,18 +117,19 @@ def main(progname=None):
     subprocess.run(args=cmd_params,check=True)
 
 #chain2fa
+    tumor_fa='tumor_fa'
     cmd_params=[sys.argv[0],'chain2fa',
                 '--chain','tumor_chain',
-                '--reference','normal_fa/normal_hap0.fa,normal_fa/normal_hap1.fa',
-                '--output','tumor_fa']
+                '--reference','{dir}/normal_hap0.fa,{dir}/normal_hap1.fa'.format(dir=normal_fa),
+                '--output',tumor_fa]
     logging.info(' Command: %s',' '.join(cmd_params))
     subprocess.run(args=cmd_params,check=True)
 
 #compute coverage and run ART
 #FIXME: cell number: float? int?
     normal_gsize=0
-    normal_gsize+=genomesize(fasta='normal_fa/normal_hap0.fa')
-    normal_gsize+=genomesize(fasta='normal_fa/normal_hap1.fa')
+    normal_gsize+=genomesize(fasta='{}/normal_hap0.fa'.format(normal_fa))
+    normal_gsize+=genomesize(fasta='{}/normal_hap1.fa'.format(normal_fa))
     total_seq_bases=normal_gsize/2*args.depth
     #print(total_seq_bases)
 
@@ -140,7 +142,7 @@ def main(progname=None):
     tumor_dna=0
     tip_node_gsize={}
     for tip_node,leaves in tip_node_leaves.items():
-        tip_node_gsize[tip_node]=genomesize(fasta='tumor_fa/{}.genome.cfg.fa'.format(tip_node))
+        tip_node_gsize[tip_node]=genomesize(fasta='{}/{}.genome.cfg.fa'.format(tumor_fa,tip_node))
         tumor_dna+=tip_node_gsize[tip_node]*tip_node_leaves[tip_node]
     seq_per_base=total_seq_bases/(normal_dna+tumor_dna)
 
@@ -152,8 +154,9 @@ def main(progname=None):
     cmd_params=art_params[:]
     cmd_params.extend(['--fcov',str(normal_cells*seq_per_base)])
     for hap in 0,1:
+        ref='{}/normal_hap{}.fa'.format(normal_fa,hap)
         prefix='{}/normal_hap{}'.format(art_folder,hap)
-        final_cmd_params=cmd_params+['--out',prefix,'--rndSeed',str(random_int())]
+        final_cmd_params=cmd_params+['--in',ref,'--out',prefix,'--rndSeed',str(random_int())]
         logging.info(' Command: %s',' '.join(final_cmd_params))
         subprocess.run(args=final_cmd_params,check=True)
 
@@ -161,8 +164,9 @@ def main(progname=None):
     for tip_node in sorted(tip_node_leaves.keys()):
         cmd_params=art_params[:]
         cmd_params.extend(['--fcov',str(tip_node_leaves[tip_node]*seq_per_base)])
+        ref='{}/{}.genome.cfg.fa'.format(tumor_fa,tip_node)
         prefix='{}/{}'.format(art_folder,tip_node)
-        final_cmd_params=cmd_params+['--out',prefix,'--rndSeed',str(random_int())]
+        final_cmd_params=cmd_params+['--in',ref,'--out',prefix,'--rndSeed',str(random_int())]
         logging.info(' Command: %s',' '.join(final_cmd_params))
         subprocess.run(args=final_cmd_params,check=True)
 
