@@ -818,7 +818,7 @@ def output_leaf_haplotype(leaf_haplotype=None,directory=None,chroms=None,haploty
     Output the variants of each tip node in the order of coordinate.
     '''
     for node in leaf_haplotype['vars'].keys():
-        with open(directory+'/node'+node+'.genome.cfg','a') as cfg_file:
+        with open(directory+'/node'+node+'.genome.chain','a') as cfg_file:
             cfg_file.write('>{}_Haplotype{} parental:{}\n'.format(chroms,haplotype,parental))
             retrieve_tip_vars(tip_vars=leaf_haplotype,tip=node,out_file=cfg_file,chroms=chroms)
 

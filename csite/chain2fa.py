@@ -61,10 +61,13 @@ def main(progname=None):
         refs.append(pyfaidx.Fasta(fa))
     os.mkdir(args.output,mode=0o755)
     parentalre=re.compile('^parental:[0-9]$')
-    for node_cfg in glob.glob(args.chain+'/node*.cfg'):
-        with open(args.output+'/'+os.path.basename(node_cfg)+'.fa','w') as outputf:
+    for node_chain in glob.glob(args.chain+'/node*.chain'):
+        outfa=os.path.basename(node_chain)
+        outfa=outfa[:-5]+'fa'
+        outfa=args.output+'/'+outfa
+        with open(outfa,'w') as outputf:
             reference=None
-            with open(node_cfg) as inputf:
+            with open(node_chain) as inputf:
                 seq_name=None
                 seq=[]
                 for line in inputf:
