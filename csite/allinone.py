@@ -53,9 +53,9 @@ def main(progname=None):
     default=0.5
     parse.add_argument('-p','--purity',type=int,default=default,
         help='the proportion of tumor cells in simulated sample [{}]'.format(default))
-    default='art_illumina --samout --paired --len 100 --mflen 500 --sdev 20'
+    default='art_illumina --paired --len 100 --mflen 500 --sdev 20'
     parse.add_argument('--art',type=str,default=default,
-        help='the parameters for ART simulation [{}]'.format(default))
+        help='the parameters for ART program [{}]'.format(default))
     default=None
     parse.add_argument('-s','--random_seed',type=check_seed,
         help='the seed for random number generator [{}]'.format(default))
@@ -92,9 +92,9 @@ def main(progname=None):
 
 #vcf2fa
     cmd_params=[sys.argv[0],'vcf2fa',
-                '--reference',reference,
                 '--vcf',vcf,
-                '--output','normal_ref']
+                '--reference',reference,
+                '--output','normal_fa']
     logging.info(' Command: %s',' '.join(cmd_params))
     subprocess.run(args=cmd_params,check=True)
 
@@ -117,17 +117,17 @@ def main(progname=None):
 
 #chain2fa
     cmd_params=[sys.argv[0],'chain2fa',
-                '--reference','normal_ref/normal_hap0.fa,normal_ref/normal_hap1.fa',
                 '--chain','tumor_chain',
-                '--sequence','tumor_ref']
+                '--reference','normal_fa/normal_hap0.fa,normal_fa/normal_hap1.fa',
+                '--output','tumor_fa']
     logging.info(' Command: %s',' '.join(cmd_params))
     subprocess.run(args=cmd_params,check=True)
 
 #compute coverage and run ART
 #FIXME: cell number: float? int?
     normal_gsize=0
-    normal_gsize+=genomesize(fasta='normal_ref/normal_hap0.fa')
-    normal_gsize+=genomesize(fasta='normal_ref/normal_hap1.fa')
+    normal_gsize+=genomesize(fasta='normal_fa/normal_hap0.fa')
+    normal_gsize+=genomesize(fasta='normal_fa/normal_hap1.fa')
     total_seq_bases=normal_gsize/2*args.depth
     #print(total_seq_bases)
 
@@ -140,7 +140,7 @@ def main(progname=None):
     tumor_dna=0
     tip_node_gsize={}
     for tip_node,leaves in tip_node_leaves.items():
-        tip_node_gsize[tip_node]=genomesize(fasta='tumor_ref/{}.genome.cfg.fa'.format(tip_node))
+        tip_node_gsize[tip_node]=genomesize(fasta='tumor_fa/{}.genome.cfg.fa'.format(tip_node))
         tumor_dna+=tip_node_gsize[tip_node]*tip_node_leaves[tip_node]
     seq_per_base=total_seq_bases/(normal_dna+tumor_dna)
 

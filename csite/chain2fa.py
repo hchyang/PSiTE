@@ -34,7 +34,7 @@ def check_reference_file(reference=None):
 def check_sequence_folder(directory=None):
     good_charactors=re.compile('^[0-9a-zA-Z/_\-]+$') 
     if not good_charactors.match(directory):
-        raise argparse.ArgumentTypeError("{} is an invalid string for --sequence. ".format(directory)+
+        raise argparse.ArgumentTypeError("{} is an invalid string for --output. ".format(directory)+
             "Please only use number, alphabet and _/- in the directory name.")
     if os.path.exists(directory):
         raise argparse.ArgumentTypeError("{} is already exist. Delete it or use another name instead.".format(directory))
@@ -47,11 +47,11 @@ def main(progname=None):
     parse.add_argument('-d','--chain',required=True,type=check_chain_folder,
         help='the folder contain the chain file of genomes')
     parse.add_argument('-r','--reference',required=True,type=check_reference_file,
-        help='reference file')
-    default='perturbed_seqs'
-    parse.add_argument('-s','--sequence',default=default,type=check_sequence_folder,
-        help='the folder to save the built genome sequences [{}]'.format(default))
-    default=60
+        help='one or multiple (seperated by comma) fasta file of reference genome')
+    default='tumor_fa'
+    parse.add_argument('-o','--output',default=default,type=check_sequence_folder,
+        help='output directory [{}]'.format(default))
+    default=50
     parse.add_argument('-w','--width',default=default,type=int,
         help='the line width of output fasta [{}]'.format(default))
     args=parse.parse_args()
@@ -59,10 +59,10 @@ def main(progname=None):
     refs=[]
     for fa in args.reference.split(','):
         refs.append(pyfaidx.Fasta(fa))
-    os.mkdir(args.sequence,mode=0o755)
+    os.mkdir(args.output,mode=0o755)
     parentalre=re.compile('^parental:[0-9]$')
     for node_cfg in glob.glob(args.chain+'/node*.cfg'):
-        with open(args.sequence+'/'+os.path.basename(node_cfg)+'.fa','w') as outputf:
+        with open(args.output+'/'+os.path.basename(node_cfg)+'.fa','w') as outputf:
             reference=None
             with open(node_cfg) as inputf:
                 seq_name=None

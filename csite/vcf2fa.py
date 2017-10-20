@@ -25,12 +25,11 @@ def main(progname=None):
     parse=argparse.ArgumentParser(
         description='Build normal genome by integrating germline SNPs from a VCF file.',
         prog=progname if progname else sys.argv[0])
+    parse.add_argument('-v','--vcf',type=str,required=True,
+        help='a VCF file contains germline SNPs')
     parse.add_argument('-r','--reference',type=str,required=True,
         help='a fasta file of reference genome')
-    default=None
-    parse.add_argument('-v','--vcf',type=str,default=default,
-        help='a VCF file contains germline SNPs [{}]'.format(default))
-    default='normal'
+    default='normal_fa'
     parse.add_argument('-o','--output',type=str,default=default,
         help='output directory [{}]'.format(default))
     default=2

@@ -17,6 +17,11 @@ import pyfaidx
 from signal import signal, SIGPIPE, SIG_DFL 
 signal(SIGPIPE,SIG_DFL) 
 
+#If you simulate large genome for a tumor sample with many cells,
+#the disk space occupied by tumor genome will be huge.
+#And because ART do not support compressed fasta, we can not output
+#the compressed genome fasta. So bad.
+
 __version__='0.9.0'
 
 def usage():
