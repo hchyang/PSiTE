@@ -521,7 +521,7 @@ class Tree:
     #@profile
     def snvs_freq_cnvs_profile(self,parental=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,
-                               trunk_snvs=None,trunk_dels=None,trunk_cnvs=None,purity=None,
+                               trunk_snvs=None,trunk_cnvs=None,purity=None,
                                length=None,chain=None,chroms=None):
         '''
         Produce the true frequency of SNVs in the samples.
@@ -544,8 +544,8 @@ class Tree:
         for i in range(ploidy):
             logging.info(' Simulate tree %s (total: %s)',i+1,ploidy)
             hap_tree=copy.deepcopy(self)
-            hap_trunk_snvs=trunk_snvs.get(parental[i],[])
-            hap_trunk_cnvs=trunk_cnvs.get(parental[i],[])
+            hap_trunk_snvs=trunk_snvs.get(i,[])
+            hap_trunk_cnvs=trunk_cnvs.get(i,[])
             hap_tree.add_snv_cnv(start=0,end=length,inherent_snvs=hap_trunk_snvs,
                 inherent_cnvs=hap_trunk_cnvs,snv_rate=snv_rate,
                 cnv_rate=cnv_rate,del_prob=del_prob,cnv_length_beta=cnv_length_beta,

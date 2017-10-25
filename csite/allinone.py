@@ -11,10 +11,11 @@ import sys
 import os
 import argparse
 import numpy
+import yaml
 import logging
 import subprocess
 import pyfaidx
-from csite.phylovar import check_prune,check_proportion,check_seed,random_int
+from csite.phylovar import check_prune,check_proportion,check_seed,random_int,check_config_file
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe 
@@ -63,6 +64,9 @@ def main(progname=None):
     parse.add_argument('-g','--log',type=str,default=default,
         help='the log file to save the settings of each command [{}]'.format(default))
     args=parse.parse_args()
+    with open(args.config,'r') as configfile:
+        config=yaml.safe_load(configfile)
+    check_config_file(config=config)
 
 #get absolute paths for the input files
     reference=os.path.abspath(args.reference)

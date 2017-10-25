@@ -26,7 +26,12 @@ signal(SIGPIPE,SIG_DFL)
 #TODO: SNV true_freq
 #rewrite the description of the output of SNVs 
 
+#I defined those two parameters as global variants. As they will be used in function
+#random_int and check_config_file, which will be used in allinone.py.
 largest=2**32
+cfg_params=('snv_rate','cnv_rate','del_prob','cnv_length_beta','cnv_length_max',
+    'copy_parameter','copy_max','parental','tstv','length')
+
 def random_int():
     '''
     The random seed for numpy must be convertible to 32 bit unsigned integers.
@@ -108,32 +113,69 @@ def tstv_dist(tstv=None):
     tstv_dist_cfg['prob']=[ts,tv1,tv2]
     return tstv_dist_cfg
 
-def check_config_file(config=None,cfg_params=None):
+def check_config_file(config=None):
     '''
     Check the validation of your config file.
+    1. There must be only two section in config file: genome and chromosomes.
+    2. Every parameter in cfg_params must have a pair of key:value in genome section.
+    3. Every chromosome at least has the key 'length'.
+    4. The total length of all chromosomes must equal the length of genome.
+    5. If the SNV rate of all chromosomes have been specified, the sum of them should be equal the SNV rate of genome.
+    6. If the SNV rate of some chromosomes (not all) have been specified, the sum of them should be <= the SNV rate of genome.
+    7. The CNV rate should satisfy the same criteria as SNV rate.
     '''
-#TODO: we should collect all invalid keys and print all of them in one time
-    if config and not isinstance(config,dict):
+    if not (isinstance(config,dict) and set(config.keys())==set(['genome','chromosomes'])):
         raise ConfigFileError('Check your config file. The format is not correct.')
-    for key in set(config.keys())-set(['genome','chromosomes']):
-        raise ConfigFileError('{} is not acceptable '.format(key)+
-            'as the the 1st level key in your configure file!')
-    if 'genome' in config and config['genome']:
-        if not isinstance(config['genome'],dict):
-            raise ConfigFileError('Check your config file. The format in genome section is not correct.')
-        for key in set(config['genome'].keys())-set(cfg_params):
-            raise ConfigFileError('{} is not an acceptable key '.format(key)+
-                'in the genome section of your configure file!')
-    if 'chromosomes' in config and config['chromosomes']:
-        if not isinstance(config['chromosomes'],list):
+    if not isinstance(config['genome'],dict):
+        raise ConfigFileError('Check your config file. The format in genome section is not correct.')
+    lack=set(cfg_params)-set(config['genome'].keys())
+    if lack!=set():
+        raise ConfigFileError('{} are required in the genome section of config file.'.format(','.join([str(x) for x in lack])))
+    over=set(config['genome'].keys())-set(cfg_params)
+    if over!=set():
+        raise ConfigFileError('{} are not acceptable parameters in config file.'.format(','.join([str(x) for x in over])))
+    if not isinstance(config['chromosomes'],list):
+        raise ConfigFileError('Check your config file. The format in chromosomes section is not correct.')
+    total_chroms_length=0
+    total_snv_rate=0
+    missing_snv_rate=0
+    total_cnv_rate=0
+    missing_cnv_rate=0
+    for chroms in config['chromosomes']: 
+        if not isinstance(chroms,dict) or len(chroms)>1:
             raise ConfigFileError('Check your config file. The format in chromosomes section is not correct.')
-        for chroms in config['chromosomes']: 
-            if not isinstance(chroms,dict) or len(chroms)>1:
-                raise ConfigFileError('Check your config file. The format in chromosomes section is not correct.')
-            for chroms_n,chroms_cfg in chroms.items():
-                for key in set(chroms_cfg.keys())-set(cfg_params):
-                    raise ConfigFileError('{} is not an acceptable key '.format(key)+
-                        'in the section of chromosome {} in your configure file!'.format(chroms))
+        for chroms_n,chroms_cfg in chroms.items():
+            over=set(chroms_cfg.keys())-set(cfg_params)
+            if over!=set():
+                raise ConfigFileError('{} are not acceptable parameters '.format(','.join([str(x) for x in over]))+
+                    'in the section of chromosome {} in your config file!'.format(chroms))
+            if 'length' not in chroms_cfg:
+                raise ConfigFileError('Can not find length for chromosome:{}.'.format(chroms_n))
+            total_chroms_length+=chroms_cfg['length']
+            if 'snv_rate' in chroms_cfg:
+                total_snv_rate+=chroms_cfg['snv_rate']
+            else:
+                missing_snv_rate=1
+            if 'cnv_rate' in chroms_cfg:
+                total_cnv_rate+=chroms_cfg['cnv_rate']
+            else:
+                missing_cnv_rate=1
+
+    if config['genome']['length']!=total_chroms_length:
+        raise ConfigFileError('In your config file, the length of genome is {},'.format(str(config['genome']['length']))+
+            'But the total length of all chromosomes are {}'.format(str(total_chroms_length)))
+    if missing_snv_rate==1:
+        if total_snv_rate>config['genome']['snv_rate']:
+            raise ConfigFileError('Check your config file, the sum of snv_rate in chromosmomes section is larger than the rate in genome section!')
+    else:
+        if total_snv_rate!=config['genome']['snv_rate']:
+            raise ConfigFileError('Check your config file, the sum of snv_rate in chromosmomes section is not equal the rate in genome section!')
+    if missing_cnv_rate==1:
+        if total_cnv_rate>config['genome']['cnv_rate']:
+            raise ConfigFileError('Check your config file, the sum of cnv_rate in chromosmomes section is larger than the rate in genome section!')
+    else:
+        if total_cnv_rate!=config['genome']['cnv_rate']:
+            raise ConfigFileError('Check your config file, the sum of cnv_rate in chromosmomes section is not equal the rate in genome section!')
 
 class ConfigFileError(Exception):
     pass
@@ -235,45 +277,47 @@ def main(progname=None):
         help='directory to output chain files for each sample [{}]'.format(default))
     default=None
     parse.add_argument('--config',type=str,default=default,
-        help='configure file contains the setting of the somatic simulation in YAML format [{}]'.format(default))
+        help='configure file contains the setting of the somatic simulation in YAML format. '+
+            '-n/-r/-R/-d/-l/-L/-c/-C/-p will be ignored. [{}]'.format(default))
     args=parse.parse_args()
-
-###### check config file
-#only those params in cfg_params are acceptable in configure file
-    cfg_params=('snv_rate','cnv_rate','del_prob','cnv_length_beta','cnv_length_max',
-        'copy_parameter','copy_max','parental','tstv','length')
-    config={}
-    if args.config:
-        with open(args.config,'r') as configfile:
-            config=yaml.safe_load(configfile)
-        check_config_file(config=config,cfg_params=cfg_params)
 
 ###### figure out the simulation setting for each chroms
 #1. The setting in configure YAML file will override the setting in command line.
 #2. In the configure file, the setting for individual chr will override the setting of genome.
-    genome_cfg={}
-    if 'genome' in config and config['genome']:
-        for parameter in cfg_params:
-            genome_cfg[parameter]=config['genome'].get(parameter,getattr(args,parameter))
-    else:
-        for parameter in cfg_params:
-            genome_cfg[parameter]=getattr(args,parameter)
-
     final_chroms_cfg={} 
-    max_ploidy=0
-    if 'chromosomes' in config and config['chromosomes']:
-        for i in config['chromosomes']:
-            for chroms,chroms_cfg in i.items():
-                final_chroms_cfg[chroms]={}
-                for parameter in cfg_params:
-                    final_chroms_cfg[chroms][parameter]=chroms_cfg.get(parameter,genome_cfg[parameter])
-                if max_ploidy<len(final_chroms_cfg[chroms]['parental']):
-                    max_ploidy=len(final_chroms_cfg[chroms]['parental'])
-    else:
-        final_chroms_cfg[args.name]={}
-        for parameter in cfg_params:
-            final_chroms_cfg[args.name][parameter]=genome_cfg[parameter]
-        max_ploidy=len(final_chroms_cfg[args.name]['parental'])
+    final_chroms_cfg[args.name]={}
+    for parameter in cfg_params:
+        final_chroms_cfg[args.name][parameter]=getattr(args,parameter)
+    max_ploidy=len(final_chroms_cfg[args.name]['parental'])
+
+    if args.config:
+        config={}
+        final_chroms_cfg={} 
+        with open(args.config,'r') as configfile:
+            config=yaml.safe_load(configfile)
+        check_config_file(config=config)
+        max_ploidy=len(config['genome']['parental'])
+        undefined_snv_rate=config['genome']['snv_rate']
+        undefined_snv_rate_length=config['genome']['length']
+        undefined_cnv_rate=config['genome']['cnv_rate']
+        undefined_cnv_rate_length=config['genome']['length']
+        for chroms in config['chromosomes']: 
+            for chroms_cfg in chroms.values():
+                if 'snv_rate' in chroms_cfg:
+                    undefined_snv_rate-=chroms_cfg['snv_rate']
+                    undefined_snv_rate_length-=chroms_cfg['length']
+                if 'cnv_rate' in chroms_cfg:
+                    undefined_cnv_rate-=chroms_cfg['cnv_rate']
+                    undefined_cnv_rate_length-=chroms_cfg['length']
+        for chroms in config['chromosomes']: 
+            for chroms_n,chroms_cfg in chroms.items():
+                final_chroms_cfg[chroms_n]={}
+                final_chroms_cfg[chroms_n]['snv_rate']=chroms_cfg.get('snv_rate',chroms_cfg['length']/undefined_snv_rate_length*undefined_snv_rate)
+                final_chroms_cfg[chroms_n]['cnv_rate']=chroms_cfg.get('cnv_rate',chroms_cfg['length']/undefined_cnv_rate_length*undefined_cnv_rate)
+                for parameter in cfg_params[2:]:
+                    final_chroms_cfg[chroms_n][parameter]=chroms_cfg.get(parameter,config['genome'][parameter])
+                if 'parental' in chroms_cfg and len(chroms_cfg['parental'])>max_ploidy:
+                    max_ploidy=len(chroms_cfg['parental'])
 
 ###### logging and random seed setting
     logging.basicConfig(filename=args.log, filemode='w',
@@ -327,13 +371,11 @@ def main(progname=None):
                 tip_leaves_count_f.write('node{}\t{}\n'.format(tip_node,len(tip_leaves[tip_node])))
 
 ###### add trunk vars if supplied
-#FIXME: Can not use args.length here!!!!!!!!!!!
-#FIXME: Can not use args.ploidy here!!!!!!!!!!!
     trunk_snvs={}
     trunk_cnvs={}
     if args.trunk_vars!=None:
         trunk_snvs,trunk_cnvs=csite.trunk_vars.classify_vars(
-            args.trunk_vars,args.ploidy,args.length,leaves_number,mytree)
+            args.trunk_vars,final_chroms_cfg,leaves_number,mytree)
 
 #TODO: check the output of nodes_snvs/nodes_vars and parental_copy
 ###### open all required output file and output the headers 
@@ -382,8 +424,8 @@ def main(progname=None):
                 cnv_length_max=chroms_cfg['cnv_length_max'],
                 cn_dist_cfg=cn_dist_cfg,
                 tstv_dist_cfg=tstv_dist_cfg,
-                trunk_snvs=trunk_snvs,
-                trunk_cnvs=trunk_cnvs,
+                trunk_snvs=trunk_snvs.get(chroms,{}),
+                trunk_cnvs=trunk_cnvs.get(chroms,{}),
                 purity=args.purity,
                 length=chroms_cfg['length'],
                 chain=args.chain,
