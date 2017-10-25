@@ -29,8 +29,17 @@ signal(SIGPIPE,SIG_DFL)
 #I defined those two parameters as global variants. As they will be used in function
 #random_int and check_config_file, which will be used in allinone.py.
 largest=2**32
-cfg_params=('snv_rate','cnv_rate','del_prob','cnv_length_beta','cnv_length_max',
-    'copy_parameter','copy_max','parental','tstv','length')
+cfg_params={'snv_rate':float,
+            'cnv_rate':float,
+            'del_prob':float,
+            'cnv_length_beta':int,
+            'cnv_length_max':int,
+            'copy_parameter':float,
+            'copy_max':int,
+            'parental':str,
+            'tstv':float,
+            'length':int,
+            }
 
 def random_int():
     '''
@@ -44,14 +53,14 @@ def check_seed(value=None):
 #2**32: Must be convertible to 32 bit unsigned integers.
     if not 0<=ivalue<=largest: 
         raise argparse.ArgumentTypeError("{} is an invalid value for --random_seed. ".format(value)+
-            "It should be an interger between 0 and {}.".format(largest))
+            "It should be an integer between 0 and {}.".format(largest))
     return ivalue
 
 def check_prune(value=None):
     ivalue=int(float(value))
     if ivalue<2: 
         raise argparse.ArgumentTypeError("{} is an invalid value for --prune. ".format(value)+
-            "It should be an interger >=2 and <=the number of leaves of the tree.")
+            "It should be an integer >=2 and <=the number of leaves of the tree.")
     return ivalue
 
 def check_proportion(value=None):
@@ -124,16 +133,20 @@ def check_config_file(config=None):
     6. If the SNV rate of some chromosomes (not all) have been specified, the sum of them should be <= the SNV rate of genome.
     7. The CNV rate should satisfy the same criteria as SNV rate.
     '''
-    if not (isinstance(config,dict) and set(config.keys())==set(['genome','chromosomes'])):
+    if not (isinstance(config,dict) and set(config)==set(['genome','chromosomes'])):
         raise ConfigFileError('Check your config file. The format is not correct.')
     if not isinstance(config['genome'],dict):
         raise ConfigFileError('Check your config file. The format in genome section is not correct.')
-    lack=set(cfg_params)-set(config['genome'].keys())
+    lack=set(cfg_params)-set(config['genome'])
     if lack!=set():
         raise ConfigFileError('{} are required in the genome section of config file.'.format(','.join([str(x) for x in lack])))
-    over=set(config['genome'].keys())-set(cfg_params)
+    over=set(config['genome'])-set(cfg_params)
     if over!=set():
         raise ConfigFileError('{} are not acceptable parameters in config file.'.format(','.join([str(x) for x in over])))
+
+    for parameter in cfg_params:
+        assert isinstance(config['genome'][parameter],cfg_params[parameter]),'{} in genome section of config file should be a {}!'.format(parameter,cfg_params[parameter].__name__)
+
     if not isinstance(config['chromosomes'],list):
         raise ConfigFileError('Check your config file. The format in chromosomes section is not correct.')
     total_chroms_length=0
@@ -145,10 +158,13 @@ def check_config_file(config=None):
         if not isinstance(chroms,dict) or len(chroms)>1:
             raise ConfigFileError('Check your config file. The format in chromosomes section is not correct.')
         for chroms_n,chroms_cfg in chroms.items():
-            over=set(chroms_cfg.keys())-set(cfg_params)
+            assert isinstance(chroms_n,str),'The name of chromosome {} in config file should be a str!'.format(chroms_n)
+            over=set(chroms_cfg)-set(cfg_params)
             if over!=set():
                 raise ConfigFileError('{} are not acceptable parameters '.format(','.join([str(x) for x in over]))+
                     'in the section of chromosome {} in your config file!'.format(chroms))
+            for parameter in chroms_cfg.keys():
+                assert isinstance(chroms_cfg[parameter],cfg_params[parameter]),'{} in of chromosome {} in config file should be a {}!'.format(parameter,chroms_n,cfg_params[parameter].__name__)
             if 'length' not in chroms_cfg:
                 raise ConfigFileError('Can not find length for chromosome:{}.'.format(chroms_n))
             total_chroms_length+=chroms_cfg['length']
@@ -314,7 +330,7 @@ def main(progname=None):
                 final_chroms_cfg[chroms_n]={}
                 final_chroms_cfg[chroms_n]['snv_rate']=chroms_cfg.get('snv_rate',chroms_cfg['length']/undefined_snv_rate_length*undefined_snv_rate)
                 final_chroms_cfg[chroms_n]['cnv_rate']=chroms_cfg.get('cnv_rate',chroms_cfg['length']/undefined_cnv_rate_length*undefined_cnv_rate)
-                for parameter in cfg_params[2:]:
+                for parameter in set(cfg_params)-set(['snv_rate','cnv_rate']):
                     final_chroms_cfg[chroms_n][parameter]=chroms_cfg.get(parameter,config['genome'][parameter])
                 if 'parental' in chroms_cfg and len(chroms_cfg['parental'])>max_ploidy:
                     max_ploidy=len(chroms_cfg['parental'])
