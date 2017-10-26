@@ -57,7 +57,15 @@ def main(progname=None):
                 start=0
                 segments=[]
                 for snp in genome_profile[chroms]['hap_vars'][i]:
-                    segments.append(reference[chroms][start:(snp[0]-1)].seq)
+                    try:
+                        segments.append(reference[chroms][start:(snp[0]-1)].seq)
+                    except ValueError:
+                        if snp[0]-start==1:
+#This snp and the previous one is adjacent snps. e.g. chr1 45 (previous) and chr1 46 (current)
+#If you retrive by reference['chr1'][45:(46-1)].seq, the return is not '', an error will pop actually.
+                            pass
+                        else:
+                            raise
                     segments.append(snp[1])
                     start=snp[0]
                 if start<=genome_profile[chroms]['length']-1:
@@ -89,7 +97,6 @@ def fai_info(fai=None,haplotype=None):
                              'hap_vars':[]}
             for i in range(haplotype):
                 profile[chroms]['hap_vars'].append([])
-
     return profile
 
 def add_vcf_vars(profile=None,vcf=None,haplotype=None):
@@ -97,10 +104,12 @@ def add_vcf_vars(profile=None,vcf=None,haplotype=None):
     Extract variants on each copy of each chromosome in vcf file.
     And fill in the list hap_vars in profile.
     '''
-    if vcf.endswith('.gz'):
+    if vcf.endswith('vcf.gz'):
         vcf_file=gzip.open(vcf,'rb')
-    else:
+    elif vcf.endswith('vcf'):
         vcf_file=open(vcf,'r')
+    else:
+        exit('For --vcf, only vcf/vcf.gz file are acceptable!')
     for line in vcf_file:
         if isinstance(line,bytes):
             line=line.decode('utf-8')
@@ -108,7 +117,7 @@ def add_vcf_vars(profile=None,vcf=None,haplotype=None):
         if line.startswith('#'):
             if line.startswith('#CHROM'):
                 if len(line.split())!=10 and haplotype==2:
-                    raise VcfInputError('When --haploype is 2, only ONE sample is acceptable.')
+                    raise VcfInputError('When --haploype is 2, only ONE sample in VCF is acceptable.')
         else:
             record=line.split('\t')
             chroms=record[0]
@@ -119,14 +128,12 @@ def add_vcf_vars(profile=None,vcf=None,haplotype=None):
             alleles.extend(alt.split(','))
             for n in alleles:
                 if not nucleotide_re.match(n):
-                    print(line)
-                    raise VcfInputError('Only SNPs are acceptable!')
+                    raise VcfInputError('Only SNPs are acceptable! Check the record below:\n{}\n'.format(line))
             if haplotype==1:
                 if len(alt)==1:
                     profile[chroms]['hap_vars'][0].append([pos,alt])
                 elif len(alt)>1:
-                    print(line)
-                    raise VcfInputError('When --haplotype is 1, only one alternative allele is acceptable.')
+                    raise VcfInputError('When --haplotype is 1, only one alternative allele is acceptable.\nCheck the record below:\n{}\n'.format(line))
                 else:
                     raise ShouldNotBeHereError
             elif haplotype==2:
@@ -138,11 +145,9 @@ def add_vcf_vars(profile=None,vcf=None,haplotype=None):
                 for i in range(len(tags_list)):
                     indiv_info[tags_list[i]]=values_list[i]
                 if 'GT' not in indiv_info:
-                    print(line)
-                    raise VcfInputError('Can not find GT information for {}:{}'.format(chroms,pos))
+                    raise VcfInputError('Can not find GT information in the record below:\n{}\n'.format(line))
                 if '|' not in indiv_info['GT']:
-                    print(line)
-                    raise VcfInputError('Not phased on position {}:{}'.format(chroms,pos))
+                    raise VcfInputError('Not phased genotype in record below:\n{}\n'.format(line))
                 gt=indiv_info['GT'].split('|')
                 gt=[int(x) for x in gt]
                 for i in range(haplotype):
