@@ -112,12 +112,12 @@ def main(progname=None):
     if args.trunk_vars:
         cmd_params.extend(['--trunk_vars',trunk_vars])
     if args.trunk_length:
-        cmd_params.extend(['--trunk_length',args.trunk_length])
+        cmd_params.extend(['--trunk_length',str(args.trunk_length)])
     if args.prune:
-        cmd_params.extend(['--prune',args.prune])
+        cmd_params.extend(['--prune',str(args.prune)])
     elif args.prune_proportion:
-        cmd_params.extend(['--prune_proportion',args.prune_proportion])
-    logging.info(' Command: %s',' '.join([str(x) for x in cmd_params]))
+        cmd_params.extend(['--prune_proportion',str(args.prune_proportion)])
+    logging.info(' Command: %s',' '.join(cmd_params))
     subprocess.run(args=cmd_params,check=True)
 
 #chain2fa
