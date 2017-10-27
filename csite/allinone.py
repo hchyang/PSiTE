@@ -49,10 +49,10 @@ def main(progname=None):
     parse.add_argument('-X','--prune_proportion',type=check_proportion,default=default,
         help='trim all the children of the nodes with equal or less than this proportion of tips [{}]'.format(default))
     default=50
-    parse.add_argument('-d','--depth',type=int,default=default,
+    parse.add_argument('-d','--depth',type=float,default=default,
         help='the mean depth for ART to simulate short reads [{}]'.format(default))
     default=0.5
-    parse.add_argument('-p','--purity',type=int,default=default,
+    parse.add_argument('-p','--purity',type=float,default=default,
         help='the proportion of tumor cells in simulated sample [{}]'.format(default))
     default='art_illumina --paired --len 100 --mflen 500 --sdev 20'
     parse.add_argument('--art',type=str,default=default,
