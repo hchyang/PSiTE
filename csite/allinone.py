@@ -63,6 +63,9 @@ def main(progname=None):
     default='allinone.log'
     parse.add_argument('-g','--log',type=str,default=default,
         help='the log file to save the settings of each command [{}]'.format(default))
+    default=1
+    parse.add_argument('--start',type=int,default=default,choices=[1,2,3,4],
+        help='the serial number of the module from which to start [{}]'.format(default))
     args=parse.parse_args()
     with open(args.config,'r') as configfile:
         config=yaml.safe_load(configfile)
@@ -76,15 +79,18 @@ def main(progname=None):
     if args.trunk_vars:
         trunk_vars=os.path.abspath(args.trunk_vars)
     outdir=args.output
-    try:
-        os.mkdir(outdir)
-    except FileExistsError:
-        exit('{} already exists. Try another directory to output! (-o/--output)'.format(outdir))
+    if args.start==1:
+        try:
+            os.mkdir(outdir)
+        except FileExistsError:
+            exit('{} already exists. Try another directory to output! (-o/--output)'.format(outdir))
+    else:
+        assert os.path.isdir(outdir),'Can not start from step {}, '.format(args.start)+'because I can not find previous results directory {}.'.format(outdir)
     os.chdir(outdir)
 
 ###### logging and random seed setting
-    logging.basicConfig(filename=args.log, filemode='w',
-        format='[%(asctime)s] %(levelname)s: %(message)s',
+    logging.basicConfig(filename=args.log if args.start==1 else args.log+'.start'+str(args.start), 
+        filemode='w',format='[%(asctime)s] %(levelname)s: %(message)s',
         datefmt='%m-%d %H:%M:%S',level='INFO')
     logging.info(' Command: %s',' '.join(sys.argv[0:1]+['allinone']+sys.argv[1:]))
     if args.random_seed==None:
@@ -94,40 +100,46 @@ def main(progname=None):
     logging.info(' Random seed: %s',seed)
     numpy.random.seed(seed)
 
-#vcf2fa
     normal_fa='normal_fa'
-    cmd_params=[sys.argv[0],'vcf2fa',
-                '--vcf',vcf,
-                '--reference',reference,
-                '--output',normal_fa]
-    logging.info(' Command: %s',' '.join(cmd_params))
-    subprocess.run(args=cmd_params,check=True)
+    tumor_fa='tumor_fa'
+#vcf2fa
+    if args.start<2:
+        cmd_params=[sys.argv[0],'vcf2fa',
+                    '--vcf',vcf,
+                    '--reference',reference,
+                    '--output',normal_fa]
+        logging.info(' Command: %s',' '.join(cmd_params))
+        subprocess.run(args=cmd_params,check=True)
 
 #phylovar
-    cmd_params=[sys.argv[0],'phylovar',
-                '--tree',tree,
-                '--config',config,
-                '--random_seed',str(random_int()),
-                '--chain','tumor_chain']
-    if args.trunk_vars:
-        cmd_params.extend(['--trunk_vars',trunk_vars])
-    if args.trunk_length:
-        cmd_params.extend(['--trunk_length',str(args.trunk_length)])
-    if args.prune:
-        cmd_params.extend(['--prune',str(args.prune)])
-    elif args.prune_proportion:
-        cmd_params.extend(['--prune_proportion',str(args.prune_proportion)])
-    logging.info(' Command: %s',' '.join(cmd_params))
-    subprocess.run(args=cmd_params,check=True)
+#I place random_int() here as I do not want to skip it in all situation.
+#Without this, you can not replicate the result with different --start setting.
+    random_n=random_int()
+    if args.start<3:
+        cmd_params=[sys.argv[0],'phylovar',
+                    '--tree',tree,
+                    '--config',config,
+                    '--random_seed',str(random_n),
+                    '--chain','tumor_chain']
+        if args.trunk_vars:
+            cmd_params.extend(['--trunk_vars',trunk_vars])
+        if args.trunk_length:
+            cmd_params.extend(['--trunk_length',str(args.trunk_length)])
+        if args.prune:
+            cmd_params.extend(['--prune',str(args.prune)])
+        elif args.prune_proportion:
+            cmd_params.extend(['--prune_proportion',str(args.prune_proportion)])
+        logging.info(' Command: %s',' '.join(cmd_params))
+        subprocess.run(args=cmd_params,check=True)
 
 #chain2fa
-    tumor_fa='tumor_fa'
-    cmd_params=[sys.argv[0],'chain2fa',
-                '--chain','tumor_chain',
-                '--reference','{dir}/normal_hap0.fa,{dir}/normal_hap1.fa'.format(dir=normal_fa),
-                '--output',tumor_fa]
-    logging.info(' Command: %s',' '.join(cmd_params))
-    subprocess.run(args=cmd_params,check=True)
+    if args.start<4:
+        cmd_params=[sys.argv[0],'chain2fa',
+                    '--chain','tumor_chain',
+                    '--reference','{dir}/normal_hap0.fa,{dir}/normal_hap1.fa'.format(dir=normal_fa),
+                    '--output',tumor_fa]
+        logging.info(' Command: %s',' '.join(cmd_params))
+        subprocess.run(args=cmd_params,check=True)
 
 #compute coverage and run ART
 #FIXME: cell number: float? int?
@@ -135,12 +147,10 @@ def main(progname=None):
     normal_gsize+=genomesize(fasta='{}/normal_hap0.fa'.format(normal_fa))
     normal_gsize+=genomesize(fasta='{}/normal_hap1.fa'.format(normal_fa))
     total_seq_bases=normal_gsize/2*args.depth
-    #print(total_seq_bases)
 
     tip_node_leaves=tip_node_leaves_counting(f='tumor_chain/tip_node_sample.count')
     tumor_cells=sum(tip_node_leaves.values())
     normal_cells=tumor_cells/args.purity-tumor_cells
-    #print(normal_cells)
 
     normal_dna=normal_gsize*normal_cells
     tumor_dna=0
