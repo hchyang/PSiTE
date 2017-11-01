@@ -54,7 +54,7 @@ def main(progname=None):
     default=0.5
     parse.add_argument('-p','--purity',type=float,default=default,
         help='the proportion of tumor cells in simulated sample [{}]'.format(default))
-    default='art_illumina --paired --len 100 --mflen 500 --sdev 20'
+    default='art_illumina --noALN --quiet --paired --len 100 --mflen 500 --sdev 20'
     parse.add_argument('--art',type=str,default=default,
         help='the parameters for ART program [{}]'.format(default))
     default=None
@@ -100,8 +100,12 @@ def main(progname=None):
     logging.info(' Random seed: %s',seed)
     numpy.random.seed(seed)
 
+#subfolders
     normal_fa='normal_fa'
     tumor_fa='tumor_fa'
+    tumor_chain='tumor_chain'
+    art_reads='art_reads'
+
 #vcf2fa
     if args.start<2:
         cmd_params=[sys.argv[0],'vcf2fa',
@@ -120,7 +124,7 @@ def main(progname=None):
                     '--tree',tree,
                     '--config',config,
                     '--random_seed',str(random_n),
-                    '--chain','tumor_chain']
+                    '--chain',tumor_chain]
         if args.trunk_vars:
             cmd_params.extend(['--trunk_vars',trunk_vars])
         if args.trunk_length:
@@ -135,75 +139,22 @@ def main(progname=None):
 #chain2fa
     if args.start<4:
         cmd_params=[sys.argv[0],'chain2fa',
-                    '--chain','tumor_chain',
+                    '--chain',tumor_chain,
                     '--reference','{dir}/normal_hap0.fa,{dir}/normal_hap1.fa'.format(dir=normal_fa),
                     '--output',tumor_fa]
         logging.info(' Command: %s',' '.join(cmd_params))
         subprocess.run(args=cmd_params,check=True)
 
-#compute coverage and run ART
-#FIXME: cell number: float? int?
-    normal_gsize=0
-    normal_gsize+=genomesize(fasta='{}/normal_hap0.fa'.format(normal_fa))
-    normal_gsize+=genomesize(fasta='{}/normal_hap1.fa'.format(normal_fa))
-    total_seq_bases=normal_gsize/2*args.depth
 
-    tip_node_leaves=tip_node_leaves_counting(f='tumor_chain/tip_node_sample.count')
-    tumor_cells=sum(tip_node_leaves.values())
-    normal_cells=tumor_cells/args.purity-tumor_cells
-
-    normal_dna=normal_gsize*normal_cells
-    tumor_dna=0
-    tip_node_gsize={}
-    for tip_node,leaves in tip_node_leaves.items():
-        tip_node_gsize[tip_node]=genomesize(fasta='{}/{}.genome.fa'.format(tumor_fa,tip_node))
-        tumor_dna+=tip_node_gsize[tip_node]*tip_node_leaves[tip_node]
-    seq_per_base=total_seq_bases/(normal_dna+tumor_dna)
-
-    art_folder='art_reads'
-    os.mkdir(art_folder)
-    art_params=args.art.split()
-
-#two normal cell haplotypes
-    cmd_params=art_params[:]
-    cmd_params.extend(['--fcov',str(normal_cells*seq_per_base)])
-    for hap in 0,1:
-        ref='{}/normal_hap{}.fa'.format(normal_fa,hap)
-        prefix='{}/normal_hap{}.'.format(art_folder,hap)
-        final_cmd_params=cmd_params+['--in',ref,'--out',prefix,'--rndSeed',str(random_int())]
-        logging.info(' Command: %s',' '.join(final_cmd_params))
-        subprocess.run(args=final_cmd_params,check=True)
-
-#tumor cells haplotypes
-    for tip_node in sorted(tip_node_leaves.keys()):
-        cmd_params=art_params[:]
-        cmd_params.extend(['--fcov',str(tip_node_leaves[tip_node]*seq_per_base)])
-        ref='{}/{}.genome.fa'.format(tumor_fa,tip_node)
-        prefix='{}/{}.'.format(art_folder,tip_node)
-        final_cmd_params=cmd_params+['--in',ref,'--out',prefix,'--rndSeed',str(random_int())]
-        logging.info(' Command: %s',' '.join(final_cmd_params))
-        subprocess.run(args=final_cmd_params,check=True)
-
-def tip_node_leaves_counting(f=None):
-    '''
-    Return a dictionay with structure: 
-    {tip_node1:leaves_count1,tip_node2:leaves_count2,...}
-    '''
-    tip_node_leaves={}
-    with open(f,'r') as input:
-        for line in input:
-            if not line.startswith('#'):
-                tip_node,leaves=line.split()
-                tip_node_leaves[tip_node]=int(leaves)
-    return tip_node_leaves
-
-def genomesize(fasta=None):
-    '''
-    Extract genome size from .fa file.
-    '''
-    fa=pyfaidx.Faidx(fasta)
-    gsize=0
-    for chroms in fa.index.keys():
-        gsize+=fa.index[chroms].rlen
-    return gsize
+    cmd_params=[sys.argv[0],'fa2ngs',
+                '--normal',normal_fa,
+                '--tumor',tumor_fa,
+                '--chain',tumor_chain,
+                '--depth',str(args.depth),
+                '--purity',str(args.purity),
+                '--random_seed',str(random_int()),
+                '--art',"{}".format(args.art),
+                '--output',art_reads]
+    logging.info(' Command: %s',' '.join(cmd_params))
+    subprocess.run(args=cmd_params,check=True)
 

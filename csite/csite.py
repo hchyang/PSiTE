@@ -53,6 +53,9 @@ def main():
         elif command=='chain2fa':
             import csite.chain2fa
             csite.chain2fa.main(progname=progname)
+        elif command=='fa2ngs':
+            import csite.fa2ngs
+            csite.fa2ngs.main(progname=progname)
         elif command=='allinone':
             import csite.allinone
             csite.allinone.main(progname=progname)

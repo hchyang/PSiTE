@@ -129,7 +129,7 @@ def check_config_file(config=None):
     2. Every parameter in cfg_params must have a pair of key:value in genome section.
     3. Every chromosome at least has the key 'length'.
     4. The total length of all chromosomes must equal the length of genome.
-    5. If the SNV rate of all chromosomes have been specified, the sum of them should be equal the SNV rate of genome.
+    5. If the SNV rate of each chromosome has been specified, the sum of them should be equal the SNV rate of genome.
     6. If the SNV rate of some chromosomes (not all) have been specified, the sum of them should be <= the SNV rate of genome.
     7. The CNV rate should satisfy the same criteria as SNV rate.
     '''
@@ -348,13 +348,12 @@ def main(progname=None):
     numpy.random.seed(seed)
 
 ###### build tree from newick string
+#TODO: We should do make sure the newick string is valided before processing it.
     newick=''
     with open(args.tree) as input:
         for line in input:
             newick+=line.rstrip()
-#TODO: We should do make sure the newick string is valided before processing it.
     mytree=csite.tree.newick2tree(newick)
-
     if args.trunk_length:
         mytree.lens=args.trunk_length
     leaves_number=mytree.leaves_counting()
