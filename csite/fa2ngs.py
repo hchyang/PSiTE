@@ -3,7 +3,7 @@
 #########################################################################
 # Author: Hechuan
 # Created Time: 2017-04-04 18:00:34
-# File Name: allinone.py
+# File Name: fa2ngs.py
 # Description: 
 #########################################################################
 
@@ -97,6 +97,9 @@ def main(progname=None):
     os.mkdir(args.output)
     art_params=args.art.split()
 
+#create a reference meta file which can be used by wessim to simulate exome-seq data
+    ref_meta=open('reference.meta','w')
+
 #two normal cell haplotypes
     cmd_params=art_params[:]
     cmd_params.extend(['--fcov',str(normal_cells*seq_per_base)])
@@ -107,6 +110,9 @@ def main(progname=None):
         logging.info(' Command: %s',' '.join(final_cmd_params))
         subprocess.run(args=final_cmd_params,check=True)
 
+        fullname=os.path.abspath(ref)
+        ref_meta.write('{}\t{}\n'.format(fullname,str(normal_cells*seq_per_base)))
+
 #tumor cells haplotypes
     for tip_node in sorted(tip_node_leaves.keys()):
         cmd_params=art_params[:]
@@ -116,6 +122,11 @@ def main(progname=None):
         final_cmd_params=cmd_params+['--in',ref,'--out',prefix,'--rndSeed',str(random_int())]
         logging.info(' Command: %s',' '.join(final_cmd_params))
         subprocess.run(args=final_cmd_params,check=True)
+
+        fullname=os.path.abspath(ref)
+        ref_meta.write('{}\t{}\n'.format(fullname,str(tip_node_leaves[tip_node]*seq_per_base)))
+
+    ref_meta.close()
 
 def tip_node_leaves_counting(f=None):
     '''
