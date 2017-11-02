@@ -124,7 +124,9 @@ def main(progname=None):
                     '--tree',tree,
                     '--config',config,
                     '--random_seed',str(random_n),
-                    '--chain',tumor_chain]
+                    '--chain',tumor_chain,
+                    '--depth',str(args.depth),
+                    '--purity',str(args.purity)]
         if args.trunk_vars:
             cmd_params.extend(['--trunk_vars',trunk_vars])
         if args.trunk_length:

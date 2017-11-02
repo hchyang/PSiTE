@@ -34,6 +34,7 @@ def usage():
     print("Command: vcf2fa     build normal genome from input (germline) vcf file")
     print("         phylovar   simulate somatic variations on a phylogeny")
     print("         chain2fa   build tumor genomes from somatic mutations (chain file)")
+    print("         fa2ngs     simulate short reads from normal and tumor fasta")
     print("         allinone   a wrapper for short reads simulation")
     print("")
 
