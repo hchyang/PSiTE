@@ -83,7 +83,8 @@ def main(progname=None):
 
     tip_node_leaves=tip_node_leaves_counting(f='{}/tip_node_sample.count'.format(args.chain))
     tumor_cells=sum(tip_node_leaves.values())
-    normal_cells=tumor_cells/args.purity-tumor_cells
+    total_cells=tumor_cells/args.purity
+    normal_cells=total_cells-tumor_cells
 
     normal_dna=normal_gsize*normal_cells
     tumor_dna=0
@@ -111,7 +112,7 @@ def main(progname=None):
         subprocess.run(args=final_cmd_params,check=True)
 
         fullname=os.path.abspath(ref)
-        ref_meta.write('{}\t{}\n'.format(fullname,str(normal_cells*seq_per_base)))
+        ref_meta.write('{}\t{}\n'.format(fullname,str(normal_cells/total_cells/2)))
 
 #tumor cells haplotypes
     for tip_node in sorted(tip_node_leaves.keys()):
@@ -124,7 +125,7 @@ def main(progname=None):
         subprocess.run(args=final_cmd_params,check=True)
 
         fullname=os.path.abspath(ref)
-        ref_meta.write('{}\t{}\n'.format(fullname,str(tip_node_leaves[tip_node]*seq_per_base)))
+        ref_meta.write('{}\t{}\n'.format(fullname,str(tip_node_leaves[tip_node]/total_cells)))
 
     ref_meta.close()
 
