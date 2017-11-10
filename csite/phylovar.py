@@ -494,7 +494,7 @@ def main(progname=None):
 
 #output SNVs/CNVs on each node
     for node in sorted(all_nodes_vars.keys()):
-        vars_list=[x.split('-') for x in all_nodes_vars[node]]
+        vars_list=[x.split('#') for x in all_nodes_vars[node]]
         vars_list=sorted(vars_list,key=lambda x:(x[0],x[1],x[2]))
         for var in vars_list:
             nodes_vars_file.write('{}\t{}\n'.format(node,'\t'.join(var)))
