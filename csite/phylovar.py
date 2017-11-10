@@ -16,13 +16,14 @@ import logging
 import csite.trunk_vars
 import csite.tree
 import yaml
-#import pickle
+import pickle
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe 
 from signal import signal, SIGPIPE, SIG_DFL 
 signal(SIGPIPE,SIG_DFL) 
 
+#TODO: check wheter parental is parental. sometimes it's mean haplotype...
 #TODO: SNV true_freq
 #rewrite the description of the output of SNVs 
 
@@ -256,7 +257,7 @@ def main(progname=None):
     default='output.nodes_vars'
     parse.add_argument('-N','--nodes_vars',type=str,default=default,
         help='the output file to save SNVs/CNVs on each node [{}]'.format(default))
-    default='output.named_tree.nhx'
+    default=None
     parse.add_argument('-T','--named_tree',type=str,default=default,
         help='the output file in NHX format to save the tree with all nodes named [{}]'.format(default))
     default='phylovar.log'
@@ -371,7 +372,7 @@ def main(progname=None):
         if trim>=2:
             mytree.prune(tips=trim)
 
-###### output the map of tip_node:leaf
+###### output the map of tip_node(after pruning):leaf
     if args.chain:
         tip_leaves=mytree.tip_node_leaves()
         os.mkdir(args.chain,mode=0o755)
@@ -396,23 +397,26 @@ def main(progname=None):
 ###### open all required output file and output the headers 
 #TODO: some file's headers are missing
     cnv_file=open(args.cnv,'w')
+    cnv_file.write('#chr\tstart\tend\tcp_change\tcarrier\n')
     snv_file=open(args.snv,'w')
-    snv_file.write('#position\ttrue_freq\ttotal_depth\tsimulated_freq\n')
+    snv_file.write('#chr\tpos\tsnv_form\ttrue_freq\ttotal_depth\tsimulated_freq\n')
     cnv_profile_file=open(args.cnv_profile,'w')
-    nodes_snvs_file=open(args.nodes_vars,'w')
+    cnv_profile_file.write('#chr\tstart\tend\ttotal_cp\n')
+    nodes_vars_file=open(args.nodes_vars,'w')
+    nodes_vars_file.write('#node\tchr\tstart\tend\tcopy\n')
 
     if args.snv_genotype!=None:
         genotype_file=open(args.snv_genotype,'w')
-        genotype_file.write('{}\t{}\n'.format('#positon','\t'.join(leaves_names)))
+        genotype_file.write('#chr\tpos\t{}\n'.format('\t'.join(leaves_names)))
     
     if args.ind_cnvs!=None:
         ind_cnvs_file=open(args.ind_cnvs,'w')
-        ind_cnvs_file.write('#cell\tparental\tstart\tend\tcopy\n')
+        ind_cnvs_file.write('#cell\tparental\tchr\tstart\tend\tcopy\n')
 
 #TODO: check the format of this file. parental? haplotype?
     if args.parental_copy!=None:
         parental_copy_file=open(args.parental_copy,'w')
-        parental_copy_file.write('#position\t{}\n'.format('\t'.join(['haplotype'+str(x) for x in range(max_ploidy)])))
+        parental_copy_file.write('#chr\tpos\t{}\n'.format('\t'.join(['haplotype'+str(x) for x in range(max_ploidy)])))
 
     if args.expands != None:
         expands_snps_file=open(args.expands+'.snps','w')
@@ -427,7 +431,7 @@ def main(progname=None):
         cn_dist_cfg=cn_dist(copy_max=chroms_cfg['copy_max'],copy_parameter=chroms_cfg['copy_parameter'])
         tstv_dist_cfg=tstv_dist(tstv=chroms_cfg['tstv'])
         
-        (snvs_freq,cnvs,cnv_profile,nodes_snvs,tree_with_snvs,
+        (snvs_freq,cnvs,cnv_profile,nodes_vars,
             leaf_snv_alts,leaf_snv_refs,leaf_cnvs,
             hap_local_copy_for_all_snvs,
             )=mytree.snvs_freq_cnvs_profile(
@@ -446,42 +450,45 @@ def main(progname=None):
                 chain=args.chain,
                 chroms=chroms,
             )
+        all_snvs_pos=sorted(x[0] for x in snvs_freq)
 
         if args.snv_genotype!=None:
-            for snv in snvs_freq:
-                genotype_file.write('{}\t{}\n'.format(snv[0],
-                    '\t'.join([str(leaf_snv_alts[leaf][snv[0]])+':'+str(leaf_snv_refs[leaf][snv[0]]) for leaf in leaves_names])))
+            for pos in all_snvs_pos:
+                genotype_file.write('{}\t{}\t{}\n'.format(chroms,pos,
+                    '\t'.join([str(leaf_snv_alts[leaf][pos])+':'+str(leaf_snv_refs[leaf][pos]) for leaf in leaves_names])))
 
         if args.ind_cnvs!=None:
             for leaf in sorted(leaf_cnvs.keys()):
                 for cnv in leaf_cnvs[leaf]:
-                    ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,cnv['parental'],cnv['start'],cnv['end'],cnv['copy']]])))
+                    ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,cnv['parental'],chroms,cnv['start'],cnv['end'],cnv['copy']]])))
 
         if args.parental_copy!=None:
             for snv in hap_local_copy_for_all_snvs:
-                parental_copy_file.write('\t'.join([str(x) for x in snv])+'\n')
+                parental_copy_file.write('{}\t{}\n'.format(chroms,'\t'.join([str(x) for x in snv])))
 
         for cnv in cnvs:
-            cnv_file.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(cnv['seg'],cnv['start'],cnv['end'],cnv['copy'],cnv['leaves_count'],cnv['pre_snvs']))
+            cnv_file.write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,cnv['start'],cnv['end'],cnv['copy'],cnv['leaves_count']))
 
-        for pos,freq in snvs_freq:
+        for pos,mutation,freq in snvs_freq:
             total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(args.depth,freq)
             b_allele_freq=0
             if total_dp!=0:
                 b_allele_freq=b_allele_dp/total_dp
-            snv_file.write('{}\t{}\t{}\t{}\n'.format(pos,freq,total_dp,b_allele_freq))
+            snv_file.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(chroms,pos,mutation,freq,total_dp,b_allele_freq))
 
         for seg in cnv_profile:
-            cnv_profile_file.write('{}\t{}\t{}\n'.format(*seg))
+            cnv_profile_file.write('{}\n'.format('\t'.join([str(x) for x in [chroms]+seg])))
 
 #FIXME: output SNVs/CNVs, not only SNVs
-        for node in sorted(nodes_snvs.keys()):
-            for snv in sorted(nodes_snvs[node]):
-                nodes_snvs_file.write('{}\t{}\n'.format(node,snv))
+        for node in sorted(nodes_vars.keys()):
+            vars_list=[x.split(':') for x in nodes_vars[node]]
+            vars_list=sorted(vars_list,key=lambda x:(x[0],x[1],x[2]))
+            for var in vars_list:
+                nodes_vars_file.write('{}\t{}\n'.format(node,'\t'.join(var)))
 
 #output for expands
         if args.expands != None:
-            for pos,freq in snvs_freq:
+            for pos,mutation,freq in snvs_freq:
                 total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(args.depth,freq)
                 expands_snps_file.write('{}\t{}\t{}\t{}\n'.format(chroms,pos,b_allele_dp/total_dp,0))
 
@@ -490,16 +497,11 @@ def main(progname=None):
             for start,end,copy in cnv_profile:
                 expands_segs_file.write('{}\t{}\t{}\t{}\n'.format(chroms,start,end,copy/leaves_number))
 
-#TODO: Should we change pickle to json or yaml?
-#http://stackoverflow.com/questions/4677012/python-cant-pickle-type-x-attribute-lookup-failed
-        #with open(args.named_tree,'wb') as tree_data_file:
-        #    pickle.dump(tree_with_snvs,tree_data_file)
-
 ###### close all opened files
     cnv_file.close()
     snv_file.close()
     cnv_profile_file.close()
-    nodes_snvs_file.close()
+    nodes_vars_file.close()
 
     if args.snv_genotype!=None:
         genotype_file.close()
@@ -513,3 +515,13 @@ def main(progname=None):
     if args.expands != None:
         expands_snps_file.close()
         expands_segs_file.close()
+
+#TODO: Should we change pickle to json or yaml?
+#http://stackoverflow.com/questions/4677012/python-cant-pickle-type-x-attribute-lookup-failed
+#FIXME: right now, it does not consider the deletion effect on pre_snvs.
+#FIXME: output in .nhx format
+    if args.named_tree!=None:
+        mytree.attach_info(attr='vars',info=nodes_vars)
+        with open(args.named_tree,'wb') as tree_data_file:
+            pickle.dump(mytree,tree_data_file)
+

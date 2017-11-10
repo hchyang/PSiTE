@@ -50,7 +50,10 @@ def main(progname=None):
         help='trim all the children of the nodes with equal or less than this proportion of tips [{}]'.format(default))
     default=50
     parse.add_argument('-d','--depth',type=float,default=default,
-        help='the mean depth for ART to simulate short reads [{}]'.format(default))
+        help='the mean depth of tumor for ART to simulate short reads [{}]'.format(default))
+    default=50
+    parse.add_argument('-D','--normal_depth',type=float,default=default,
+        help='the mean depth of normal for ART to simulate short reads [{}]'.format(default))
     default=0.5
     parse.add_argument('-p','--purity',type=float,default=default,
         help='the proportion of tumor cells in simulated sample [{}]'.format(default))
@@ -153,6 +156,7 @@ def main(progname=None):
                 '--tumor',tumor_fa,
                 '--chain',tumor_chain,
                 '--depth',str(args.depth),
+                '--normal_depth',str(args.normal_depth),
                 '--purity',str(args.purity),
                 '--random_seed',str(random_int()),
                 '--art',"{}".format(args.art),

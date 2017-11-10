@@ -253,10 +253,10 @@ class Tree:
             all_cnvs.extend(self.right.all_cnvs_collect())
         return all_cnvs
 
-    def all_snvs_alt_allele_count(self):
+    def all_snvs_summary(self):
         '''
         It will return a dictionary of all SNVs in the tree. 
-        {pos:alt_allele_count,...}
+        {pos:{'mutation':,'alt_count':},...}
         We will summary the allele count of all snvs on both main tree and all
         subtrees (new copy of cnv).
         There are three kind of snvs: 
@@ -267,49 +267,57 @@ class Tree:
         all_alt_count={}
         if self.snvs:
             for snv in self.snvs:
-                all_alt_count[snv['start']]=self.leaves_counting()
+                all_alt_count[snv['start']]={'mutation':snv['mutation'],'alt_count':self.leaves_counting()}
         if self.cnvs:
             for cnv in self.cnvs:
                 if cnv['copy']>0: #amplification
                     for cp in cnv['new_copies']:
-                        all_alt_count=merge_two_dict_count(all_alt_count,cp.all_snvs_alt_allele_count())
+                        all_alt_count=merge_two_all_alt_count(all_alt_count,cp.all_snvs_summary())
                 else:  #deletion
                     pre_snvs_dict={}
                     for snv in cnv['pre_snvs']:
-                        pre_snvs_dict[snv['start']]=-self.leaves_counting()
-                    all_alt_count=merge_two_dict_count(all_alt_count,pre_snvs_dict)
+                        pre_snvs_dict[snv['start']]={'mutation':snv['mutation'],'alt_count':-self.leaves_counting()}
+                    all_alt_count=merge_two_all_alt_count(all_alt_count,pre_snvs_dict)
         if self.left!=None:
-            all_alt_count=merge_two_dict_count(all_alt_count,self.left.all_snvs_alt_allele_count())
+            all_alt_count=merge_two_all_alt_count(all_alt_count,self.left.all_snvs_summary())
         if self.right!=None:
-            all_alt_count=merge_two_dict_count(all_alt_count,self.right.all_snvs_alt_allele_count())
+            all_alt_count=merge_two_all_alt_count(all_alt_count,self.right.all_snvs_summary())
         return all_alt_count
 
-    def nodes_snvs_collect(self):
+    def nodes_vars_collect(self,chroms=None):
         '''
         It will return a dictionary of all nodes in the tree. 
-        {node1:{snv1,snv2,...},node2:{snv1,snv2,...},...}
+        {node1:{var1,var2,...},node2:{var3,var4,...},...}
         '''
-        nodes_snvs={}
+        nodes_vars={}
+        nodes_vars[self.nodeid]=set()
         if self.snvs:
-            nodes_snvs[self.nodeid]=set([snv['start'] for snv in self.snvs])
+            for snv in self.snvs:
+                var=':'.join([str(x) for x in [chroms,snv['start'],snv['end'],0]])
+                nodes_vars[self.nodeid].add(var)
+
         if self.cnvs:
             for cnv in self.cnvs:
+                var=':'.join([str(x) for x in [chroms,cnv['start'],cnv['end'],cnv['copy']]])
+                nodes_vars[self.nodeid].add(var)
                 if cnv['copy']>0: #amplification
                     for cp in cnv['new_copies']:
-                        tmp=cp.nodes_snvs_collect()
+                        tmp=cp.nodes_vars_collect(chroms=chroms)
 #For each new copy of amplification, its self.snvs contains previous snvs.
-#Those snvs do not loate on the current node, let's remove them.
+#Those snvs do not locate on the current node, let's remove them.
 #FIXME: Acutually, this is not true. If in one branch, SNV, amplificatoin and deletion occure sequentially,
 #and they overlap each other, the new SNV will not captured by the current node on main tree, but
 #still captured by current node on the new copy, and will be eliminated as it's in the set pre_snvs.
-                        if tmp.get(self.nodeid):
-                            tmp[self.nodeid]=tmp[self.nodeid]-set([snv['start'] for snv in cnv['pre_snvs']])
-                        nodes_snvs=merge_two_dict_set(nodes_snvs,tmp)
+                        if tmp.get(self.nodeid) and cnv['pre_snvs']:
+                            for snv in cnv['pre_snvs']:
+                                var=':'.join([str(x) for x in [chroms,snv['start'],snv['end'],0]])
+                                tmp[self.nodeid].discard(var)
+                        nodes_vars=merge_two_dict_set(nodes_vars,tmp)
         if self.left!=None:
-            nodes_snvs=merge_two_dict_set(nodes_snvs,self.left.nodes_snvs_collect())
+            nodes_vars=merge_two_dict_set(nodes_vars,self.left.nodes_vars_collect(chroms=chroms))
         if self.right!=None:
-            nodes_snvs=merge_two_dict_set(nodes_snvs,self.right.nodes_snvs_collect())
-        return nodes_snvs
+            nodes_vars=merge_two_dict_set(nodes_vars,self.right.nodes_vars_collect(chroms=chroms))
+        return nodes_vars
 
     def leaves_counting(self):
         '''
@@ -528,8 +536,8 @@ class Tree:
         It's a warpper for generating SNVs/CNVs on a tree and summarize their frequency.
         '''
         all_cnvs=[]
-        nodes_snvs={}
-        all_snvs_alt_counts=[]
+        nodes_vars={}
+        all_snvs_alt_counts={}
         all_snvs_alt_freq=[]
 #leaf_snv_alts is a hash of hash, {leaf1:{pos1:genotype,pos2:genotype...},leaf2:{pos1:genotype,pos2:genotype...},...}
         leaf_snv_alts={}
@@ -551,12 +559,11 @@ class Tree:
                 cnv_rate=cnv_rate,del_prob=del_prob,cnv_length_beta=cnv_length_beta,
                 cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg)
 
-            all_snvs_alt_counts_dict=hap_tree.all_snvs_alt_allele_count()
-            all_snvs_alt_counts.extend([[snv,all_snvs_alt_counts_dict[snv]] for snv in all_snvs_alt_counts_dict])
+            all_snvs_alt_counts.update(hap_tree.all_snvs_summary())
 
             hap_cnvs.append(hap_tree.all_cnvs_collect())
             all_cnvs.extend(hap_cnvs[-1])
-            nodes_snvs=merge_two_dict_set(nodes_snvs,hap_tree.nodes_snvs_collect())
+            nodes_vars=merge_two_dict_set(nodes_vars,hap_tree.nodes_vars_collect(chroms=chroms))
 
             hap_tree.genotyping(genotypes=leaf_snv_alts)
             hap_tree.cnv_genotyping(genotypes=leaf_cnvs,parental=parental[i])
@@ -565,38 +572,31 @@ class Tree:
                 logging.debug('Haplotypes: %s',leaf_haplotype)
                 output_leaf_haplotype(leaf_haplotype=leaf_haplotype,directory=chain,chroms=chroms,haplotype=i,parental=parental[i])
 
-#construct a tree with all snvs
-#FIXME: right now, it does not consider the deletion effect on pre_snvs.
-        tree_with_snvs=copy.deepcopy(self)
-        tree_with_snvs.attach_info(attr='new_snvs',info=nodes_snvs)
-        all_snvs_alt_counts.sort(key=lambda snv: snv[0])
+        all_snvs_pos=sorted(all_snvs_alt_counts.keys())
 
 #construct cnv profile list, assuming the whole region start with 0 and end with length
         all_cnvs.sort(key=lambda cnv: cnv['start'])
         cnvs_pos_changes=cnvs2pos_changes(cnvs=all_cnvs,length=length,background=background)
 
-#construct cnv profile for each hap_tree, assuming the whole region start with 0 and end with length
-        hap_local_copy_for_all_snvs=hap_local_leaves(positions=[snp[0] for snp in all_snvs_alt_counts],
+        hap_local_copy_for_all_snvs=hap_local_leaves(positions=all_snvs_pos,
             hap_cnvs=hap_cnvs,length=length,background=self.leaves_counting(),ploidy=ploidy)
 
+#construct cnv profile for each hap_tree, assuming the whole region start with 0 and end with length
 #translate cnvs_pos_changes to cnv_profile before its changing
         cnv_profile=pos_changes2region_profile(cnvs_pos_changes)
 
         region_mean_ploidy=0
         normal_dosage=background*(1-purity)/purity
-#        print(purity)
-#        print(normal_dosage)
-        for snv in all_snvs_alt_counts:
-            while snv[0]>=cnvs_pos_changes[0][0]:
+        for pos in all_snvs_pos:
+            while pos>=cnvs_pos_changes[0][0]:
                 region_mean_ploidy+=cnvs_pos_changes.pop(0)[1]
 #adjust SNVs' frequency by taking the normal cells into account 
-            all_snvs_alt_freq.append([snv[0],snv[1]/(normal_dosage+region_mean_ploidy)])
+            all_snvs_alt_freq.append([pos,all_snvs_alt_counts[pos]['mutation'],all_snvs_alt_counts[pos]['alt_count']/(normal_dosage+region_mean_ploidy)])
 #TODO: what information of CNVs should I output? logR? Frequency? Adjust CNVs' frequency?
 
 #build genotypes for each leaf
 #build genotypes on the variants of each leaf? or on variants on all leaves?
         leaf_snv_refs={}
-        all_snvs_pos=[x[0] for x in all_snvs_alt_counts]
         for leaf in self.leaves_naming():
             if leaf not in leaf_cnvs:
                 leaf_cnvs[leaf]=[]
@@ -619,7 +619,7 @@ class Tree:
                     region_mean_ploidy+=leaf_cnvs_pos_changes[leaf].pop(0)[1]
                 leaf_snv_refs[leaf][pos]=region_mean_ploidy-leaf_snv_alts[leaf][pos]
 
-        return all_snvs_alt_freq,all_cnvs,cnv_profile,nodes_snvs,tree_with_snvs,leaf_snv_alts,leaf_snv_refs,leaf_cnvs,hap_local_copy_for_all_snvs
+        return all_snvs_alt_freq,all_cnvs,cnv_profile,nodes_vars,leaf_snv_alts,leaf_snv_refs,leaf_cnvs,hap_local_copy_for_all_snvs
 
     def tree2newick(self,lens=False,attrs=None):
         '''
@@ -669,22 +669,24 @@ def waiting_times(span=None,rate=None):
                 waiting_times.append(elapse)
     return waiting_times
 
-def merge_two_dict_count(dict1=None,dict2=None):
+def merge_two_all_alt_count(dict1=None,dict2=None):
     '''
-    It's similiar with dict.update, but for the key in both dicts,
-    its new value equal the sum of dict1[key] and dict2[key].
+    Each dict has the structure: {pos:{'mutation':,'alt_count':},...}.
+    I will generate a new dict, which contains all pos in dict1 and dict2,
+    And for those pos have record in both dict1 and dict2, the vale of 
+    'mutation' will be keep, and the value of 'alt_count' is the sum of value
+    in dict1 and dict2.
     '''
     if dict1==None:
         dict1={}
     if dict2==None:
         dict2={}
-    new_dict={}
-    for key in set.union(set(dict1),set(dict2)):
-        new_dict[key]=0
-        if key in dict1:
-            new_dict[key]+=dict1[key]
-        if key in dict2:
-            new_dict[key]+=dict2[key]
+    new_dict=dict1.copy()
+    for key in dict2:
+        if key in new_dict:
+            new_dict[key]['alt_count']+=dict2[key]['alt_count']
+        else:
+            new_dict[key]=dict2[key]
     return new_dict
     
 def merge_two_dict_set(dict1=None,dict2=None):
@@ -696,13 +698,12 @@ def merge_two_dict_set(dict1=None,dict2=None):
         dict1={}
     if dict2==None:
         dict2={}
-    new_dict={}
-    for key in set.union(set(dict1),set(dict2)):
-        new_dict[key]=set()
-        if key in dict1:
-            new_dict[key]=new_dict[key].union(dict1[key])
-        if key in dict2:
-            new_dict[key]=new_dict[key].union(dict2[key])
+    new_dict=dict1.copy()
+    for key in dict2:
+        if key in new_dict:
+            new_dict[key].update(dict2[key])
+        else:
+            new_dict[key]=dict2[key]
     return new_dict
     
 def cnvs2pos_changes(cnvs=None,length=None,background=None):

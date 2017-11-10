@@ -36,7 +36,10 @@ def main(progname=None):
         help='output directory [{}]'.format(default))
     default=50
     parse.add_argument('-d','--depth',type=float,default=default,
-        help='the mean depth for ART to simulate short reads [{}]'.format(default))
+        help='the mean depth of tumor for ART to simulate short reads [{}]'.format(default))
+    default=50
+    parse.add_argument('-D','--normal_depth',type=float,default=default,
+        help='the mean depth of normal for ART to simulate short reads [{}]'.format(default))
     default=0.5
     parse.add_argument('-p','--purity',type=float,default=default,
         help='the proportion of tumor cells in simulated sample [{}]'.format(default))
@@ -95,7 +98,11 @@ def main(progname=None):
         tumor_dna+=tip_node_gsize[tip_node]*tip_node_leaves[tip_node]
     seq_per_base=total_seq_bases/(normal_dna+tumor_dna)
 
+    tumor_dir=args.output+'/tumor'
+    normal_dir=args.output+'/normal'
     os.mkdir(args.output)
+    os.mkdir(tumor_dir)
+    os.mkdir(normal_dir)
     art_params=args.art.split()
 
 #create a reference meta file which can be used by wessim to simulate exome-seq data
@@ -103,31 +110,47 @@ def main(progname=None):
 
 #two normal cell haplotypes
     cmd_params=art_params[:]
-    cmd_params.extend(['--fcov',str(normal_cells*seq_per_base)])
     for hap in 0,1:
+        fcov=str(normal_cells*seq_per_base)
         ref='{}/normal_hap{}.fa'.format(args.normal,hap)
-        prefix='{}/normal_hap{}.'.format(args.output,hap)
-        final_cmd_params=cmd_params+['--in',ref,'--out',prefix,'--rndSeed',str(random_int())]
+        prefix='{}/normal_hap{}.'.format(tumor_dir,hap)
+        final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','n_hap{}'.format(hap),'--rndSeed',str(random_int())]
         logging.info(' Command: %s',' '.join(final_cmd_params))
         subprocess.run(args=final_cmd_params,check=True)
+        compress_fq(prefix=prefix)
+
+        if args.normal_depth>0:
+            fcov=str(args.normal_depth/2)
+            prefix='{}/normal_hap{}.'.format(normal_dir,hap)
+            final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','n_hap{}'.format(hap),'--rndSeed',str(random_int())]
+            logging.info(' Command: %s',' '.join(final_cmd_params))
+            subprocess.run(args=final_cmd_params,check=True)
+            compress_fq(prefix=prefix)
 
         fullname=os.path.abspath(ref)
         ref_meta.write('{}\t{}\n'.format(fullname,str(normal_cells/total_cells/2)))
 
 #tumor cells haplotypes
     for tip_node in sorted(tip_node_leaves.keys()):
-        cmd_params=art_params[:]
-        cmd_params.extend(['--fcov',str(tip_node_leaves[tip_node]*seq_per_base)])
+        fcov=str(tip_node_leaves[tip_node]*seq_per_base)
         ref='{}/{}.genome.fa'.format(args.tumor,tip_node)
-        prefix='{}/{}.'.format(args.output,tip_node)
-        final_cmd_params=cmd_params+['--in',ref,'--out',prefix,'--rndSeed',str(random_int())]
+        prefix='{}/{}.'.format(tumor_dir,tip_node)
+        final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','t_{}'.format(tip_node),'--rndSeed',str(random_int())]
         logging.info(' Command: %s',' '.join(final_cmd_params))
         subprocess.run(args=final_cmd_params,check=True)
+        compress_fq(prefix=prefix)
 
         fullname=os.path.abspath(ref)
         ref_meta.write('{}\t{}\n'.format(fullname,str(tip_node_leaves[tip_node]/total_cells)))
 
     ref_meta.close()
+
+def compress_fq(prefix=None):
+    suffixes=['fq','1.fq','2.fq']
+    for suffix in suffixes:
+        fq=prefix+suffix
+        if os.path.isfile(fq):
+            subprocess.run(args=['gzip',fq],check=True)
 
 def tip_node_leaves_counting(f=None):
     '''
