@@ -425,6 +425,7 @@ def main(progname=None):
         expands_segs_file.write("chr\tstartpos\tendpos\tCN_Estimate\n")
 
 ###### simulate variants for each chroms
+    all_nodes_vars={}
     for chroms,chroms_cfg in final_chroms_cfg.items():
         check_cnv_length_cfg(chroms=chroms,cnv_length_beta=chroms_cfg['cnv_length_beta'],
             cnv_length_max=chroms_cfg['cnv_length_max'],chr_length=chroms_cfg['length'])
@@ -451,6 +452,7 @@ def main(progname=None):
                 chroms=chroms,
             )
         all_snvs_pos=sorted(x[0] for x in snvs_freq)
+        all_nodes_vars=csite.tree.merge_two_dict_set(dict1=all_nodes_vars,dict2=nodes_vars)
 
         if args.snv_genotype!=None:
             for pos in all_snvs_pos:
@@ -479,13 +481,6 @@ def main(progname=None):
         for seg in cnv_profile:
             cnv_profile_file.write('{}\n'.format('\t'.join([str(x) for x in [chroms]+seg])))
 
-#FIXME: output SNVs/CNVs, not only SNVs
-        for node in sorted(nodes_vars.keys()):
-            vars_list=[x.split('-') for x in nodes_vars[node]]
-            vars_list=sorted(vars_list,key=lambda x:(x[0],x[1],x[2]))
-            for var in vars_list:
-                nodes_vars_file.write('{}\t{}\n'.format(node,'\t'.join(var)))
-
 #output for expands
         if args.expands != None:
             for pos,mutation,freq in snvs_freq:
@@ -496,6 +491,13 @@ def main(progname=None):
 #CN_Estimate - the copy number estimated for each segment (average value across all subpopulations in the sample)
             for start,end,copy in cnv_profile:
                 expands_segs_file.write('{}\t{}\t{}\t{}\n'.format(chroms,start,end,copy/leaves_number))
+
+#output SNVs/CNVs on each node
+    for node in sorted(all_nodes_vars.keys()):
+        vars_list=[x.split('-') for x in all_nodes_vars[node]]
+        vars_list=sorted(vars_list,key=lambda x:(x[0],x[1],x[2]))
+        for var in vars_list:
+            nodes_vars_file.write('{}\t{}\n'.format(node,'\t'.join(var)))
 
 ###### close all opened files
     cnv_file.close()
