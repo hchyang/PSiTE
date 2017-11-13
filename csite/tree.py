@@ -57,7 +57,7 @@ class Tree:
         if inherent_cnvs==None:
             inherent_cnvs=[]
         length=end-start
-        logging.debug('Node (%s) with length: %s',self.nodeid,self.lens)
+        logging.debug('%s with length: %s',self.nodeid,self.lens)
         logging.debug('Structure: %s',self.tree2newick())
         self.snvs=[]
         self.cnvs=[]
@@ -157,8 +157,8 @@ class Tree:
                     if numpy.random.uniform()<del_prob:
 #the new cnv is a deletion
                         logging.debug('New CNVs are deletions.')
-                        logging.debug('Node (%s) accumulated_snvs: %s.',self.nodeid,str([x['start'] for x in self.accumulated_snvs]))
-                        logging.debug('Node (%s) snvs: %s.',self.nodeid,str([x['start'] for x in self.snvs]))
+                        logging.debug('%s accumulated_snvs: %s.',self.nodeid,str([x['start'] for x in self.accumulated_snvs]))
+                        logging.debug('%s snvs: %s.',self.nodeid,str([x['start'] for x in self.snvs]))
                         for del_start,del_end in new_cnvs:
 #output pre_snvs to self.cnvs, so it can be used to correct the count of snvs 
                             pre_snvs=[]
@@ -369,11 +369,11 @@ class Tree:
         For a Tree object, it should run the leaves_counting() method before run this method.
         '''
         if self.leaves_count<=tips:
-            logging.debug('Trim %s children of node (nodeid: %s)',self.leaves_count,self.nodeid)
+            logging.debug('Trim %s children of %s',self.leaves_count,self.nodeid)
             self.left=None
             self.right=None
             if self.name==None:
-                self.name='i'+self.nodeid
+                self.name=self.nodeid
         else:
             self.left.prune(tips=tips)
             self.right.prune(tips=tips)
@@ -489,7 +489,7 @@ class Tree:
                 logging.debug('tip_vars: %s',str(tip_vars))
             tip_vars['vars'][self.nodeid]=self.accumulated_snvs+self.accumulated_cnvs
             tip_vars['vars'][self.nodeid].sort(key=lambda var:var['start'])
-        logging.debug('nodeid: %s',self.nodeid)
+        logging.debug('%s',self.nodeid)
         logging.debug('start: %s; end: %s',start,end)
         return tip_vars
     
@@ -638,7 +638,7 @@ class Tree:
         if self.lens!=None and lens:
             newick_str+= ':' + self.lens
         if attrs!=None and lens==True:
-            newick_str+='[&&NHX:W=1.0'
+            newick_str+='[&&NHX'
             for attribute in attrs:
                 if getattr(self, attribute):
                     newick_str+=':{}={}'.format(attribute,getattr(self, attribute))
@@ -741,7 +741,7 @@ def node_id():
     i=0
     while True:
         i+=1
-        yield str(i)
+        yield 'node'+str(i)
 
 #@profile
 def newick2tree(newick=None):
@@ -819,7 +819,7 @@ def output_leaf_haplotype(leaf_haplotype=None,directory=None,chroms=None,haploty
     Output the variants of each tip node in the order of coordinate.
     '''
     for node in leaf_haplotype['vars'].keys():
-        with open(directory+'/node'+node+'.genome.chain','a') as cfg_file:
+        with open('{}/{}.genome.chain'.format(directory,node),'a') as cfg_file:
             cfg_file.write('>{}_Haplotype{} parental:{}\n'.format(chroms,haplotype,parental))
             retrieve_tip_vars(tip_vars=leaf_haplotype,tip=node,out_file=cfg_file,chroms=chroms)
 

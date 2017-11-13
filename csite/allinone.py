@@ -9,6 +9,7 @@
 
 import sys
 import os
+import shutil
 import argparse
 import numpy
 import yaml
@@ -123,6 +124,10 @@ def main(progname=None):
 #Without this, you can not replicate the result with different --start setting.
     random_n=random_int()
     if args.start<3:
+        if os.path.isdir(tumor_chain):
+            shutil.rmtree(tumor_chain)
+        elif os.path.isfile(tumor_chain):
+            os.remove(tumor_chain)
         cmd_params=[sys.argv[0],'phylovar',
                     '--tree',tree,
                     '--config',config,
@@ -143,6 +148,11 @@ def main(progname=None):
 
 #chain2fa
     if args.start<4:
+        if os.path.isdir(tumor_fa):
+            shutil.rmtree(tumor_fa)
+        elif os.path.isfile(tumor_fa):
+            os.remove(tumor_fa)
+
         cmd_params=[sys.argv[0],'chain2fa',
                     '--chain',tumor_chain,
                     '--reference','{dir}/normal_hap0.fa,{dir}/normal_hap1.fa'.format(dir=normal_fa),
@@ -150,7 +160,10 @@ def main(progname=None):
         logging.info(' Command: %s',' '.join(cmd_params))
         subprocess.run(args=cmd_params,check=True)
 
-
+    if os.path.isdir(art_reads):
+        shutil.rmtree(art_reads)
+    elif os.path.isfile(art_reads):
+        os.remove(art_reads)
     cmd_params=[sys.argv[0],'fa2ngs',
                 '--normal',normal_fa,
                 '--tumor',tumor_fa,
@@ -159,8 +172,8 @@ def main(progname=None):
                 '--normal_depth',str(args.normal_depth),
                 '--purity',str(args.purity),
                 '--random_seed',str(random_int()),
-                '--art',"{}".format(args.art),
-                '--output',art_reads]
-    logging.info(' Command: %s',' '.join(cmd_params))
+                '--output',art_reads,
+                '--art',"{}".format(args.art)]
+    logging.info(' Command: %s',' '.join(cmd_params[:-1]+["'{}'".format(args.art)]))
     subprocess.run(args=cmd_params,check=True)
 

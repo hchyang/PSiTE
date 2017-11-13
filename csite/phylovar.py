@@ -16,7 +16,7 @@ import logging
 import csite.trunk_vars
 import csite.tree
 import yaml
-import pickle
+#import pickle
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe 
@@ -258,8 +258,8 @@ def main(progname=None):
     parse.add_argument('-N','--nodes_vars',type=str,default=default,
         help='the output file to save SNVs/CNVs on each node [{}]'.format(default))
     default=None
-    parse.add_argument('-T','--named_tree',type=str,default=default,
-        help='the output file in NHX format to save the tree with all nodes named [{}]'.format(default))
+    parse.add_argument('-T','--vars_tree',type=str,default=default,
+        help='the output file in NHX format to save the tree with nodeid and all variants [{}]'.format(default))
     default='phylovar.log'
     parse.add_argument('-g','--log',type=str,default=default,
         help='the log file [{}]'.format(default))
@@ -380,11 +380,11 @@ def main(progname=None):
             tip_leaves_f.write('#tip_node\tsample\n')
             for tip_node in sorted(tip_leaves.keys()):
                 for leaf in sorted(tip_leaves[tip_node]):
-                    tip_leaves_f.write('node{}\t{}\n'.format(tip_node,leaf))
+                    tip_leaves_f.write('{}\t{}\n'.format(tip_node,leaf))
         with open(args.chain+'/tip_node_sample.count','w') as tip_leaves_count_f:
             tip_leaves_count_f.write('#tip_node\tsample_count\n')
             for tip_node in sorted(tip_leaves.keys()):
-                tip_leaves_count_f.write('node{}\t{}\n'.format(tip_node,len(tip_leaves[tip_node])))
+                tip_leaves_count_f.write('{}\t{}\n'.format(tip_node,len(tip_leaves[tip_node])))
 
 ###### add trunk vars if supplied
     trunk_snvs={}
@@ -522,8 +522,9 @@ def main(progname=None):
 #http://stackoverflow.com/questions/4677012/python-cant-pickle-type-x-attribute-lookup-failed
 #FIXME: right now, it does not consider the deletion effect on pre_snvs.
 #FIXME: output in .nhx format
-    if args.named_tree!=None:
+    if args.vars_tree!=None:
         mytree.attach_info(attr='vars',info=nodes_vars)
-        with open(args.named_tree,'wb') as tree_data_file:
-            pickle.dump(mytree,tree_data_file)
+        with open(args.vars_tree,'w') as tree_data_file:
+            tree_data_file.write('{};\n'.format(mytree.tree2newick(lens=True,attrs=['nodeid','vars'])))
+#            pickle.dump(mytree,tree_data_file)
 
