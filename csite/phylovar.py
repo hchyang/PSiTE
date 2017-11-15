@@ -266,7 +266,7 @@ def main(progname=None):
     default='INFO'
     parse.add_argument('-G','--loglevel',type=str,default=default,choices=['DEBUG','INFO'],
         help='the logging level [{}]'.format(default))
-    default='output.cnv.profile'
+    default='output.cnvs.profile'
     parse.add_argument('--cnv_profile',type=str,default=default,
         help='the file to save CNVs profile [{}]'.format(default))
     parse.add_argument('--snv_genotype',type=str,
@@ -397,13 +397,13 @@ def main(progname=None):
 ###### open all required output file and output the headers 
 #TODO: some file's headers are missing
     cnv_file=open(args.cnv,'w')
-    cnv_file.write('#chr\tstart\tend\tcp_change\tcarrier\n')
+    cnv_file.write('#chr\tstart\tend\tcopy\tcarrier\n')
     snv_file=open(args.snv,'w')
-    snv_file.write('#chr\tpos\tsnv_form\ttrue_freq\ttotal_depth\tsimulated_freq\n')
+    snv_file.write('#chr\tpos\tform\ttrue_freq\ttotal_dp\tsim_freq\n')
     cnv_profile_file=open(args.cnv_profile,'w')
-    cnv_profile_file.write('#chr\tstart\tend\ttotal_cp\n')
+    cnv_profile_file.write('#chr\tstart\tend\tlocal_cp\n')
     nodes_vars_file=open(args.nodes_vars,'w')
-    nodes_vars_file.write('#node\tchr\tstart\tend\tcopy\n')
+    nodes_vars_file.write('#node\tchr\tstart\tend\tvar\n')
 
     if args.snv_genotype!=None:
         genotype_file=open(args.snv_genotype,'w')
@@ -493,9 +493,9 @@ def main(progname=None):
                 expands_segs_file.write('{}\t{}\t{}\t{}\n'.format(chroms,start,end,copy/leaves_number))
 
 #output SNVs/CNVs on each node
-    for node in sorted(all_nodes_vars.keys()):
+    for node in sorted(all_nodes_vars.keys(),key=lambda x: int(x[4:])):
         vars_list=[x.split('#') for x in all_nodes_vars[node]]
-        vars_list=sorted(vars_list,key=lambda x:(x[0],x[1],x[2]))
+        vars_list=sorted(vars_list,key=lambda x:(x[0],int(x[1]),int(x[2])))
         for var in vars_list:
             nodes_vars_file.write('{}\t{}\n'.format(node,'\t'.join(var)))
 
@@ -523,7 +523,7 @@ def main(progname=None):
 #FIXME: right now, it does not consider the deletion effect on pre_snvs.
 #FIXME: output in .nhx format
     if args.vars_tree!=None:
-        mytree.attach_info(attr='vars',info=nodes_vars)
+        mytree.attach_info(attr='vars',info=all_nodes_vars)
         with open(args.vars_tree,'w') as tree_data_file:
             tree_data_file.write('{};\n'.format(mytree.tree2newick(lens=True,attrs=['nodeid','vars'])))
 #            pickle.dump(mytree,tree_data_file)

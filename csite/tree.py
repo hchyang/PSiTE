@@ -293,12 +293,15 @@ class Tree:
         nodes_vars[self.nodeid]=set()
         if self.snvs:
             for snv in self.snvs:
-                var='#'.join([str(x) for x in [chroms,snv['start'],snv['end'],0]])
+                var='#'.join([str(x) for x in [chroms,snv['start'],snv['end'],snv['mutation']]])
                 nodes_vars[self.nodeid].add(var)
-
         if self.cnvs:
             for cnv in self.cnvs:
-                var='#'.join([str(x) for x in [chroms,cnv['start'],cnv['end'],cnv['copy']]])
+                var='#'.join([str(x) for x in [chroms,cnv['start'],cnv['end']]])
+                if cnv['copy']>0:
+                    var+='#+'+str(cnv['copy'])
+                else:
+                    var+='#'+str(cnv['copy'])
                 nodes_vars[self.nodeid].add(var)
                 if cnv['copy']>0: #amplification
                     for cp in cnv['new_copies']:
@@ -310,7 +313,7 @@ class Tree:
 #still captured by current node on the new copy, and will be eliminated as it's in the set pre_snvs.
                         if tmp.get(self.nodeid) and cnv['pre_snvs']:
                             for snv in cnv['pre_snvs']:
-                                var='#'.join([str(x) for x in [chroms,snv['start'],snv['end'],0]])
+                                var='#'.join([str(x) for x in [chroms,snv['start'],snv['end'],snv['mutation']]])
                                 tmp[self.nodeid].discard(var)
                         nodes_vars=merge_two_dict_set(nodes_vars,tmp)
         if self.left!=None:

@@ -18,7 +18,7 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
     hap:      which halotype of the chr the var locates in (0 based)
     start:    the start of the var
     end:      the end of the var
-    variant:  an string. 0/1/2: SNV, -1: deletion, +int: amplification
+    var:      an string. 0/1/2: SNV, -1: deletion, +int: amplification
     P.S. start and end are 0 based. And the region of each var is like in bed: [start,end).
     '''
     snvs={}

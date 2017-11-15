@@ -2,17 +2,18 @@ genome:
     snv_rate: 3
     cnv_rate: 300
     del_prob: 0.5
-    cnv_length_beta: 20000000
-    cnv_length_max: 40000000
+    cnv_length_beta: 200000
+    cnv_length_max: 400000
     copy_parameter: 0.5
     copy_max: 5
     parental: '01'
     tstv: 2.0
-    length: 100000000
+    length: 2500000
 chromosomes:
-    - 1:
+    - '1':
         parental: '00'
-    - 2:
         length: 1000000
-    - 3:
-        length: 1200000
+    - '2':
+        length: 800000
+    - '3':
+        length: 700000
