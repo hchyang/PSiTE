@@ -121,7 +121,7 @@ def main(progname=None):
                     '--reference',reference,
                     '--output',normal_fa]
         if args.sex_chr:
-            cmd_params.extend(['--sex_chr',args.sex_chr])
+            cmd_params.extend(['--sex_chr',','.join(args.sex_chr)])
         logging.info(' Command: %s',' '.join(cmd_params))
         subprocess.run(args=cmd_params,check=True)
 
