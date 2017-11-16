@@ -21,6 +21,19 @@ from signal import signal, SIGPIPE, SIG_DFL
 signal(SIGPIPE,SIG_DFL) 
 
 nucleotide_re=re.compile('^[atcgnATCGN]$')
+#Let's fix at one diploid sample in VCF, which means haplotype==2
+haplotype=2
+
+def check_sex(chrs=None):
+    if len(chrs)==0:
+        sex_chr=[]
+    else:
+        sex_chr=chrs.split(',')
+        if len(sex_chr)!=haplotype:
+            raise argparse.ArgumentTypeError('{} is an invalid value for --sex_chr.\n'.format(chrs)+
+                'Please specify two sex chromosomes. If there are two copies of the same chromosome, \n'+
+                'just write it twice and seprate them by a comma! e.g. --sex_chr X,X \n')
+    return sex_chr
 
 def main(progname=None):
     parse=argparse.ArgumentParser(
@@ -33,48 +46,51 @@ def main(progname=None):
     default='normal_fa'
     parse.add_argument('-o','--output',type=str,default=default,
         help='output directory [{}]'.format(default))
-    default=2
-    parse.add_argument('-H','--haplotype',type=int,default=default,choices=[1,2],
-        help='number of haplotypes to generate [{}]'.format(default))
+    default=None
+    parse.add_argument('--sex_chr',type=check_sex,default=default,
+        help='sex chromosomes of the genome (seperated by comma) [{}]'.format(default))
     args=parse.parse_args()
+    if args.sex_chr==None:
+        args.sex_chr=[]
 
-    reference=pyfaidx.Fasta(args.reference)
 #build the data structure: genome_profile
-    genome_profile=fai_info(fai=args.reference+'.fai',haplotype=args.haplotype)
+    reference=pyfaidx.Fasta(args.reference)
+    genome_profile=fai_info(fai=args.reference+'.fai',sex_chr=args.sex_chr)
 #fill in the list hap_vars in genome_profile
-    add_vcf_vars(profile=genome_profile,vcf=args.vcf,haplotype=args.haplotype)
+    add_vcf_vars(profile=genome_profile,vcf=args.vcf,sex_chr=args.sex_chr)
 
     try:
         os.mkdir(args.output) 
     except FileExistsError:
         exit('Folder {} exists. Delete it or try another folder.'.format(args.output))
     except FileNotFoundError:
-        exit("Can't create folder {}. Please creat parent directories first.".format(args.output))
+        exit("Can't create folder {}. Please create its parent directories first.".format(args.output))
 
-    for i in range(args.haplotype):
+    for i in range(haplotype):
         with open('{}/normal_hap{}.fa'.format(args.output,i),'w') as output:
             for chroms in genome_profile['order']:
-                start=0
-                segments=[]
-                for snp in genome_profile[chroms]['hap_vars'][i]:
-                    try:
-                        segments.append(reference[chroms][start:(snp[0]-1)].seq)
-                    except ValueError:
-                        if snp[0]-start==1:
+                if i<len(genome_profile[chroms]['hap_vars']):
+                    start=0
+                    segments=[]
+                    for snp in genome_profile[chroms]['hap_vars'][i]:
+                        try:
+                            segments.append(reference[chroms][start:(snp[0]-1)].seq)
+                        except ValueError:
+                            if snp[0]-start==1:
 #This snp and the previous one is adjacent snps. e.g. chr1 45 (previous) and chr1 46 (current)
 #If you retrive by reference['chr1'][45:(46-1)].seq, the return is not '', an error will pop actually.
-                            pass
-                        else:
-                            raise
-                    segments.append(snp[1])
-                    start=snp[0]
-                if start<=genome_profile[chroms]['length']-1:
-                    segments.append(reference[chroms][start:].seq)
-                output.write('>{}\n'.format(chroms,i))
-                for outputline in pyfaidx.wrap_sequence(genome_profile[chroms]['linebases'],''.join(segments)):
-                    output.write(outputline)
+                                pass
+                            else:
+                                raise
+                        segments.append(snp[1])
+                        start=snp[0]
+                    if start<genome_profile[chroms]['length']:
+                        segments.append(reference[chroms][start:].seq)
+                    output.write('>{}\n'.format(chroms,i))
+                    for outputline in pyfaidx.wrap_sequence(genome_profile[chroms]['linebases'],''.join(segments)):
+                        output.write(outputline)
 
-def fai_info(fai=None,haplotype=None):
+def fai_info(fai=None,sex_chr=None):
     '''
     Extract fasta information from genome.fa.fai file.
     Will return a list with the structure:
@@ -97,9 +113,17 @@ def fai_info(fai=None,haplotype=None):
                              'hap_vars':[]}
             for i in range(haplotype):
                 profile[chroms]['hap_vars'].append([])
+        if sex_chr:
+            for chroms in sex_chr:
+                assert chroms in profile, 'Can not find {} in your fasta file!'.format(chroms)
+#There are two different sex chromosomes. So each of them should only have one 
+#haplotype
+            if sex_chr[0]!=sex_chr[1]:
+                profile[sex_chr[0]]['hap_vars']=[[]]
+                profile[sex_chr[1]]['hap_vars']=[[]]
     return profile
 
-def add_vcf_vars(profile=None,vcf=None,haplotype=None):
+def add_vcf_vars(profile=None,vcf=None,sex_chr=None):
     '''
     Extract variants on each copy of each chromosome in vcf file.
     And fill in the list hap_vars in profile.
@@ -115,9 +139,8 @@ def add_vcf_vars(profile=None,vcf=None,haplotype=None):
             line=line.decode('utf-8')
         line=line.strip()
         if line.startswith('#'):
-            if line.startswith('#CHROM'):
-                if len(line.split())!=10 and haplotype==2:
-                    raise VcfInputError('When --haploype is 2, only ONE sample in VCF is acceptable.')
+            if line.startswith('#CHROM') and len(line.split())!=10:
+                raise VcfInputError('Only ONE sample in VCF is acceptable.')
         else:
             record=line.split('\t')
             chroms=record[0]
@@ -129,14 +152,12 @@ def add_vcf_vars(profile=None,vcf=None,haplotype=None):
             for n in alleles:
                 if not nucleotide_re.match(n):
                     raise VcfInputError('Only SNPs are acceptable! Check the record below:\n{}\n'.format(line))
-            if haplotype==1:
+            if chroms in sex_chr and sex_chr[0]!=sex_chr[1]:
                 if len(alt)==1:
                     profile[chroms]['hap_vars'][0].append([pos,alt])
-                elif len(alt)>1:
-                    raise VcfInputError('When --haplotype is 1, only one alternative allele is acceptable.\nCheck the record below:\n{}\n'.format(line))
                 else:
-                    raise ShouldNotBeHereError
-            elif haplotype==2:
+                    raise VcfInputError('There is only one copy of chromosome: {},But multiple alternative alleles found in the record below:\n{}\n'.format(chroms,line))
+            else:
                 tags=record[8]
                 values=record[9]
                 tags_list=tags.split(':')
@@ -153,14 +174,9 @@ def add_vcf_vars(profile=None,vcf=None,haplotype=None):
                 for i in range(haplotype):
                     if gt[i]!=0:
                         profile[chroms]['hap_vars'][i].append([pos,alleles[gt[i]]])
-            else:
-                raise ShouldNotBeHereError
     vcf_file.close()
 
 class VcfInputError(Exception):
-    pass
-
-class ShouldNotBeHereError(Exception):
     pass
 
 class FolderExistsError(Exception):

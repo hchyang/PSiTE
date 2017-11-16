@@ -17,6 +17,7 @@ import logging
 import subprocess
 import pyfaidx
 from csite.phylovar import check_prune,check_proportion,check_seed,random_int,check_config_file
+from csite.vcf2fa import check_sex
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe 
@@ -37,6 +38,9 @@ def main(progname=None):
         help='a yaml file contains configure for somatic variant simulation')
     parse.add_argument('-o','--output',required=True,
         help='output folder')
+    default=None
+    parse.add_argument('--sex_chr',type=check_sex,default=default,
+        help='sex chromosomes of the genome (seperated by comma) [{}]'.format(default))
     default=None
     parse.add_argument('--trunk_vars',type=str,
         help='the trunk variants file supplied by user [{}]'.format(default))
@@ -116,6 +120,8 @@ def main(progname=None):
                     '--vcf',vcf,
                     '--reference',reference,
                     '--output',normal_fa]
+        if args.sex_chr:
+            cmd_params.extend(['--sex_chr',args.sex_chr])
         logging.info(' Command: %s',' '.join(cmd_params))
         subprocess.run(args=cmd_params,check=True)
 
