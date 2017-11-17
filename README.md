@@ -382,7 +382,9 @@ Will be filled later.
 After generating genomes of normal cells with `vcf2fa` and chain files of tumor
 cells with `phylovar`, we can build the genome sequences for each tumor cell. 
 This work is done by the module `chain2fa`. And the genomes of tumor cells and 
-normal cells can then be used by ART to simulate short reads.
+normal cells can then be used by ART to simulate short reads. For the 
+`--reference` parameter, all reference fasta files should list sequentially and
+seperated by comma, like `--reference normal_hap0.fa,normal_hap1.fa`.  
 
 ### 2.4 Module fa2ngs
 
@@ -390,7 +392,13 @@ After the running of previous three modules, we will get the genome sequences of
 normal/tumor cells generated. By supplying the purity and depth settings we want 
 to simulate, module `fa2ngs` will figure out the fold of covarge for each genome 
 to simulate and employ ART to simulate the short reads for the genomes in the 
-tumor sample.
+tumor sample. `fa2ngs` uses an very flexible way to cooperate with ART. You can
+pass all parameters to ART by `--art` except the fcov, in, out, id, and rndSeed
+parameters of ART, as those parameters are handled by `ngs2fa` itself. For 
+example, you can use `--art '/path/to/ART/art_illumina --noALN --quiet --paired 
+--len 100 --mflen 500 --sdev 20'` if ART are not installed system-wild. Or you 
+can use `--art 'echo art_illumina --noALN --quiet --paired --len 100 --mflen 
+500 --sdev 20'` if you just want the `ngs2fa` print out the art command it used.
 
 This module will also generate a meta file for Wessim, which is a targeted 
 re-sequencing simulator that generates synthetic exome sequencing reads from a 
