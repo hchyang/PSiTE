@@ -84,11 +84,11 @@ translation is:
 
 reference | 0 | 1 | 2
 ----------|---|---|---
-        N | N | N | N
-        A | G | C | T
-        G | A | C | T
-        C | T | A | G
-        T | C | A | G
+ N | N | N | N
+ A | G | C | T
+ G | A | C | T
+ C | T | A | G
+ T | C | A | G
 
 Except for the rate of CNVs, there are five other parameters guiding CNVs
 simulation. 
