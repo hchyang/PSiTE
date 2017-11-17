@@ -84,11 +84,11 @@ translation is:
 
 reference | 0 | 1 | 2
 ----------|---|---|---
- N | N | N | N
- A | G | C | T
- G | A | C | T
- C | T | A | G
- T | C | A | G
+        N | N | N | N
+        A | G | C | T
+        G | A | C | T
+        C | T | A | G
+        T | C | A | G
 
 Except for the rate of CNVs, there are five other parameters guiding CNVs
 simulation. 
@@ -109,16 +109,16 @@ a geometric like distribution with Pr(n+1)=p\*Pr(n). The p parameter can be
 specified by `-c/--copy_parameter`. The overall distribution will be normalized,
 s.t. the total probability is 1. 
 
-Chromosomes level aneuploidy is widespread in tumor cells. In order to simulate 
-this phenomenon of tumor genome, CSiTE supplies `--parental` parameter. The 
-default value of this parameter is '01', which tells CSiTE to simulate two copies 
-of the chromosome, one copy from each of the normal haplotypes. With the value 
-of '001', CSiTE can simulate a chromosome with 3 copies, and two of them are 
-based on the haploype '0' of the normal genome, and one copy from the haplotype 
-'1' of the normal genome.  
+Chromosome level aneuploidy is widespread in tumor cells. In order to simulate 
+this phenomenon of tumor genome, `phylovar` supplies `--parental` parameter. The 
+default value of this parameter is '01', which tells `phylovar` to simulate two 
+copies of the chromosome, one copy from each of the normal haplotypes. With the 
+value of '001', `phylovar` can simulate a tumor chromosome with 3 haplotypes, 
+and two of them are based on the haploype '0' of the normal chromosome, and the 
+third one are based on the haplotype '1' of the normal chromosome.  
 
-All of the previous parameters can be set in a config file (`--config`). This is 
-especially convenient if you want to simulate variants in a genome, which 
+All of the previous parameters can be set in a config file (`--config`). This 
+is quite convenient if you want to simulate variants in a genome, which 
 contains multiple chromosomes. The format of the config file will be described 
 in the following section.
 
@@ -141,19 +141,20 @@ trimmed into a tip node, which means there will be no polymorphic variants on
 those subtrees with <=10,000 tips. So the tips belonging to the same subtree 
 (with <=10,000 tips) will show the same genotypes.
 
-The phylovar module of CSiTE can be used alone to simulte the conceptual somatic 
+The `phylovar` module of CSiTE can be used alone to simulte the conceptual somatic 
 variants, or be used with other modules to simulate the concrete short reads of 
-the tumor samples. To accomplish the first mode, phylovar accepts the 
-`-D/--depth` and `-P/--purity` parameters. With these setting, phylovar simulates 
+the tumor samples. To accomplish the first mode, `phylovar` accepts the 
+`-D/--depth` and `-P/--purity` parameters. With these setting, `phylovar` simulates 
 the read depth on each somatic variant sites and the frequency of the mutant 
 allele. Those information will be saved in SNVs file, which will be described in 
 the later section. 
 
 ###### Notes
 By default, the branch length from the ms program is measured in 4N
-generations. CSiTE will simulate SNVs/CNVs events following the Poisson process.
-For example, if we set -r to 100 in phylovar (CSiTE), this is equivalent to set 
-the population rescaled parameter -t to 100 in ms (see ms manual for details). 
+generations. `phylovar` will simulate SNVs/CNVs events following a Poisson 
+process. For example, if we set -r to 100 in `phylovar` (CSiTE), this is 
+equivalent to set the population rescaled parameter -t to 100 in ms (see ms 
+manual for details). 
 
 #### 2.2.1 Input files
 
@@ -170,15 +171,15 @@ variants directly using `--trunk_vars` option.  The file format of truncal
 variants is like:
     
     #chr hap start end var
-    1 0 1 2 0
-    1 1 12 123 +3 
-    2 0 12 123 -1
+    1 0 364645 364646 0
+    1 1 464646 466646 +3
+    2 0 465636 465637 1 
+    2 1 468637 472633 -1
 
 - **chr**:       the chromosome of the variant
-- **hap**:       which haplotype the variant locates in (0 means one of the
-  parental copy, 1 means the other copy)
-- **start**:     the start position of the variant
-- **end**:       the end position of the variant
+- **hap**:       which haplotype the variant locates in
+- **start**:     the start position of the variant (0-based, inclusive)
+- **end**:       the end position of the variant (0-based, exclusive)
 - **var**:       the type of the variant. 0/1/2: SNV, -1: deletion, 
 +int: amplification
 
@@ -193,8 +194,8 @@ When simulate multiple sequences, e.g. all chromosomes in a genome, user can
 supply a configure file. A typical contains two sections, genome section and 
 chromosomes section. In the genome section, user can specify genome-wide 
 variants settings. And in chromsomes section, user can customise the variants 
-settings for each chromosome. It's very flexible. Different chromosome can have 
-different length, different SNV/CNV muations rate, and even different parental 
+settings for each chromosome. It's very flexible. Different chromosomes can have 
+different lengths, different SNV/CNV muations rates, and even different haplotype 
 composition. 
 
 The configure file should be specified in YAML format. Here is an example of the 
@@ -221,75 +222,88 @@ configure file:
 
 All of the parameters under genome section have to be specified in the configure 
 file. The snv\_rate/cnv\_rate/length in the genome section, is the sum of those 
-values of each chromosome. The parental and the name of each chromosome should be 
+values of all chromosomes. The parental and the name of each chromosome should be 
 quoted to make them in the type of string.
 
 #### 2.2.2 Output files
 
 ##### SNVs file (-S/--snv)
 
-This file contains the frequency information of simulated SNVs. It contains six 
-columns. 
-- **chr**:          the chromosome of SNVs
-- **pos**:          the position (0-based) of SNVs
-- **form**:         the form of SNVs (0/1/2)
-- **true\_freq**:   the true frequency of alternative allele across the cell 
+This file contains the frequency information of simulated SNVs. There are six 
+columns in this file. 
+- **chr**:         the chromosome of SNVs
+- **pos**:         the position (0-based) of SNVs
+- **form**:        the form of SNVs (0/1/2)
+- **true\_freq**:  the true frequency of alternative allele across the cell 
 population
-- **total\_dp**:    the simulated total coverage of tumor and normal cells at 
-the position of SNV. 
-- **sim\_freq**:    the observed frequency of alternative allele across the cell 
+- **sim\_dp**:     the simulated total coverage of tumor and normal cells in 
+the tumor sample at the position of SNV
+- **sim\_freq**:   the observed frequency of alternative allele across the cell 
 population
+
+P.S. Do not mix the information of simulated depth and frequency here up with 
+the coverage and frequency of simulated short reads. They are two independent 
+processes.
 
 ##### CNVs file (-V/--cnv)
 
-This file contains the information of simulated CNVs. It contains five columns. 
-- **chr**:          the chromosome of CNVs
-- **start**:        the start position of CNVs (0-based, inclusive)
-- **end**:          the end position of CNVs (0-based, exclusive)
-- **copy**:         the copy changes of CNVs
-- **carrier**:      the number of tumor cells in the sample carring the CNVs
+This file contains the information of simulated CNVs. There are five columns in
+this file. 
+- **chr**:         the chromosome of CNVs
+- **start**:       the start position of CNVs (0-based, inclusive)
+- **end**:         the end position of CNVs (0-based, exclusive)
+- **copy**:        the copy changes of CNVs
+- **carrier**:     the number of tumor cells in the sample carring the CNVs
 
 ##### CNV profile file (--cnv\_profile)
 
-This file contains the CNV profile across each chromosome. It contains four 
-columns. 
-- **chr**:          the chromosome of regions
-- **start**:        the start position of regions (0-based, inclusive)
-- **end**:          the end position of regions (0-based, exclusive)
-- **local\_cp**:    the copy number of the local region
+This file contains the CNV profile across each chromosome. There are four 
+columns in this file. 
+- **chr**:         the chromosome of regions
+- **start**:       the start position of regions (0-based, inclusive)
+- **end**:         the end position of regions (0-based, exclusive)
+- **local\_cp**:   the copy number of the local region
 
 ##### Nodes variants file (-N/--nodes\_vars)
 
-phylovar can output the variants (SNVs/CNVs) occured on the branch leading to each
-node. There are five columns in this file:
-- **node**:         the id of nodes (we name each node in the format 'nodeXXX', 
+`phylovar` can output the variants (SNVs/CNVs) occured on the branch leading 
+to each node. There are six columns in this file:
+- **node**:        the id of nodes (we name each node in the format 'nodeXXX', 
 in which XXX is an integer starting from 1)
-- **chr**:          the chromosome of the variant
-- **start**:        the start position of the variant (0-based, inclusive)
-- **end**:          the end position of the variant (0-based, exclusive)
-- **var**:          the type of the variant. 0/1/2: SNV, -1: deletion, 
+- **chr**:         the chromosome of the variant
+- **hap**:         the haplotype the variant locates in
+- **start**:       the start position of the variant (0-based, inclusive)
+- **end**:         the end position of the variant (0-based, exclusive)
+- **var**:         the type of the variant. 0/1/2: SNV, -1: deletion, 
 +int: amplification
 
 ##### Variants tree file (-T/--vars\_tree)
 
-phylovar can output a [NHX
+`phylovar` can output a [NHX
 file](https://sites.google.com/site/cmzmasek/home/software/forester/nhx) with
 each node's id and all variants attached. The variants are encoded in the form 
-of 'chr#start#end#var'. As the 'var' cloumn in nodes variants file, 0/1/2 stand 
+of 'chr#hap#start#end#var'. As the 'var' cloumn in nodes variants file, 0/1/2 stand 
 for SNV, -1 stands for deletion and +int stands for amplification.
 
 ##### SNV genotype file (--snv\_genotype)
 
 This file contains the snv\_genotype of each tumor cell at SNV loci. Each SNV
-has one record. The first column is the coordinate of the SNV. Subsequently,
-there is one column for each tumor cell. The snv\_genotype is in the form of
-‘M:N’. M denotes the number of alternative allele and N denotes the number of
-reference allele.
+has one record. The first two column are the coordinate of the SNV. 
+Subsequently, there is one column for each tumor cell, which encodes the 
+genotype of each tumor cells. The snv genotype is in the form of ‘M:N’. M 
+denotes the number of alternative allele and N denotes the number of reference 
+allele.
+- **chr**:         the chromosome of SNVs
+- **pos**:         the position (0-based) of SNVs
+- **form**:        the form of SNVs (0/1/2)
+- **cell1**:       the genotype of cell 1
+- **cell2**:       the genotype of cell 2
+- **...**:         ...
 
 ##### Individual CNVs file (--ind\_cnvs)
 
 This file contains the CNVs on each parental copy of each single cell in the
-sample. There are five columns in this file:
+sample. There are six columns in this file:
     
     #cell parental  start     end       copy
     1       0       7912422   7930111   2
@@ -298,13 +312,14 @@ sample. There are five columns in this file:
     2       0       22660687  22788472  -1
     2       1       59756841  61142076  3
 
-- **cell**:     the id of cells in the sample
-- **parental**: which parental copy the variant locates in (0 means one of the
-  parental copy, 1 means another copy, 2 means the third copy if your sample is
-  triploid...)
-- **start**:    the start position of the CNV
-- **end**:      the end position of the CNV
-- **copy**:     an integer. -1: deletion; positive integer: amplification
+- **cell**:        the id of cells in the sample
+- **chr**:         the chromosome of SNVs
+- **parental**:    which parental copy the variant locates in (0 means one 
+of the parental copy, 1 means another copy, 2 means the third copy if your 
+sample is triploid...)
+- **start**:       the start position of the CNV
+- **end**:         the end position of the CNV
+- **copy**:        an integer. -1: deletion; positive integer: amplification
 
 P.S. start and end are 0 based. And the region of each variant is similar to the
 bed file (inclusive on the left, but exclusive on the right end,
@@ -312,24 +327,55 @@ i.e.\[start,end)).
 
 ##### parental copy file (--parental\_copy)
 
-This file contains the information of parental copy for each SNV. The first
-column is the coordinate of the SNV, and followed by N columns if the ploidy is
-N.
+This file contains the information of parental copy for each SNV. The first two
+columns are the coordinate of the SNV, and followed by N columns if the ploidy 
+is N.
+
+##### chain file and nodes profile file (--chain)
+
+There will be two kind of files generated under the folder specified by this
+parameter. One is chain file and the other is nodes profile file.
+
+There is a chain file for each tip node. This file contains the information of 
+perturbed genome of simulated tumor cell. Each haplotype of each chromosome of 
+the tumor genome will have a block in the chain file. Each block has a header 
+section and a body section. For example:
+
+    >1_Haplotype0 parental:0
+    1       0       33      ref
+    1       33      55      -1
+    1       55      99      ref
+    1       55      100000  ref
+
+The first line, which starts with '>' is the header line. There are two fields 
+in the header line. The first is the sequence name and the second is the parental 
+copy of that sequence. And then there four columns in the body section: 
+- **chr**:         the chromosome of SNVs
+- **start**:       the start position of the variant (0-based, inclusive)
+- **end**:         the end position of the variant (0-based, exclusive)
+- **var**:         the type of the variant. 0/1/2: SNV, -1: deletion, 'ref': 
+reference
+
+P.S. There is no +int in the fourth column of body section to indicate a CNV event.
+Instead, the amplified regions will have multiple record to represent that event.
+e.g. the last two lines in the example, indicate there a amplification in region 
+1:55-59 in that sequence.
+
+There are three columns in a nodes profile file:
+- **node**:        the id of tip nodes (after pruning if the tree is pruned)
+- **l\_count**:    the count of original leaves under this node 
+- **l\_name**:     the names of original leaves under this node 
 
 ##### Log file (-g/--log)
 
 This file contains logging information, e.g. the command line parameters and the
 random seed used. You can use these information to replicate the simulation.
-After setting the `--loglevel` as DEBUG, CSiTE will output detailed information
+After setting the `--loglevel` as DEBUG, `phylovar` will output detailed information
 of the simulation process. 
-
-##### chain file and nodes profile file (--chain)
-
-This file contains the information of perturbed genome of simulated tumor cell.
 
 ##### all options of module phylovar
 
-
+Will be filled later.
 
 ### 2.3 Module chain2fa
 
@@ -340,13 +386,11 @@ normal cells can then be used by ART to simulate short reads.
 
 ### 2.4 Module fa2ngs
 
-FIXME: the --chain option of this module should changed to the file which 
-contains the profile of tip nodes. (should we merge the count and map files of 
-nodes to one file?)
 After the running of previous three modules, we will get the genome sequences of 
 normal/tumor cells generated. By supplying the purity and depth settings we want 
-to simulate, module fa2ngs will figure out the fold of covarge for each genome 
-and employ ART to simulate the short reads for the genomes in the tumor sample.
+to simulate, module `fa2ngs` will figure out the fold of covarge for each genome 
+to simulate and employ ART to simulate the short reads for the genomes in the 
+tumor sample.
 
 This module will also generate a meta file for Wessim, which is a targeted 
 re-sequencing simulator that generates synthetic exome sequencing reads from a 

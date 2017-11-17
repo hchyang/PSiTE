@@ -399,7 +399,7 @@ def main(progname=None):
     cnv_file=open(args.cnv,'w')
     cnv_file.write('#chr\tstart\tend\tcopy\tcarrier\n')
     snv_file=open(args.snv,'w')
-    snv_file.write('#chr\tpos\tform\ttrue_freq\ttotal_dp\tsim_freq\n')
+    snv_file.write('#chr\tpos\tform\ttrue_freq\tsim_dp\tsim_freq\n')
     cnv_profile_file=open(args.cnv_profile,'w')
     cnv_profile_file.write('#chr\tstart\tend\tlocal_cp\n')
     nodes_vars_file=open(args.nodes_vars,'w')
