@@ -1,7 +1,7 @@
 # Coalescent Simulator for Tumor Evolution (CSiTE)
 
 CSiTE is a Python program for simulating short reads for tumor samples.
-It takes a coalescent tree (in the newick format) and simulates Single 
+It takes a coalescent tree (in the newick format) and jointly simulates Single 
 Nucleotide Variants (SNVs) and Copy Number Variants (CNVs) along the history of 
 the genealogy. By integrating those somatic variants into the normal genome, 
 perturbed genome of each tumor cell can be built, which are then piped to ART to 
@@ -37,23 +37,23 @@ There are five modules in CSiTE.
 ### 2.1 Module vcf2fa 
 
 The module `vcf2fa` can be used to build the genome sequences of normal cells. 
-It takes a reference genome in fasta format (e.g. hg19.fa) and a list of SNPs in 
-VCF format as input (only SNPs are acceptable). 
-For the genome fasta file, only the chromosomes which will be simulated later 
-should be include. For example, if you want to simulate short reads for human 
-genome, there should only be chromosome 1-22 in the fasta, as CSiTE can not 
-simulate sex chromosomes right now.
-There should be a sample's genotype information in the VCF file and the genotypes 
-in the file should be phased. 
-After the running of vcf2fa, two fasta files will be generated. Each contains the
-sequences of all chromosomes of that haplotype. And the variants loci are 
-replaced with according alleles.
+It takes a reference genome in fasta format (e.g. hg19.fa) and a list of SNPs 
+in VCF format as input (only SNPs are acceptable). 
+For the fasta file, only the chromosomes which will be simulated later 
+should be included. For example, if you want to simulate short reads for human 
+chromosome 1-5, all other chromosomes should not appear in the fasta file. 
+For the VCF file, there should be only one sample's genotype information in it 
+and the genotypes should be phased. 
 
-FIXME: Should we fix at 2 haplotypes? And should we deal with sex chromosomes?
-This command can build one or two haplotypes of the normal cells. With 
-`--haplotype 1`, a single haplotye will be built. All alternative allele on each 
-locus will replace the reference allele. With `--haplotype 2`, it will construct 
-two haplotypes base on the phased genotypes on each locus.
+After the running of `vcf2fa`, two fasta files will be generated. Each contains 
+the sequences of all chromosomes of that haplotype, and the variants loci are 
+replaced by according alleles.
+By default, each chromosome will be treated as autosome and has one copy in 
+each haplotype's fasta. User should explicitly specify sex chromosomes by 
+`--sex_chr` if needed. For example, for simulating a male's genome, user should 
+use `--sex_chr X,Y`. And for simulating a female's genome, user should use 
+`--sex_chr X,X` or without any setting for `--sex_chr`. (Note: X,Y should be 
+exactly the same string as in the fasta file.) 
 
 ### 2.2 Module phylovar
 
@@ -68,13 +68,27 @@ complex demographic histories of the sample.
 
 With `--name`, users can specify the name of the sequence to simulate. 
 And with `--length`, users can set the length of the sequence to simulate. 
-The two most important parameters in the simulation is the mutation rate of SNVs
-(`--snv_rate`) and CNVs (`--cnv_rate`). These two parameters specify the rate of 
-the whole sequence, no matter how long it is. The mutational events in CSiTE are
-simulated according to a Poisson process with parameters specified by user (see
-[Notes](https://github.com/hchyang/CSiTE#notes) for extra discussions).  
+The two most important parameters in the simulation are the mutation rates of 
+SNVs (`--snv_rate`) and CNVs (`--cnv_rate`). These two parameters specify the 
+rates of the whole sequence, no matter how long it is. The mutational events 
+in CSiTE are simulated according to a Poisson process with parameters specified 
+by user (see [Notes](https://github.com/hchyang/CSiTE#notes) for extra 
+discussions).  
 
-Other than the rate of SNVs, `--tstv` also affects the simulation of SNVs. 
+Other than the rate of SNVs, `--tstv` also affects the simulation of SNVs. This
+parameter specifies the ratio of transition/transversion of SNVs. For
+`phylovar`, the variants are in conceptual. So we use 0/1/2 to represent SNVs.
+0 stands for transition and 1/2 stand for transversions. Those SNVs will be 
+translated to concrete nucleotides by the module `chain2fa`. The map of the 
+translation is:
+
+reference | 0 | 1 | 2
+----------|---|---|---
+N | N | N | N
+A | G | C | T
+G | A | C | T
+C | T | A | G
+T | C | A | G
 
 Except for the rate of CNVs, there are five other parameters guiding CNVs
 simulation. 
