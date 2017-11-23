@@ -9,7 +9,7 @@ import os
 
 class Tree:
     snv_pos={}
-    def __init__(self,name=None,lens=None,left=None,right=None,top=None,snvs=None,accumulated_snvs=None,cnvs=None,accumulated_cnvs=None,C='0.0.0',nodeid=None):
+    def __init__(self,name=None,lens=None,left=None,right=None,top=None,snvs=None,accumulated_snvs=None,cnvs=None,accumulated_cnvs=None,C='0.0.0',nodeid=None,sim=True):
         self.name=name
         self.lens=lens
         self.left=left
@@ -23,6 +23,7 @@ class Tree:
         self.accumulated_cnvs=accumulated_cnvs 
         self.C=C
         self.nodeid=nodeid
+        self.sim=sim
 
     def add_node(self,node=None):
         '''
@@ -80,7 +81,10 @@ class Tree:
                 self.accumulated_cnvs=self.top.accumulated_cnvs[:]
 #rescale with the length
         mutation_rate=snv_rate+cnv_rate
-        if self.lens != None and mutation_rate > 0:
+#skip 1. self.sim==False (the leveas of which are less or equal to prune)
+#     2. self.lens=None  (the root)
+#     3. mutation_rate<=0
+        if self.sim and self.lens!=None and mutation_rate > 0:
             snv_prob=snv_rate/(snv_rate+cnv_rate)
             mutation_waiting_times=waiting_times(span=self.lens,rate=mutation_rate)
             for waiting_t in mutation_waiting_times:
@@ -371,15 +375,25 @@ class Tree:
         Prune all branches with equal or less than the number of tips specified by the parameter tips.
         For a Tree object, it should run the leaves_counting() method before run this method.
         '''
-        if self.leaves_count<=tips:
-            logging.debug('Trim %s children of %s',self.leaves_count,self.nodeid)
-            self.left=None
-            self.right=None
+#for a node, if node.left.leaves_count<=tips and node.right.leaves_count<=tips, prune it into a tip node
+#if node.left.leaves_count<=tips and node.right.leaves_count>tips, just prune node.left into a tip node
+        if self.left==None and self.right==None:
             if self.name==None:
                 self.name=self.nodeid
+            if self.leaves_count<=tips:
+                self.sim=False
         else:
-            self.left.prune(tips=tips)
-            self.right.prune(tips=tips)
+            if self.left.leaves_count<=tips and self.right.leaves_count<=tips:
+                self.left=None
+                self.right=None
+                if self.name==None:
+                    self.name=self.nodeid
+                if self.leaves_count<=tips:
+                    self.sim=False
+            else:
+                self.left.prune(tips=tips)
+                self.right.prune(tips=tips)
+
 
 #Let's use this method to collect all the snvs for each leaf.
     #@profile
@@ -630,13 +644,13 @@ class Tree:
         '''
         newick_str=''
 
-        if self.left != None:
+        if self.left!=None:
             newick_str+='(' + self.left.tree2newick(lens=lens,attrs=attrs)
         if self.name==None:
             newick_str+=','
         else:
             newick_str+=self.name
-        if self.right != None:
+        if self.right!=None:
             newick_str+=self.right.tree2newick(lens=lens,attrs=attrs) + ')'
         if self.lens!=None and lens:
             newick_str+= ':' + self.lens

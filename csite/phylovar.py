@@ -66,7 +66,7 @@ def check_prune(value=None):
 
 def check_proportion(value=None):
     fvalue=float(value)
-    if not 0<=fvalue<=1: 
+    if not 0<=fvalue<1: 
         raise argparse.ArgumentTypeError("{} is an invalid value for --prune_proportion. ".format(value)+
             "It should be an float between 0 and 1.")
     return fvalue
@@ -361,13 +361,15 @@ def main(progname=None):
     leaves_names=sorted(mytree.leaves_naming())
 
 ####### prune the tree if required
-    if args.prune>0:
+    if args.prune>0 and args.prune_proportion>0:
+        raise argparse.ArgumentTypeError("Use either --prune or --prune_proportion. Do not use both!")
+    elif args.prune>0:
         if args.prune>leaves_number:
             raise argparse.ArgumentTypeError("There are only {} leaves on the tree. It's impossible to prune {} leaves.".format(
                 leaves_number,args.prune))
         if args.prune>=2:
             mytree.prune(tips=args.prune)
-    elif args.prune_proportion>0.0:
+    elif args.prune_proportion>:
         trim=leaves_number*args.prune_proportion
         if trim>=2:
             mytree.prune(tips=trim)
