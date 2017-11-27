@@ -69,7 +69,7 @@ def main(progname=None):
 #there must be two haplotype fasta in the normal dir
     assert os.path.isdir(args.normal),'{} is not exist or not a folder.'.format(args.normal)
     for hap in 0,1:
-        assert os.path.isfile('{}/normal_hap{}.fa'.format(args.normal,hap)), 'Can not find normal_hap{}.fa under the normal directory: {}'.format(hap,args.normal)
+        assert os.path.isfile('{}/normal_parental_{}.fa'.format(args.normal,hap)), 'Can not find normal_parental_{}.fa under the normal directory: {}'.format(hap,args.normal)
 
 #tumor directory and chain directory must exist.
 #also file chain_dir/tip_node_sample.count.
@@ -81,7 +81,7 @@ def main(progname=None):
 #FIXME: cell number: float? int?
     normal_gsize=0
     for hap in 0,1:
-        normal_gsize+=genomesize(fasta='{}/normal_hap{}.fa'.format(args.normal,hap))
+        normal_gsize+=genomesize(fasta='{}/normal_parental_{}.fa'.format(args.normal,hap))
     total_seq_bases=normal_gsize/2*args.depth
 
     tip_node_leaves=tip_node_leaves_counting(f='{}/tip_node_sample.count'.format(args.chain))
@@ -112,8 +112,8 @@ def main(progname=None):
     cmd_params=art_params[:]
     for hap in 0,1:
         fcov=str(normal_cells*seq_per_base)
-        ref='{}/normal_hap{}.fa'.format(args.normal,hap)
-        prefix='{}/normal_hap{}.'.format(tumor_dir,hap)
+        ref='{}/normal_parental_{}.fa'.format(args.normal,hap)
+        prefix='{}/normal_parental_{}.'.format(tumor_dir,hap)
         final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','n_hap{}'.format(hap),'--rndSeed',str(random_int())]
         logging.info(' Command: %s',' '.join(final_cmd_params))
         subprocess.run(args=final_cmd_params,check=True)
@@ -121,7 +121,7 @@ def main(progname=None):
 
         if args.normal_depth>0:
             fcov=str(args.normal_depth/2)
-            prefix='{}/normal_hap{}.'.format(normal_dir,hap)
+            prefix='{}/normal_parental_{}.'.format(normal_dir,hap)
             final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','n_hap{}'.format(hap),'--rndSeed',str(random_int())]
             logging.info(' Command: %s',' '.join(final_cmd_params))
             subprocess.run(args=final_cmd_params,check=True)

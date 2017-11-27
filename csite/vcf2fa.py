@@ -21,15 +21,13 @@ from signal import signal, SIGPIPE, SIG_DFL
 signal(SIGPIPE,SIG_DFL) 
 
 nucleotide_re=re.compile('^[atcgnATCGN]$')
-#Let's fix at one diploid sample in VCF, which means haplotype==2
-haplotype=2
 
 def check_sex(chrs=None):
     if len(chrs)==0:
         sex_chr=[]
     else:
         sex_chr=chrs.split(',')
-        if len(sex_chr)!=haplotype:
+        if len(sex_chr)!=2:
             raise argparse.ArgumentTypeError('{} is an invalid value for --sex_chr.\n'.format(chrs)+
                 'Please specify two sex chromosomes. If there are two copies of the same chromosome, \n'+
                 'just write it twice and seprate them by a comma! e.g. --sex_chr X,X \n')
@@ -46,18 +44,21 @@ def main(progname=None):
     default='normal_fa'
     parse.add_argument('-o','--output',type=str,default=default,
         help='output directory [{}]'.format(default))
+    parse.add_argument('-a','--autosomes',type=str,required=True,
+        help='autosomes of the genome (seperated by comma)')
     default=None
-    parse.add_argument('--sex_chr',type=check_sex,default=default,
+    parse.add_argument('-s','--sex_chr',type=check_sex,default=default,
         help='sex chromosomes of the genome (seperated by comma) [{}]'.format(default))
     args=parse.parse_args()
     if args.sex_chr==None:
         args.sex_chr=[]
+    autosomes=parse_autosomes(args.autosomes)
 
 #build the data structure: genome_profile
     reference=pyfaidx.Fasta(args.reference)
-    genome_profile=fai_info(fai=args.reference+'.fai',sex_chr=args.sex_chr)
+    genome_profile=fai_info(fai=args.reference+'.fai',autosomes=autosomes,sex_chr=args.sex_chr)
 #fill in the list hap_vars in genome_profile
-    add_vcf_vars(profile=genome_profile,vcf=args.vcf,sex_chr=args.sex_chr)
+    add_vcf_vars(profile=genome_profile,vcf=args.vcf)
 
     try:
         os.mkdir(args.output) 
@@ -66,8 +67,8 @@ def main(progname=None):
     except FileNotFoundError:
         exit("Can't create folder {}. Please create its parent directories first.".format(args.output))
 
-    for i in range(haplotype):
-        with open('{}/normal_hap{}.fa'.format(args.output,i),'w') as output:
+    for i in range(2):
+        with open('{}/normal_parental_{}.fa'.format(args.output,i),'w') as output:
             for chroms in genome_profile['order']:
                 if i<len(genome_profile[chroms]['hap_vars']):
                     start=0
@@ -90,13 +91,38 @@ def main(progname=None):
                     for outputline in pyfaidx.wrap_sequence(genome_profile[chroms]['linebases'],''.join(segments)):
                         output.write(outputline)
 
-def fai_info(fai=None,sex_chr=None):
+def parse_autosomes(autosomes_str=None):
+    '''
+    Parse the --autosomes string into a set of individual chromsomes.
+    e.g. chr1..3,chr8,chr11..chr13,14..16  
+         => {chr1,chr2,chr3,chr8,chr11,chr12,chr13,14,15,16}
+    '''
+    tmp=autosomes_str.split(',')
+    autosomes=[]
+    for i in tmp:
+        n=i.count('..')
+        if n==0:
+            autosomes.append(i)
+        elif n==1:
+            m=re.search('^(.*)([0-9]+)\.\.(\1)?([0-9]+)$',i)
+            if m:
+                prefix=m.group(1)
+                start=int(m.group(2))
+                end=int(m.group(4))
+                autosomes.extend([prefix+str(x) for x in range(start,end+1)])
+            else:
+                raise AutosomeError('The string {} is not valid in --autosomes'.format(i))
+        else:
+            raise AutosomeError('The string {} is not valid in --autosomes'.format(i))
+    return set(autosomes)
+    
+def fai_info(fai=None,autosomes=None,sex_chr=None):
     '''
     Extract fasta information from genome.fa.fai file.
     Will return a list with the structure:
     {'order':[chroms1,chrom2,...],
-     chroms1:{length,linebases,hap_vars:[[],...]},
-     chroms2:{length,linebases,hap_vars:[[],...]},
+     chroms1:{length,linebases,hap_vars:[[],[]]},
+     chroms2:{length,linebases,hap_vars:[[],[]]},
      ...
     }
     '''
@@ -107,23 +133,19 @@ def fai_info(fai=None,sex_chr=None):
             chroms,length,linebases=[line.split('\t')[x] for x in [0,1,3]]
             length=int(length)
             linebases=int(linebases)
-            profile['order'].append(chroms)
-            profile[chroms]={'length':length,
-                             'linebases':linebases,
-                             'hap_vars':[]}
-            for i in range(haplotype):
-                profile[chroms]['hap_vars'].append([])
-        if sex_chr:
-            for chroms in sex_chr:
-                assert chroms in profile, 'Can not find {} in your fasta file!'.format(chroms)
-#There are two different sex chromosomes. So each of them should only have one 
-#haplotype
-            if sex_chr[0]!=sex_chr[1]:
-                profile[sex_chr[0]]['hap_vars']=[[]]
-                profile[sex_chr[1]]['hap_vars']=[[]]
+            if chroms in autosomes or chroms in sex_chr:
+                profile['order'].append(chroms)
+                profile[chroms]={'length':length,
+                                 'linebases':linebases,
+                                 'hap_vars':[[],[]]}
+                if chroms in sex_chr and sex_chr[0]!=sex_chr[1]:
+                    profile[chroms]['hap_vars']=[[]]
+    not_found=autosomes.union(sex_chr)-set(profile['order'])
+    if not_found:
+        raise ChrNotFoundError('Can not find {} in the reference file!'.format(not_found))
     return profile
 
-def add_vcf_vars(profile=None,vcf=None,sex_chr=None):
+def add_vcf_vars(profile=None,vcf=None):
     '''
     Extract variants on each copy of each chromosome in vcf file.
     And fill in the list hap_vars in profile.
@@ -144,39 +166,46 @@ def add_vcf_vars(profile=None,vcf=None,sex_chr=None):
         else:
             record=line.split('\t')
             chroms=record[0]
-            pos=int(record[1])
-            ref=record[3]
-            alt=record[4]
-            alleles=[ref]
-            alleles.extend(alt.split(','))
-            for n in alleles:
-                if not nucleotide_re.match(n):
-                    raise VcfInputError('Only SNPs are acceptable! Check the record below:\n{}\n'.format(line))
-            if chroms in sex_chr and sex_chr[0]!=sex_chr[1]:
-                if len(alt)==1:
-                    profile[chroms]['hap_vars'][0].append([pos,alt])
+            if chroms in profile['order']:
+                pos=int(record[1])
+                ref=record[3]
+                alt=record[4]
+                alleles=[ref]
+                alleles.extend(alt.split(','))
+                for n in alleles:
+                    if not nucleotide_re.match(n):
+                        raise VcfInputError('Only SNPs are acceptable! Check the record below:\n{}\n'.format(line))
+                if len(profile[chroms]['hap_vars'])==1:
+                    if len(alt)==1:
+                        profile[chroms]['hap_vars'][0].append([pos,alt])
+                    else:
+                        raise VcfInputError('There is only one copy of chromosome: {},But multiple alternative alleles found in the record below:\n{}\n'.format(chroms,line))
                 else:
-                    raise VcfInputError('There is only one copy of chromosome: {},But multiple alternative alleles found in the record below:\n{}\n'.format(chroms,line))
-            else:
-                tags=record[8]
-                values=record[9]
-                tags_list=tags.split(':')
-                values_list=values.split(':')
-                indiv_info={}
-                for i in range(len(tags_list)):
-                    indiv_info[tags_list[i]]=values_list[i]
-                if 'GT' not in indiv_info:
-                    raise VcfInputError('Can not find GT information in the record below:\n{}\n'.format(line))
-                if '|' not in indiv_info['GT']:
-                    raise VcfInputError('Not phased genotype in record below:\n{}\n'.format(line))
-                gt=indiv_info['GT'].split('|')
-                gt=[int(x) for x in gt]
-                for i in range(haplotype):
-                    if gt[i]!=0:
-                        profile[chroms]['hap_vars'][i].append([pos,alleles[gt[i]]])
+                    tags=record[8]
+                    values=record[9]
+                    tags_list=tags.split(':')
+                    values_list=values.split(':')
+                    indiv_info={}
+                    for i in range(len(tags_list)):
+                        indiv_info[tags_list[i]]=values_list[i]
+                    if 'GT' not in indiv_info:
+                        raise VcfInputError('Can not find GT information in the record below:\n{}\n'.format(line))
+                    if '|' not in indiv_info['GT']:
+                        raise VcfInputError('Not phased genotype in record below:\n{}\n'.format(line))
+                    gt=indiv_info['GT'].split('|')
+                    gt=[int(x) for x in gt]
+                    for i in range(2):
+                        if gt[i]!=0:
+                            profile[chroms]['hap_vars'][i].append([pos,alleles[gt[i]]])
     vcf_file.close()
 
+class ChrNotFoundError(Exception):
+    pass
+
 class VcfInputError(Exception):
+    pass
+
+class AutosomeError(Exception):
     pass
 
 class FolderExistsError(Exception):

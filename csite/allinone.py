@@ -28,18 +28,20 @@ def main(progname=None):
     parse=argparse.ArgumentParser(
         description='a wrapper of simulating short reads from genome with germline and somatic variants',
         prog=progname if progname else sys.argv[0])
-    parse.add_argument('-r','--reference',required=True,
+    parse.add_argument('-r','--reference',type=str,required=True,
         help='a fasta file of the reference genome')
-    parse.add_argument('-v','--vcf',required=True,
+    parse.add_argument('-v','--vcf',type=str,required=True,
         help='a vcf file contains germline variants')
-    parse.add_argument('-t','--tree',required=True,
+    parse.add_argument('-t','--tree',type=str,required=True,
         help='a newick file contains ONE tree')
-    parse.add_argument('-c','--config',required=True,
+    parse.add_argument('-c','--config',type=str,required=True,
         help='a yaml file contains configure for somatic variant simulation')
-    parse.add_argument('-o','--output',required=True,
+    parse.add_argument('-o','--output',type=str,required=True,
         help='output folder')
+    parse.add_argument('-a','--autosomes',type=str,required=True,
+        help='autosomes of the genome (seperated by comma)')
     default=None
-    parse.add_argument('--sex_chr',type=check_sex,default=default,
+    parse.add_argument('-s','--sex_chr',type=check_sex,default=default,
         help='sex chromosomes of the genome (seperated by comma) [{}]'.format(default))
     default=None
     parse.add_argument('--trunk_vars',type=str,
@@ -66,10 +68,10 @@ def main(progname=None):
     parse.add_argument('--art',type=str,default=default,
         help='the parameters for ART program [{}]'.format(default))
     default=None
-    parse.add_argument('-s','--random_seed',type=check_seed,
+    parse.add_argument('--random_seed',type=check_seed,
         help='the seed for random number generator [{}]'.format(default))
     default='allinone.log'
-    parse.add_argument('-g','--log',type=str,default=default,
+    parse.add_argument('--log',type=str,default=default,
         help='the log file to save the settings of each command [{}]'.format(default))
     default=1
     parse.add_argument('--start',type=int,default=default,choices=[1,2,3,4],
@@ -119,7 +121,8 @@ def main(progname=None):
         cmd_params=[sys.argv[0],'vcf2fa',
                     '--vcf',vcf,
                     '--reference',reference,
-                    '--output',normal_fa]
+                    '--output',normal_fa,
+                    '--autosomes',args.autosomes]
         if args.sex_chr:
             cmd_params.extend(['--sex_chr',','.join(args.sex_chr)])
         logging.info(' Command: %s',' '.join(cmd_params))
@@ -161,7 +164,7 @@ def main(progname=None):
 
         cmd_params=[sys.argv[0],'chain2fa',
                     '--chain',tumor_chain,
-                    '--reference','{dir}/normal_hap0.fa,{dir}/normal_hap1.fa'.format(dir=normal_fa),
+                    '--reference','{dir}/normal_parental_0.fa,{dir}/normal_parental_1.fa'.format(dir=normal_fa),
                     '--output',tumor_fa]
         logging.info(' Command: %s',' '.join(cmd_params))
         subprocess.run(args=cmd_params,check=True)

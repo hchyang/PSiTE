@@ -369,7 +369,7 @@ def main(progname=None):
                 leaves_number,args.prune))
         if args.prune>=2:
             mytree.prune(tips=args.prune)
-    elif args.prune_proportion>:
+    elif args.prune_proportion>0:
         trim=leaves_number*args.prune_proportion
         if trim>=2:
             mytree.prune(tips=trim)
