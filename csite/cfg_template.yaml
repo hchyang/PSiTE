@@ -1,7 +1,7 @@
 #a male human genome (hs37d5), with anouploidy on chromsome 3 (00), 9 (011) and 15 (1).
 genome:
-    snv_rate: 3
-    cnv_rate: 300
+    snv_rate: 3.0
+    cnv_rate: 300.0
     del_prob: 0.5
     cnv_length_beta: 2000000
     cnv_length_max: 4000000
