@@ -303,6 +303,7 @@ def main(progname=None):
 #2. In the configure file, the setting for individual chr will override the setting of genome.
     final_chroms_cfg={} 
     final_chroms_cfg[args.name]={}
+    final_chroms_cfg['order']=[args.name]
     for parameter in cfg_params:
         final_chroms_cfg[args.name][parameter]=getattr(args,parameter)
     max_ploidy=len(final_chroms_cfg[args.name]['parental'])
@@ -313,6 +314,7 @@ def main(progname=None):
         with open(args.config,'r') as configfile:
             config=yaml.safe_load(configfile)
         check_config_file(config=config)
+        final_chroms_cfg['order']=[list(x.keys())[0] for x in config['chromosomes']]
         max_ploidy=len(config['genome']['parental'])
         undefined_snv_rate=config['genome']['snv_rate']
         undefined_snv_rate_length=config['genome']['length']
@@ -424,7 +426,8 @@ def main(progname=None):
 
 ###### simulate variants for each chroms
     all_nodes_vars={}
-    for chroms,chroms_cfg in final_chroms_cfg.items():
+    for chroms in final_chroms_cfg['order']:
+        chroms_cfg=final_chroms_cfg['chroms']
         check_cnv_length_cfg(chroms=chroms,cnv_length_beta=chroms_cfg['cnv_length_beta'],
             cnv_length_max=chroms_cfg['cnv_length_max'],chr_length=chroms_cfg['length'])
         cn_dist_cfg=cn_dist(copy_max=chroms_cfg['copy_max'],copy_parameter=chroms_cfg['copy_parameter'])

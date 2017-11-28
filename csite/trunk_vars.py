@@ -10,7 +10,6 @@
 import logging
 import copy as cp
 
-#def classify_vars(vars_file,ploid,seq_length,leaves_number,tree):
 def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
     '''
     There should be 4 columns for each varians in the input file,
@@ -35,7 +34,7 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
             hap=int(hap)
             start=int(start)
             end=int(end)
-            if chrom not in chroms_cfg:
+            if chrom not in chroms_cfg['order']:
                 raise TrunkVarError('The chr of the variant below is not in the genome:\n{}'.format(line))
             if not 0<=hap<len(chroms_cfg[chrom]['parental']):
                 raise TrunkVarError('The haplotype of the variant below is out of range:\n{}'.format(line))

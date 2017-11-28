@@ -58,13 +58,13 @@ def main(progname=None):
     default=0.5
     parse.add_argument('-p','--purity',type=float,default=default,
         help='the proportion of tumor cells in simulated sample [{}]'.format(default))
-    default='art_illumina --noALN --quiet --paired --len 100 --mflen 500 --sdev 20'
     default=None
     parse.add_argument('--trunk_vars',type=str,
         help='the trunk variants file supplied by user [{}]'.format(default))
     default=0
     parse.add_argument('--trunk_length',type=float,
         help='the length of the truncal branch [{}]'.format(default))
+    default='art_illumina --noALN --quiet --paired --len 100 --mflen 500 --sdev 20'
     parse.add_argument('--art',type=str,default=default,
         help='the parameters for ART program [{}]'.format(default))
     default=None
