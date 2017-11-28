@@ -545,7 +545,8 @@ class Tree:
     #@profile
     def snvs_freq_cnvs_profile(self,parental=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,
-                               trunk_snvs=None,trunk_cnvs=None,purity=None,
+                               trunk_snvs=None,trunk_cnvs=None,
+#                               purity=None,
                                length=None,chain=None,chroms=None):
         '''
         Produce the true frequency of SNVs in the samples.
@@ -602,7 +603,8 @@ class Tree:
         cnv_profile=pos_changes2region_profile(cnvs_pos_changes)
 
         region_mean_ploidy=0
-        normal_dosage=background*(1-purity)/purity
+#        normal_dosage=background*(1-purity)/purity
+        normal_dosage=0
         for pos in all_snvs_pos:
             while pos>=cnvs_pos_changes[0][0]:
                 region_mean_ploidy+=cnvs_pos_changes.pop(0)[1]

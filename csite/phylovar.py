@@ -233,12 +233,12 @@ def main(progname=None):
     default='01'
     parse.add_argument('-p','--parental',type=str,default=default,
         help='the parental to simulate [{}]'.format(default))
-    default=1.0
-    parse.add_argument('-P','--purity',type=float,default=default,
-        help="the purity of tumor cells in the simulated sample [{}]".format(default))
-    default=50
-    parse.add_argument('-D','--depth',type=int,default=default,
-        help='the mean depth for simulating coverage data [{}]'.format(default))
+#    default=1.0
+#    parse.add_argument('-P','--purity',type=float,default=default,
+#        help="the purity of tumor cells in the simulated sample [{}]".format(default))
+#    default=50
+#    parse.add_argument('-D','--depth',type=float,default=default,
+#        help='the mean depth for simulating coverage data [{}]'.format(default))
     default=0
     parse.add_argument('-x','--prune',type=check_prune,default=default,
         help='trim all the children of the nodes with equal or less than this number of tips [{}]'.format(default))
@@ -280,9 +280,9 @@ def main(progname=None):
     default=0
     parse.add_argument('--trunk_length',type=float,
         help='the length of the truncal branch [{}]'.format(default))
-    default=None
-    parse.add_argument('--expands',type=str,default=default,
-        help='the basename of the file to output the snv and segment data for EXPANDS [{}]'.format(default))
+#    default=None
+#    parse.add_argument('--expands',type=str,default=default,
+#        help='the basename of the file to output the snv and segment data for EXPANDS [{}]'.format(default))
     default=2.0
     parse.add_argument('--tstv',type=check_tstv,default=default,
         help='the ratio of ts/tv of SNV [{}]'.format(default))
@@ -416,11 +416,11 @@ def main(progname=None):
 #        parental_copy_file=open(args.haplotype_copy,'w')
 #        parental_copy_file.write('#chr\tpos\t{}\n'.format('\t'.join(['haplotype'+str(x) for x in range(max_ploidy)])))
 
-    if args.expands != None:
-        expands_snps_file=open(args.expands+'.snps','w')
-        expands_snps_file.write('chr\tstartpos\tAF_Tumor\tPN_B\n')
-        expands_segs_file=open(args.expands+'.segs','w')
-        expands_segs_file.write("chr\tstartpos\tendpos\tCN_Estimate\n")
+#    if args.expands != None:
+#        expands_snps_file=open(args.expands+'.snps','w')
+#        expands_snps_file.write('chr\tstartpos\tAF_Tumor\tPN_B\n')
+#        expands_segs_file=open(args.expands+'.segs','w')
+#        expands_segs_file.write("chr\tstartpos\tendpos\tCN_Estimate\n")
 
 ###### simulate variants for each chroms
     all_nodes_vars={}
@@ -443,7 +443,7 @@ def main(progname=None):
                 tstv_dist_cfg=tstv_dist_cfg,
                 trunk_snvs=trunk_snvs.get(chroms,{}),
                 trunk_cnvs=trunk_cnvs.get(chroms,{}),
-                purity=args.purity,
+#                purity=args.purity,
                 length=chroms_cfg['length'],
                 chain=args.chain,
                 chroms=chroms,
@@ -477,16 +477,16 @@ def main(progname=None):
         for seg in cnv_profile:
             cnv_profile_file.write('{}\n'.format('\t'.join([str(x) for x in [chroms]+seg])))
 
-#output for expands
-        if args.expands != None:
-            for pos,mutation,freq in snvs_freq:
-                total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(args.depth,freq)
-                expands_snps_file.write('{}\t{}\t{}\t{}\n'.format(chroms,pos,b_allele_dp/total_dp,0))
-
-#in the segment input for expands
-#CN_Estimate - the copy number estimated for each segment (average value across all subpopulations in the sample)
-            for start,end,copy in cnv_profile:
-                expands_segs_file.write('{}\t{}\t{}\t{}\n'.format(chroms,start,end,copy/leaves_number))
+##output for expands
+#        if args.expands != None:
+#            for pos,mutation,freq in snvs_freq:
+#                total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(args.depth,freq)
+#                expands_snps_file.write('{}\t{}\t{}\t{}\n'.format(chroms,pos,b_allele_dp/total_dp,0))
+#
+##in the segment input for expands
+##CN_Estimate - the copy number estimated for each segment (average value across all subpopulations in the sample)
+#            for start,end,copy in cnv_profile:
+#                expands_segs_file.write('{}\t{}\t{}\t{}\n'.format(chroms,start,end,copy/leaves_number))
 
 ###### close all opened files
     cnv_file.close()
@@ -502,9 +502,9 @@ def main(progname=None):
 #    if args.haplotype_copy!=None:
 #        parental_copy_file.close()
 
-    if args.expands != None:
-        expands_snps_file.close()
-        expands_segs_file.close()
+#    if args.expands != None:
+#        expands_snps_file.close()
+#        expands_segs_file.close()
 
 ##output a nhx tree instead of the list
 ##output SNVs/CNVs on each node
