@@ -16,7 +16,7 @@ chromosomes:
    - "2":
         length: 243199373
    - "3":
-		parental: '00'
+        parental: '00'
         length: 198022430
    - "4":
         length: 191154276
@@ -29,7 +29,7 @@ chromosomes:
    - "8":
         length: 146364022
    - "9":
-		parental: '011'
+        parental: '011'
         length: 141213431
    - "10":
         length: 135534747
@@ -42,7 +42,7 @@ chromosomes:
    - "14":
         length: 107349540
    - "15":
-		parental: '1'
+        parental: '1'
         length: 102531392
    - "16":
         length: 90354753
@@ -59,8 +59,8 @@ chromosomes:
    - "22":
         length: 51304566
    - "X":
-		parental: '0'
+        parental: '0'
         length: 155270560
    - "Y":
-		parental: '0'
+        parental: '0'
         length: 59373566
