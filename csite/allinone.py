@@ -43,12 +43,6 @@ def main(progname=None):
     default=None
     parse.add_argument('-s','--sex_chr',type=check_sex,default=default,
         help='sex chromosomes of the genome (seperated by comma) [{}]'.format(default))
-    default=None
-    parse.add_argument('--trunk_vars',type=str,
-        help='the trunk variants file supplied by user [{}]'.format(default))
-    default=0
-    parse.add_argument('--trunk_length',type=float,
-        help='the length of the truncal branch [{}]'.format(default))
     default=0
     parse.add_argument('-x','--prune',type=check_prune,default=default,
         help='trim all the children of the nodes with equal or less than this number of tips [{}]'.format(default))
@@ -58,13 +52,19 @@ def main(progname=None):
     default=50
     parse.add_argument('-d','--depth',type=float,default=default,
         help='the mean depth of tumor for ART to simulate short reads [{}]'.format(default))
-    default=50
+    default=0
     parse.add_argument('-D','--normal_depth',type=float,default=default,
         help='the mean depth of normal for ART to simulate short reads [{}]'.format(default))
     default=0.5
     parse.add_argument('-p','--purity',type=float,default=default,
         help='the proportion of tumor cells in simulated sample [{}]'.format(default))
     default='art_illumina --noALN --quiet --paired --len 100 --mflen 500 --sdev 20'
+    default=None
+    parse.add_argument('--trunk_vars',type=str,
+        help='the trunk variants file supplied by user [{}]'.format(default))
+    default=0
+    parse.add_argument('--trunk_length',type=float,
+        help='the length of the truncal branch [{}]'.format(default))
     parse.add_argument('--art',type=str,default=default,
         help='the parameters for ART program [{}]'.format(default))
     default=None
@@ -169,6 +169,7 @@ def main(progname=None):
         logging.info(' Command: %s',' '.join(cmd_params))
         subprocess.run(args=cmd_params,check=True)
 
+#fa2ngs
     if os.path.isdir(art_reads):
         shutil.rmtree(art_reads)
     elif os.path.isfile(art_reads):
@@ -177,12 +178,13 @@ def main(progname=None):
                 '--normal',normal_fa,
                 '--tumor',tumor_fa,
                 '--chain',tumor_chain,
-                '--depth',str(args.depth),
-                '--normal_depth',str(args.normal_depth),
-                '--purity',str(args.purity),
-                '--random_seed',str(random_int()),
-                '--output',art_reads,
-                '--art',"{}".format(args.art)]
+                '--depth',str(args.depth)]
+    if args.normal_depth>0:
+        cmd_params.extend(['--normal_depth',str(args.normal_depth)])
+    cmd_params.extend(['--purity',str(args.purity),
+                       '--random_seed',str(random_int()),
+                       '--output',art_reads,
+                       '--art',"{}".format(args.art)])
     logging.info(' Command: %s',' '.join(cmd_params[:-1]+["'{}'".format(args.art)]))
     subprocess.run(args=cmd_params,check=True)
 

@@ -456,7 +456,6 @@ class Tree:
             self.right.cnv_genotyping(genotypes=genotypes,parental=parental)
 
 #######################################
-#TODO
 #In order to build haplotype for each node efficiently, I will
 # 1. Store more information of each SNV in a dictionary, and collect all of the SNVs
 #    on the lineage leading to each tip node in accumulated_SNVs
@@ -595,8 +594,8 @@ class Tree:
         all_cnvs.sort(key=lambda cnv: cnv['start'])
         cnvs_pos_changes=cnvs2pos_changes(cnvs=all_cnvs,length=length,background=background)
 
-        hap_local_copy_for_all_snvs=hap_local_leaves(positions=all_snvs_pos,
-            hap_cnvs=hap_cnvs,length=length,background=self.leaves_counting(),ploidy=ploidy)
+#        hap_local_copy_for_all_snvs=hap_local_leaves(positions=all_snvs_pos,
+#            hap_cnvs=hap_cnvs,length=length,background=self.leaves_counting(),ploidy=ploidy)
 
 #construct cnv profile for each hap_tree, assuming the whole region start with 0 and end with length
 #translate cnvs_pos_changes to cnv_profile before its changing
@@ -609,7 +608,6 @@ class Tree:
                 region_mean_ploidy+=cnvs_pos_changes.pop(0)[1]
 #adjust SNVs' frequency by taking the normal cells into account 
             all_snvs_alt_freq.append([pos,all_snvs_alt_counts[pos]['mutation'],all_snvs_alt_counts[pos]['alt_count']/(normal_dosage+region_mean_ploidy)])
-#TODO: what information of CNVs should I output? logR? Frequency? Adjust CNVs' frequency?
 
 #build genotypes for each leaf
 #build genotypes on the variants of each leaf? or on variants on all leaves?
@@ -636,7 +634,8 @@ class Tree:
                     region_mean_ploidy+=leaf_cnvs_pos_changes[leaf].pop(0)[1]
                 leaf_snv_refs[leaf][pos]=region_mean_ploidy-leaf_snv_alts[leaf][pos]
 
-        return all_snvs_alt_freq,all_cnvs,cnv_profile,nodes_vars,leaf_snv_alts,leaf_snv_refs,leaf_cnvs,hap_local_copy_for_all_snvs
+        return all_snvs_alt_freq,all_cnvs,cnv_profile,nodes_vars,leaf_snv_alts,leaf_snv_refs,leaf_cnvs
+#        return all_snvs_alt_freq,all_cnvs,cnv_profile,nodes_vars,leaf_snv_alts,leaf_snv_refs,leaf_cnvs,hap_local_copy_for_all_snvs
 
     def tree2newick(self,lens=False,attrs=None):
         '''

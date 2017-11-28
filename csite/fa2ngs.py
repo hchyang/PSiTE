@@ -37,7 +37,7 @@ def main(progname=None):
     default=50
     parse.add_argument('-d','--depth',type=float,default=default,
         help='the mean depth of tumor for ART to simulate short reads [{}]'.format(default))
-    default=50
+    default=0
     parse.add_argument('-D','--normal_depth',type=float,default=default,
         help='the mean depth of normal for ART to simulate short reads [{}]'.format(default))
     default=0.5
@@ -99,10 +99,11 @@ def main(progname=None):
     seq_per_base=total_seq_bases/(normal_dna+tumor_dna)
 
     tumor_dir=args.output+'/tumor'
-    normal_dir=args.output+'/normal'
     os.mkdir(args.output)
     os.mkdir(tumor_dir)
-    os.mkdir(normal_dir)
+    normal_dir=args.output+'/normal'
+    if args.normal_depth>0:
+        os.mkdir(normal_dir)
     art_params=args.art.split()
 
 #create a reference meta file which can be used by wessim to simulate exome-seq data
@@ -111,17 +112,17 @@ def main(progname=None):
 #two normal cell haplotypes
     cmd_params=art_params[:]
     for hap in 0,1:
+        prefix='{}/normal_parental_{}.'.format(tumor_dir,hap)
         fcov=str(normal_cells*seq_per_base)
         ref='{}/normal_parental_{}.fa'.format(args.normal,hap)
-        prefix='{}/normal_parental_{}.'.format(tumor_dir,hap)
         final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','n_hap{}'.format(hap),'--rndSeed',str(random_int())]
         logging.info(' Command: %s',' '.join(final_cmd_params))
         subprocess.run(args=final_cmd_params,check=True)
         compress_fq(prefix=prefix)
 
         if args.normal_depth>0:
-            fcov=str(args.normal_depth/2)
             prefix='{}/normal_parental_{}.'.format(normal_dir,hap)
+            fcov=str(args.normal_depth/2)
             final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','n_hap{}'.format(hap),'--rndSeed',str(random_int())]
             logging.info(' Command: %s',' '.join(final_cmd_params))
             subprocess.run(args=final_cmd_params,check=True)

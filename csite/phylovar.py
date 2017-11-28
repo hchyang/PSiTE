@@ -59,14 +59,14 @@ def check_seed(value=None):
 
 def check_prune(value=None):
     ivalue=int(float(value))
-    if ivalue<2: 
+    if not ivalue>0: 
         raise argparse.ArgumentTypeError("{} is an invalid value for --prune. ".format(value)+
-            "It should be an integer >=2 and <=the number of leaves of the tree.")
+            "It should be an positive integer and less than the number of leaves of the tree.")
     return ivalue
 
 def check_proportion(value=None):
     fvalue=float(value)
-    if not 0<=fvalue<1: 
+    if not 0<fvalue<1: 
         raise argparse.ArgumentTypeError("{} is an invalid value for --prune_proportion. ".format(value)+
             "It should be an float between 0 and 1.")
     return fvalue
@@ -254,9 +254,9 @@ def main(progname=None):
     default='output.cnvs'
     parse.add_argument('-V','--cnv',type=str,default=default,
         help='the output file to save CNVs [{}]'.format(default))
-    default='output.nodes_vars'
-    parse.add_argument('-N','--nodes_vars',type=str,default=default,
-        help='the output file to save SNVs/CNVs on each node [{}]'.format(default))
+#    default='output.nodes_vars'
+#    parse.add_argument('-N','--nodes_vars',type=str,default=default,
+#        help='the output file to save SNVs/CNVs on each node [{}]'.format(default))
     default=None
     parse.add_argument('-T','--vars_tree',type=str,default=default,
         help='the output file in NHX format to save the tree with nodeid and all variants [{}]'.format(default))
@@ -273,8 +273,8 @@ def main(progname=None):
         help='the file to save SNV genotypes for each cell')
     parse.add_argument('--ind_cnvs',type=str,
         help='the file to save CNVs for each cell individual')
-    parse.add_argument('--parental_copy',type=str,
-        help='the file to save parental copy for each SNV')
+#    parse.add_argument('--haplotype_copy',type=str,
+#        help='the file to save haplotype copy for each SNV')
     parse.add_argument('--trunk_vars',type=str,
         help='the trunk variants file supplied by user')
     default=0
@@ -364,14 +364,14 @@ def main(progname=None):
     if args.prune>0 and args.prune_proportion>0:
         raise argparse.ArgumentTypeError("Use either --prune or --prune_proportion. Do not use both!")
     elif args.prune>0:
-        if args.prune>leaves_number:
-            raise argparse.ArgumentTypeError("There are only {} leaves on the tree. It's impossible to prune {} leaves.".format(
+        if not args.prune<leaves_number:
+            raise argparse.ArgumentTypeError("There are only {} leaves on the tree. Can not prune {} leaves.".format(
                 leaves_number,args.prune))
-        if args.prune>=2:
+        elif args.prune>=1:
             mytree.prune(tips=args.prune)
     elif args.prune_proportion>0:
         trim=leaves_number*args.prune_proportion
-        if trim>=2:
+        if trim>=1:
             mytree.prune(tips=trim)
 
 ###### output the map of tip_node(after pruning):leaf
@@ -395,17 +395,14 @@ def main(progname=None):
         trunk_snvs,trunk_cnvs=csite.trunk_vars.classify_vars(
             args.trunk_vars,final_chroms_cfg,leaves_number,mytree)
 
-#TODO: check the output of nodes_snvs/nodes_vars and parental_copy
 ###### open all required output file and output the headers 
-#TODO: some file's headers are missing
     cnv_file=open(args.cnv,'w')
     cnv_file.write('#chr\tstart\tend\tcopy\tcarrier\n')
     snv_file=open(args.snv,'w')
-    snv_file.write('#chr\tpos\tform\ttrue_freq\tsim_dp\tsim_freq\n')
+#    snv_file.write('#chr\tpos\tform\ttrue_freq\tsim_dp\tsim_freq\n')
+    snv_file.write('#chr\tpos\tform\tfreq\n')
     cnv_profile_file=open(args.cnv_profile,'w')
     cnv_profile_file.write('#chr\tstart\tend\tlocal_cp\n')
-    nodes_vars_file=open(args.nodes_vars,'w')
-    nodes_vars_file.write('#node\tchr\tstart\tend\tvar\n')
 
     if args.snv_genotype!=None:
         genotype_file=open(args.snv_genotype,'w')
@@ -415,10 +412,9 @@ def main(progname=None):
         ind_cnvs_file=open(args.ind_cnvs,'w')
         ind_cnvs_file.write('#cell\tparental\tchr\tstart\tend\tcopy\n')
 
-#TODO: check the format of this file. parental? haplotype?
-    if args.parental_copy!=None:
-        parental_copy_file=open(args.parental_copy,'w')
-        parental_copy_file.write('#chr\tpos\t{}\n'.format('\t'.join(['haplotype'+str(x) for x in range(max_ploidy)])))
+#    if args.haplotype_copy!=None:
+#        parental_copy_file=open(args.haplotype_copy,'w')
+#        parental_copy_file.write('#chr\tpos\t{}\n'.format('\t'.join(['haplotype'+str(x) for x in range(max_ploidy)])))
 
     if args.expands != None:
         expands_snps_file=open(args.expands+'.snps','w')
@@ -436,7 +432,6 @@ def main(progname=None):
         
         (snvs_freq,cnvs,cnv_profile,nodes_vars,
             leaf_snv_alts,leaf_snv_refs,leaf_cnvs,
-            hap_local_copy_for_all_snvs,
             )=mytree.snvs_freq_cnvs_profile(
                 parental=chroms_cfg['parental'],
                 snv_rate=chroms_cfg['snv_rate'],
@@ -466,19 +461,18 @@ def main(progname=None):
                 for cnv in leaf_cnvs[leaf]:
                     ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,cnv['parental'],chroms,cnv['start'],cnv['end'],cnv['copy']]])))
 
-        if args.parental_copy!=None:
-            for snv in hap_local_copy_for_all_snvs:
-                parental_copy_file.write('{}\t{}\n'.format(chroms,'\t'.join([str(x) for x in snv])))
+#        if args.haplotype_copy!=None:
+#            for snv in hap_local_copy_for_all_snvs:
+#                parental_copy_file.write('{}\t{}\n'.format(chroms,'\t'.join([str(x) for x in snv])))
 
         for cnv in cnvs:
             cnv_file.write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,cnv['start'],cnv['end'],cnv['copy'],cnv['leaves_count']))
 
         for pos,mutation,freq in snvs_freq:
-            total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(args.depth,freq)
-            b_allele_freq=0
-            if total_dp!=0:
-                b_allele_freq=b_allele_dp/total_dp
-            snv_file.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(chroms,pos,mutation,freq,total_dp,b_allele_freq))
+            snv_file.write('{}\t{}\t{}\t{}\n'.format(chroms,pos,mutation,freq))
+            #total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(args.depth,freq)
+            #b_allele_freq=b_allele_dp/total_dp if total_dp!=0 else 0
+            #snv_file.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(chroms,pos,mutation,freq,total_dp,b_allele_freq))
 
         for seg in cnv_profile:
             cnv_profile_file.write('{}\n'.format('\t'.join([str(x) for x in [chroms]+seg])))
@@ -494,18 +488,10 @@ def main(progname=None):
             for start,end,copy in cnv_profile:
                 expands_segs_file.write('{}\t{}\t{}\t{}\n'.format(chroms,start,end,copy/leaves_number))
 
-#output SNVs/CNVs on each node
-    for node in sorted(all_nodes_vars.keys(),key=lambda x: int(x[4:])):
-        vars_list=[x.split('#') for x in all_nodes_vars[node]]
-        vars_list=sorted(vars_list,key=lambda x:(x[0],int(x[1]),int(x[2])))
-        for var in vars_list:
-            nodes_vars_file.write('{}\t{}\n'.format(node,'\t'.join(var)))
-
 ###### close all opened files
     cnv_file.close()
     snv_file.close()
     cnv_profile_file.close()
-    nodes_vars_file.close()
 
     if args.snv_genotype!=None:
         genotype_file.close()
@@ -513,12 +499,23 @@ def main(progname=None):
     if args.ind_cnvs!=None:
         ind_cnvs_file.close()
 
-    if args.parental_copy!=None:
-        parental_copy_file.close()
+#    if args.haplotype_copy!=None:
+#        parental_copy_file.close()
 
     if args.expands != None:
         expands_snps_file.close()
         expands_segs_file.close()
+
+##output a nhx tree instead of the list
+##output SNVs/CNVs on each node
+#    nodes_vars_file=open(args.nodes_vars,'w')
+#    nodes_vars_file.write('#node\tchr\tstart\tend\tvar\n')
+#    for node in sorted(all_nodes_vars.keys(),key=lambda x: int(x[4:])):
+#        vars_list=[x.split('#') for x in all_nodes_vars[node]]
+#        vars_list=sorted(vars_list,key=lambda x:(x[0],int(x[1]),int(x[2])))
+#        for var in vars_list:
+#            nodes_vars_file.write('{}\t{}\n'.format(node,'\t'.join(var)))
+#    nodes_vars_file.close()
 
 #TODO: Should we change pickle to json or yaml?
 #http://stackoverflow.com/questions/4677012/python-cant-pickle-type-x-attribute-lookup-failed
