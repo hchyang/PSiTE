@@ -68,20 +68,22 @@ def main(progname=None):
 
 #there must be two haplotype fasta in the normal dir
     assert os.path.isdir(args.normal),'{} is not exist or not a folder.'.format(args.normal)
-    for hap in 0,1:
-        assert os.path.isfile('{}/normal_parental_{}.fa'.format(args.normal,hap)), 'Can not find normal_parental_{}.fa under the normal directory: {}'.format(hap,args.normal)
+    for parental in 0,1:
+        assert os.path.isfile('{}/normal.parental_{}.fa'.format(args.normal,parental)),\
+            'Can not find normal.parental_{}.fa under the normal directory: {}'.format(parental,args.normal)
 
 #tumor directory and chain directory must exist.
 #also file chain_dir/tip_node_sample.count.
     assert os.path.isdir(args.chain),'{} is not exist or not a folder.'.format(args.chain)
-    assert os.path.isfile(args.chain+'/tip_node_sample.count'),'Can not find tip_node_sample.count under the chain directory: {}'.format(args.chain)
+    assert os.path.isfile(args.chain+'/tip_node_sample.count'),\
+        'Can not find tip_node_sample.count under the chain directory: {}'.format(args.chain)
     assert os.path.isdir(args.tumor),'{} is not exist or not a folder.'.format(args.chain)
 
 #compute coverage and run ART
 #FIXME: cell number: float? int?
     normal_gsize=0
-    for hap in 0,1:
-        normal_gsize+=genomesize(fasta='{}/normal_parental_{}.fa'.format(args.normal,hap))
+    for parental in 0,1:
+        normal_gsize+=genomesize(fasta='{}/normal.parental_{}.fa'.format(args.normal,parental))
     total_seq_bases=normal_gsize/2*args.depth
 
     tip_node_leaves=tip_node_leaves_counting(f='{}/tip_node_sample.count'.format(args.chain))
@@ -93,9 +95,17 @@ def main(progname=None):
     tumor_dna=0
     tip_node_gsize={}
     for tip_node,leaves in tip_node_leaves.items():
-        assert os.path.isfile('{}/{}.genome.fa'.format(args.tumor,tip_node)), 'Can not find {}.genome.fa under the tumor directory: {}'.format(tip_node,args.tumor)
-        tip_node_gsize[tip_node]=genomesize(fasta='{}/{}.genome.fa'.format(args.tumor,tip_node))
-        tumor_dna+=tip_node_gsize[tip_node]*tip_node_leaves[tip_node]
+#The value of tip_node_gsize[tip_node] is a list of three elements:
+#0)genomesize of parental 0
+#1)genomesize of parental 1
+#2)the sum of parental 0 and 1
+        tip_node_gsize[tip_node]=[]
+        for parental in 0,1:
+            assert os.path.isfile('{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)),\
+                'Can not find {}.parental_{}.fa under the tumor directory: {}'.format(tip_node,parental,args.tumor)
+            tip_node_gsize[tip_node].append(genomesize(fasta='{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)))
+        tip_node_gsize[tip_node].append(tip_node_gsize[tip_node][0]+tip_node_gsize[tip_node][1])
+        tumor_dna+=tip_node_gsize[tip_node][2]*tip_node_leaves[tip_node]
     seq_per_base=total_seq_bases/(normal_dna+tumor_dna)
 
     tumor_dir=args.output+'/tumor'
@@ -111,19 +121,19 @@ def main(progname=None):
 
 #two normal cell haplotypes
     cmd_params=art_params[:]
-    for hap in 0,1:
-        prefix='{}/normal_parental_{}.'.format(tumor_dir,hap)
+    for parental in 0,1:
+        prefix='{}/normal.parental_{}.'.format(tumor_dir,parental)
         fcov=str(normal_cells*seq_per_base)
-        ref='{}/normal_parental_{}.fa'.format(args.normal,hap)
-        final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','n_hap{}'.format(hap),'--rndSeed',str(random_int())]
+        ref='{}/normal.parental_{}.fa'.format(args.normal,parental)
+        final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','normal_prt{}'.format(parental),'--rndSeed',str(random_int())]
         logging.info(' Command: %s',' '.join(final_cmd_params))
         subprocess.run(args=final_cmd_params,check=True)
         compress_fq(prefix=prefix)
 
         if args.normal_depth>0:
-            prefix='{}/normal_parental_{}.'.format(normal_dir,hap)
+            prefix='{}/normal.parental_{}.'.format(normal_dir,parental)
             fcov=str(args.normal_depth/2)
-            final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','n_hap{}'.format(hap),'--rndSeed',str(random_int())]
+            final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','normal_prt{}'.format(parental),'--rndSeed',str(random_int())]
             logging.info(' Command: %s',' '.join(final_cmd_params))
             subprocess.run(args=final_cmd_params,check=True)
             compress_fq(prefix=prefix)
@@ -134,15 +144,16 @@ def main(progname=None):
 #tumor cells haplotypes
     for tip_node in sorted(tip_node_leaves.keys()):
         fcov=str(tip_node_leaves[tip_node]*seq_per_base)
-        ref='{}/{}.genome.fa'.format(args.tumor,tip_node)
-        prefix='{}/{}.'.format(tumor_dir,tip_node)
-        final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','t_{}'.format(tip_node),'--rndSeed',str(random_int())]
-        logging.info(' Command: %s',' '.join(final_cmd_params))
-        subprocess.run(args=final_cmd_params,check=True)
-        compress_fq(prefix=prefix)
+        for parental in 0,1:
+            ref='{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)
+            prefix='{}/{}.parental_{}.'.format(tumor_dir,tip_node,parental)
+            final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','{}_prt{}'.format(tip_node,parental),'--rndSeed',str(random_int())]
+            logging.info(' Command: %s',' '.join(final_cmd_params))
+            subprocess.run(args=final_cmd_params,check=True)
+            compress_fq(prefix=prefix)
 
-        fullname=os.path.abspath(ref)
-        ref_meta.write('{}\t{}\n'.format(fullname,str(tip_node_leaves[tip_node]/total_cells)))
+            fullname=os.path.abspath(ref)
+            ref_meta.write('{}\t{}\n'.format(fullname,str(tip_node_leaves[tip_node]/total_cells*tip_node_gsize[tip_node][parental]/tip_node_gsize[tip_node][2])))
 
     ref_meta.close()
 

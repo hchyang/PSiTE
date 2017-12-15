@@ -427,7 +427,7 @@ def main(progname=None):
 ###### simulate variants for each chroms
     all_nodes_vars={}
     for chroms in final_chroms_cfg['order']:
-        chroms_cfg=final_chroms_cfg['chroms']
+        chroms_cfg=final_chroms_cfg[chroms]
         check_cnv_length_cfg(chroms=chroms,cnv_length_beta=chroms_cfg['cnv_length_beta'],
             cnv_length_max=chroms_cfg['cnv_length_max'],chr_length=chroms_cfg['length'])
         cn_dist_cfg=cn_dist(copy_max=chroms_cfg['copy_max'],copy_parameter=chroms_cfg['copy_parameter'])

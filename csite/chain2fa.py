@@ -62,55 +62,59 @@ def main(progname=None):
     os.mkdir(args.output,mode=0o755)
     parentalre=re.compile('^parental:[0-9]$')
     for node_chain in glob.glob(args.chain+'/node*.chain'):
-        outfa=os.path.basename(node_chain)
-        outfa=outfa[:-5]+'fa'
-        outfa=args.output+'/'+outfa
-        with open(outfa,'w') as outputf:
-            reference=None
-            with open(node_chain) as inputf:
-                seq_name=None
-                seq=[]
-                for line in inputf:
-                    line=line.rstrip()
-                    if line.startswith('>'):
-                        if seq:
-                            outputf.write('>{}\n'.format(seq_name))
-                            for outputline in pyfaidx.wrap_sequence(args.width,''.join(seq)):
-                                outputf.write(outputline)
-                        seq_name,parental=line[1:].split()
-                        if parentalre.match(parental):
-                            parental=int(parental.split(':')[1])
-                            try:
-                                reference=refs[parental]
-                            except IndexError:
-                                raise ReferenceFileError('The is no parental {} avalible!\n'.format(parental)+
-                                    'Which is required in the record:\n{}\n'.format(line))
-                        else:
-                            raise DraftFileError('This format of the line below in Draft file is not correct:\n{}\n'.format(line))
-                        seq=[]
+        node=os.path.basename(node_chain)
+        node=node.split('.')[0]
+        outputf=[]
+        for parental in 0,1:
+            outputf.append(open('{}/{}.parental_{}.fa'.format(args.output,node,parental),'w'))
+        reference=None
+        with open(node_chain) as inputf:
+            seq_name=None
+            parental=None
+            seq=[]
+            for line in inputf:
+                line=line.rstrip()
+                if line.startswith('>'):
+                    if seq:
+                        outputf[parental].write('>{}\n'.format(seq_name))
+                        for outputline in pyfaidx.wrap_sequence(args.width,''.join(seq)):
+                            outputf[parental].write(outputline)
+                    seq_name,parental=line[1:].split()
+                    if parentalre.match(parental):
+                        parental=int(parental.split(':')[1])
+                        try:
+                            reference=refs[parental]
+                        except IndexError:
+                            raise ReferenceFileError('The is no parental {} avalible!\n'.format(parental)+
+                                'Which is required in the record:\n{}\n'.format(line))
                     else:
-                        record=line.split()
-                        chroms=record[0]
-                        start=int(record[1])
-                        end=int(record[2])
-                        seq_type=record[3]
-                        segment=''
-                        if seq_type=='ref':
-                            segment=reference[chroms][start:end].seq
-                        elif seq_type=='SNV':
-                            ref=reference[chroms][start:end].seq
-                            m=Mutation(ref=ref,form=record[4])
-                            segment=m.alternative
-                        elif seq_type=='DEL':
-                            pass
-                        else:
-                            raise ShouldNotBeHereError
-                        seq.append(segment)
-                if seq:
-                    outputf.write('>{}\n'.format(seq_name))
-                    for outputline in pyfaidx.wrap_sequence(args.width,''.join(seq)):
-                        outputf.write(outputline)
-                            
+                        raise DraftFileError('This format of the line below in Draft file is not correct:\n{}\n'.format(line))
+                    seq=[]
+                else:
+                    record=line.split()
+                    chroms=record[0]
+                    start=int(record[1])
+                    end=int(record[2])
+                    seq_type=record[3]
+                    segment=''
+                    if seq_type=='ref':
+                        segment=reference[chroms][start:end].seq
+                    elif seq_type=='SNV':
+                        ref=reference[chroms][start:end].seq
+                        m=Mutation(ref=ref,form=record[4])
+                        segment=m.alternative
+                    elif seq_type=='DEL':
+                        pass
+                    else:
+                        raise ShouldNotBeHereError
+                    seq.append(segment)
+            if seq:
+                outputf[parental].write('>{}\n'.format(seq_name))
+                for outputline in pyfaidx.wrap_sequence(args.width,''.join(seq)):
+                    outputf[parental].write(outputline)
+        for parental in 0,1:
+            outputf[parental].close()
+                        
 class Mutation:
     '''
     Mutation form are fixed in configure file. We just need to retrieve the alternative

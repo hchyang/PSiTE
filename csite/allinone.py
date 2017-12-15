@@ -164,7 +164,7 @@ def main(progname=None):
 
         cmd_params=[sys.argv[0],'chain2fa',
                     '--chain',tumor_chain,
-                    '--reference','{dir}/normal_parental_0.fa,{dir}/normal_parental_1.fa'.format(dir=normal_fa),
+                    '--reference','{dir}/normal.parental_0.fa,{dir}/normal.parental_1.fa'.format(dir=normal_fa),
                     '--output',tumor_fa]
         logging.info(' Command: %s',' '.join(cmd_params))
         subprocess.run(args=cmd_params,check=True)

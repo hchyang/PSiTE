@@ -68,7 +68,7 @@ def main(progname=None):
         exit("Can't create folder {}. Please create its parent directories first.".format(args.output))
 
     for i in range(2):
-        with open('{}/normal_parental_{}.fa'.format(args.output,i),'w') as output:
+        with open('{}/normal.parental_{}.fa'.format(args.output,i),'w') as output:
             for chroms in genome_profile['order']:
                 if i<len(genome_profile[chroms]['hap_vars']):
                     start=0
