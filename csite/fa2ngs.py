@@ -9,6 +9,7 @@
 
 import sys
 import os
+import glob
 import argparse
 import numpy
 import math
@@ -57,6 +58,8 @@ def main(progname=None):
     default=1
     parse.add_argument('--cores',type=int,default=default,
         help='number of cores used to run the program [{}]'.format(default))
+    parse.add_argument('--compress',action="store_true",
+        help='compress the generated fastq files using gzip')
     args=parse.parse_args()
 
 ###### logging and random seed setting
@@ -186,9 +189,44 @@ def main(progname=None):
             final_params_matrix[-1]['id']=cfg['id']+'_{:02d}'.format(i)
             final_params_matrix[-1]['rndSeed']=str(random_int())
     pool=multiprocessing.Pool(processes=args.cores)
-    results=[pool.apply(generate_fq,args=(x,)) for x in final_params_matrix]
+    results=[pool.apply(generate_fq,args=(x,args.compress)) for x in final_params_matrix]
 
-def generate_fq(params=None):
+#merge small fastq files into one for normal/tumor sample
+    genome_fq_files=[]
+    suffixes=['fq','1.fq','2.fq']
+    if args.compress:
+        suffixes=[x+'.gz' for x in suffixes]
+    if args.normal_depth>0:
+        for suffix in suffixes:
+            prefix='{}/normal.parental_[01].[0-9][0-9].'.format(normal_dir)
+            source=glob.glob(prefix+suffix)
+            if len(source):
+                target='{}/normal.{}'.format(normal_dir,suffix)
+                source.sort()
+                genome_fq_files.append([target,source])
+    for suffix in suffixes:
+        prefix='{}/*.parental_[01].[0-9][0-9].'.format(tumor_dir,parental)
+        source=glob.glob(prefix+suffix)
+        if len(source):
+            target='{}/tumor.{}'.format(tumor_dir,suffix)
+            source.sort()
+            genome_fq_files.append([target,source])
+    pool=multiprocessing.Pool(processes=args.cores)
+    results=[pool.apply(merge_fq,args=x) for x in genome_fq_files]
+
+def merge_fq(target=None,source=None):
+    '''
+    after generating fq in multiprocessing mode,
+    there will be multiple fq files for each genome.
+    I will merge them into one file for each genome.
+    '''
+    assert not os.path.isfile(target),'{} is exist already!'
+    for f in source:
+        subprocess.run(args=['echo','-n',"''",'>',target],check=True)
+        subprocess.run(args=['cat',f,'>>',target],check=True)
+        subprocess.run(args=['rm',f],check=True)
+
+def generate_fq(params=None,compress=False):
     '''
     run art command to generate the fastq file, and call compress_fq if required.
     '''
@@ -199,7 +237,8 @@ def generate_fq(params=None):
                                            '--rndSeed',params['rndSeed']]
     subprocess.run(args=cmd_params,check=True)
     logging.info(' Command: {}'.format(' '.join(cmd_params)))
-    compress_fq(prefix=params['out'])
+    if compress:
+        compress_fq(prefix=params['out'])
 
 def compress_fq(prefix=None):
     suffixes=['fq','1.fq','2.fq']

@@ -79,6 +79,8 @@ def main(progname=None):
     default=1
     parse.add_argument('--cores',type=int,default=default,
         help='number of cores used to run the program [{}]'.format(default))
+    parse.add_argument('--compress',action="store_true",
+        help='compress the generated fastq files using gzip')
     args=parse.parse_args()
     with open(args.config,'r') as configfile:
         config=yaml.safe_load(configfile)
@@ -185,6 +187,8 @@ def main(progname=None):
                 '--cores',str(args.cores)]
     if args.normal_depth>0:
         cmd_params.extend(['--normal_depth',str(args.normal_depth)])
+    if args.compress:
+        cmd_params.extend(['--compress'])
     cmd_params.extend(['--purity',str(args.purity),
                        '--random_seed',str(random_int()),
                        '--output',art_reads,
