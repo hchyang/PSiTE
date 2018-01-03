@@ -11,9 +11,11 @@ import sys
 import os
 import argparse
 import numpy
+import math
 import logging
 import pyfaidx
 import subprocess
+import multiprocessing
 from csite.phylovar import check_seed,random_int
 
 #handle the error below
@@ -52,6 +54,9 @@ def main(progname=None):
     default='art_illumina --noALN --quiet --paired --len 100 --mflen 500 --sdev 20'
     parse.add_argument('--art',type=str,default=default,
         help='the parameters for ART program [{}]'.format(default))
+    default=1
+    parse.add_argument('--cores',type=int,default=default,
+        help='number of cores used to run the program [{}]'.format(default))
     args=parse.parse_args()
 
 ###### logging and random seed setting
@@ -114,48 +119,87 @@ def main(progname=None):
     normal_dir=args.output+'/normal'
     if args.normal_depth>0:
         os.mkdir(normal_dir)
-    art_params=args.art.split()
 
 #create a reference meta file which can be used by wessim to simulate exome-seq data
     ref_meta=open('reference.meta','w')
 
+#collect parameters first
 #two normal cell haplotypes
-    cmd_params=art_params[:]
+    params_matrix=[]
+    art_params=args.art
     for parental in 0,1:
         prefix='{}/normal.parental_{}.'.format(tumor_dir,parental)
-        fcov=str(normal_cells*seq_per_base)
+        fcov=normal_cells*seq_per_base
         ref='{}/normal.parental_{}.fa'.format(args.normal,parental)
-        final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','normal_prt{}'.format(parental),'--rndSeed',str(random_int())]
-        logging.info(' Command: %s',' '.join(final_cmd_params))
-        subprocess.run(args=final_cmd_params,check=True)
-        compress_fq(prefix=prefix)
-
-        if args.normal_depth>0:
-            prefix='{}/normal.parental_{}.'.format(normal_dir,parental)
-            fcov=str(args.normal_depth/2)
-            final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','normal_prt{}'.format(parental),'--rndSeed',str(random_int())]
-            logging.info(' Command: %s',' '.join(final_cmd_params))
-            subprocess.run(args=final_cmd_params,check=True)
-            compress_fq(prefix=prefix)
-
+        sim_cfg={
+            'gsize':normal_gsize/2,
+            'base_cmd':art_params,
+            'fcov':fcov,
+            'in':ref,
+            'out':prefix,
+            'id':'nm_prt{}'.format(parental)}
+        params_matrix.append(sim_cfg)
         fullname=os.path.abspath(ref)
         ref_meta.write('{}\t{}\n'.format(fullname,str(normal_cells/total_cells/2)))
 
+        if args.normal_depth>0:
+            prefix='{}/normal.parental_{}.'.format(normal_dir,parental)
+            fcov=args.normal_depth/2
+            sim_cfg={
+                'gsize':normal_gsize/2,
+                'base_cmd':art_params,
+                'fcov':fcov,
+                'in':ref,
+                'out':prefix,
+                'id':'nm_prt{}'.format(parental)}
+            params_matrix.append(sim_cfg)
+
 #tumor cells haplotypes
     for tip_node in sorted(tip_node_leaves.keys()):
-        fcov=str(tip_node_leaves[tip_node]*seq_per_base)
+        fcov=tip_node_leaves[tip_node]*seq_per_base
         for parental in 0,1:
             ref='{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)
             prefix='{}/{}.parental_{}.'.format(tumor_dir,tip_node,parental)
-            final_cmd_params=cmd_params+['--fcov',fcov,'--in',ref,'--out',prefix,'--id','{}_prt{}'.format(tip_node,parental),'--rndSeed',str(random_int())]
-            logging.info(' Command: %s',' '.join(final_cmd_params))
-            subprocess.run(args=final_cmd_params,check=True)
-            compress_fq(prefix=prefix)
-
+            sim_cfg={
+                'gsize':tip_node_gsize[tip_node][parental],
+                'base_cmd':art_params,
+                'fcov':fcov,
+                'in':ref,
+                'out':prefix,
+                'id':'{}_prt{}'.format(tip_node,parental)}
+            params_matrix.append(sim_cfg)
             fullname=os.path.abspath(ref)
             ref_meta.write('{}\t{}\n'.format(fullname,str(tip_node_leaves[tip_node]/total_cells*tip_node_gsize[tip_node][parental]/tip_node_gsize[tip_node][2])))
 
     ref_meta.close()
+
+#generate fastq (and compress them) parallelly
+#every thread will generate at most 2 percent of the total data you want to simulate
+    minSize=0.02
+    final_params_matrix=[]
+    for cfg in params_matrix:
+        n=math.ceil(cfg['gsize']*cfg['fcov']/(total_seq_bases*minSize))
+        cfg['fcov']/=n
+        for i in range(n):
+            final_params_matrix.append(cfg.copy())
+            final_params_matrix[-1]['out']=cfg['out']+'{:02d}.'.format(i)
+            final_params_matrix[-1]['id']=cfg['id']+'_{:02d}'.format(i)
+            final_params_matrix[-1]['rndSeed']=str(random_int())
+    pool=multiprocessing.Pool(processes=args.cores)
+    results=[pool.apply(generate_fq,args=(x,)) for x in final_params_matrix]
+
+def generate_fq(params=None):
+    '''
+    run art command to generate the fastq file, and call compress_fq if required.
+    '''
+    cmd_params=params['base_cmd'].split()+['--fcov',str(params['fcov']),
+                                           '--in',params['in'],
+                                           '--id',params['id'],
+                                           '--out',params['out'],
+                                           '--rndSeed',params['rndSeed']]
+    subprocess.run(args=cmd_params,check=True)
+    logging.info(' Command: {}'.format(' '.join(cmd_params)))
+    compress_fq(prefix=params['out'])
 
 def compress_fq(prefix=None):
     suffixes=['fq','1.fq','2.fq']

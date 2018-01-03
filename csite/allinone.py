@@ -76,6 +76,9 @@ def main(progname=None):
     default=1
     parse.add_argument('--start',type=int,default=default,choices=[1,2,3,4],
         help='the serial number of the module from which to start [{}]'.format(default))
+    default=1
+    parse.add_argument('--cores',type=int,default=default,
+        help='number of cores used to run the program [{}]'.format(default))
     args=parse.parse_args()
     with open(args.config,'r') as configfile:
         config=yaml.safe_load(configfile)
@@ -178,7 +181,8 @@ def main(progname=None):
                 '--normal',normal_fa,
                 '--tumor',tumor_fa,
                 '--chain',tumor_chain,
-                '--depth',str(args.depth)]
+                '--depth',str(args.depth),
+                '--cores',str(args.cores)]
     if args.normal_depth>0:
         cmd_params.extend(['--normal_depth',str(args.normal_depth)])
     cmd_params.extend(['--purity',str(args.purity),
