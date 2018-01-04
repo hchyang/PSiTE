@@ -838,7 +838,7 @@ def output_leaf_haplotype(leaf_haplotype=None,directory=None,chroms=None,haploty
     '''
     for node in leaf_haplotype['vars'].keys():
         with open('{}/{}.genome.chain'.format(directory,node),'a') as cfg_file:
-            cfg_file.write('>{}_Haplotype{} parental:{}\n'.format(chroms,haplotype,parental))
+            cfg_file.write('>{}_Hap{} parental:{}\n'.format(chroms,haplotype,parental))
             retrieve_tip_vars(tip_vars=leaf_haplotype,tip=node,out_file=cfg_file,chroms=chroms)
 
 def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):

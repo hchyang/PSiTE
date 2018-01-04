@@ -186,7 +186,7 @@ def main(progname=None):
         for i in range(n):
             final_params_matrix.append(cfg.copy())
             final_params_matrix[-1]['out']=cfg['out']+'{:02d}.'.format(i)
-            final_params_matrix[-1]['id']=cfg['id']+'_{:02d}'.format(i)
+            final_params_matrix[-1]['id']=cfg['id']+'_{:02d}-'.format(i)
             final_params_matrix[-1]['rndSeed']=str(random_int())
     pool=multiprocessing.Pool(processes=args.cores)
     results=[pool.apply(generate_fq,args=(x,args.compress)) for x in final_params_matrix]
