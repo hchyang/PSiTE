@@ -222,7 +222,6 @@ def merge_fq(target=None,source=None):
     '''
     assert not os.path.isfile(target),'{} is exist already!'
     for f in source:
-        subprocess.run(args=['echo','-n',"''",'>',target],check=True)
         subprocess.run(args=['cat',f,'>>',target],check=True)
         subprocess.run(args=['rm',f],check=True)
 
