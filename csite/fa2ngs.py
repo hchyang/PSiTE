@@ -221,9 +221,10 @@ def merge_fq(target=None,source=None):
     I will merge them into one file for each genome.
     '''
     assert not os.path.isfile(target),'{} is exist already!'
-    for f in source:
-        subprocess.run(args=['cat',f,'>>',target],check=True)
-        subprocess.run(args=['rm',f],check=True)
+    with open(target,'a') as output:
+        for f in source:
+            subprocess.run(args=['cat',f],check=True,stdout=output)
+            subprocess.run(args=['rm',f],check=True)
 
 def generate_fq(params=None,compress=False):
     '''
