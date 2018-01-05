@@ -189,10 +189,14 @@ def main(progname=None):
             final_params_matrix[-1]['id']=cfg['id']+'_{:02d}-'.format(i)
             final_params_matrix[-1]['rndSeed']=str(random_int())
     pool=multiprocessing.Pool(processes=args.cores)
-    results=[pool.apply(generate_fq,args=(x,args.compress)) for x in final_params_matrix]
+    for x in final_params_matrix:
+        pool.apply_async(generate_fq,args=(x,args.compress))
+    pool.close()
+    pool.join()
+    pool.get()
 
 #merge small fastq files into one for normal/tumor sample
-    genome_fq_files=[]
+    sample_fq_files=[]
     suffixes=['fq','1.fq','2.fq']
     if args.compress:
         suffixes=[x+'.gz' for x in suffixes]
@@ -203,16 +207,20 @@ def main(progname=None):
             if len(source):
                 target='{}/normal.{}'.format(normal_dir,suffix)
                 source.sort()
-                genome_fq_files.append([target,source])
+                sample_fq_files.append([target,source])
     for suffix in suffixes:
         prefix='{}/*.parental_[01].[0-9][0-9].'.format(tumor_dir,parental)
         source=glob.glob(prefix+suffix)
         if len(source):
             target='{}/tumor.{}'.format(tumor_dir,suffix)
             source.sort()
-            genome_fq_files.append([target,source])
+            sample_fq_files.append([target,source])
     pool=multiprocessing.Pool(processes=args.cores)
-    results=[pool.apply(merge_fq,args=x) for x in genome_fq_files]
+    for x in sample_fq_files:
+        pool.apply_async(merge_fq,args=x)
+    pool.close()
+    pool.join()
+    pool.get()
 
 def merge_fq(target=None,source=None):
     '''
