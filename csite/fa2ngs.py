@@ -193,7 +193,6 @@ def main(progname=None):
         pool.apply_async(generate_fq,args=(x,args.compress))
     pool.close()
     pool.join()
-    pool.get()
 
 #merge small fastq files into one for normal/tumor sample
     sample_fq_files=[]
@@ -220,7 +219,6 @@ def main(progname=None):
         pool.apply_async(merge_fq,args=x)
     pool.close()
     pool.join()
-    pool.get()
 
 def merge_fq(target=None,source=None):
     '''
