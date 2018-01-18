@@ -362,13 +362,13 @@ class Tree:
         '''
         if not hasattr(self,'tipnodes') or self.tipnodes == None:
             if self.left==None and self.right==None:
-                self.tipnodes=set([self.nodeid])
+                self.tipnodes=[self.nodeid]
             else:
-                self.tipnodes=set()
+                self.tipnodes=[]
                 if self.left!=None:
-                    self.tipnodes.union(self.left.collect_tipnodes())
+                    self.tipnodes.extend(self.left.collect_tipnodes())
                 if self.right!=None:
-                    self.tipnodes.union(self.right.collect_tipnodes())
+                    self.tipnodes.extend(self.right.collect_tipnodes())
         return self.tipnodes
     
     def attach_info(self,attr=None,info=None):

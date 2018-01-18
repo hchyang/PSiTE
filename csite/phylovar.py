@@ -465,11 +465,11 @@ def main(progname=None):
         if args.snv_genotype!=None:
             for pos in all_snvs_pos:
                 genotype_file.write('{}\t{}\t{}\n'.format(chroms,pos,
-                    '\t'.join([str(tipnode_snv_alts[leaf][pos])+':'+str(tipnode_snv_refs[leaf_tipnode[leaf]][pos]) for leaf in leaves_names])))
+                    '\t'.join([str(tipnode_snv_alts[leaf_tipnode[leaf]][pos])+':'+str(tipnode_snv_refs[leaf_tipnode[leaf]][pos]) for leaf in leaves_names])))
 
         if args.ind_cnvs!=None:
-            for leaf in sorted(tipnode_cnvs.keys()):
-                for cnv in tipnode_cnvs[leaf]:
+            for leaf in leaves_names:
+                for cnv in tipnode_cnvs[leaf_tipnode[leaf]]:
                     ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,cnv['parental'],chroms,cnv['start'],cnv['end'],cnv['copy']]])))
 
 #        if args.haplotype_copy!=None:
