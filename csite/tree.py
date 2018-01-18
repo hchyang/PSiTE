@@ -200,7 +200,7 @@ class Tree:
 #collect the new copies of cnvs
                             new_copies=[]
                             for i in range(cnv_copy):
-                                segment=Tree(name=self.name,lens=float(self.lens)-waiting_t,nodeid=self.nodeid)
+                                segment=Tree(name=self.name,lens=self.lens-waiting_t,nodeid=self.nodeid)
                                 if self.left != None:
                                     segment.left=copy.deepcopy(self.left)
                                     segment.left.top=segment
@@ -346,16 +346,30 @@ class Tree:
         '''
         After this method, ALL nodes will have the attribute leaves_names.
         '''
-        if not hasattr(self,'leaves_names') or self.leaves_names == None:
+        if self.left==None and self.right==None:
+            leaves_names=[self.name]
+        else:
+            leaves_names=[]
+            if self.left!=None:
+                leaves_names.extend(self.left.leaves_naming())
+            if self.right!=None:
+                leaves_names.extend(self.right.leaves_naming())
+        return leaves_names
+    
+    def collect_tipnodes(self):
+        '''
+        After this method, ALL nodes will have the attribute tipnodes.
+        '''
+        if not hasattr(self,'tipnodes') or self.tipnodes == None:
             if self.left==None and self.right==None:
-                self.leaves_names=[self.name]
+                self.tipnodes=set([self.nodeid])
             else:
-                self.leaves_names=[]
+                self.tipnodes=set()
                 if self.left!=None:
-                    self.leaves_names.extend(self.left.leaves_naming())
+                    self.tipnodes.union(self.left.collect_tipnodes())
                 if self.right!=None:
-                    self.leaves_names.extend(self.right.leaves_naming())
-        return self.leaves_names
+                    self.tipnodes.union(self.right.collect_tipnodes())
+        return self.tipnodes
     
     def attach_info(self,attr=None,info=None):
         '''
@@ -370,20 +384,21 @@ class Tree:
         if self.right!=None:
             self.right.attach_info(attr,info)
 
-    def prune(self,tips=None):
+    def collect_leaves_and_trim(self,tips=None,tipnode_leaves=None):
         '''
         Prune all branches with equal or less than the number of tips specified by the parameter tips.
         For a Tree object, it should run the leaves_counting() method before run this method.
+        For a node, if node.left.leaves_count<=tips and node.right.leaves_count<=tips, prune it into a tip node.
+        If node.left.leaves_count<=tips and node.right.leaves_count>tips, just prune node.left into a tip node.
+        Mark all tip nodes with sim=False, whose leaves_count<=tips. 
         '''
-#for a node, if node.left.leaves_count<=tips and node.right.leaves_count<=tips, prune it into a tip node
-#if node.left.leaves_count<=tips and node.right.leaves_count>tips, just prune node.left into a tip node
         if self.left==None and self.right==None:
-            if self.name==None:
-                self.name=self.nodeid
+            tipnode_leaves[self.nodeid]=self.leaves_naming()
             if self.leaves_count<=tips:
                 self.sim=False
         else:
             if self.left.leaves_count<=tips and self.right.leaves_count<=tips:
+                tipnode_leaves[self.nodeid]=self.leaves_naming()
                 self.left=None
                 self.right=None
                 if self.name==None:
@@ -391,31 +406,43 @@ class Tree:
                 if self.leaves_count<=tips:
                     self.sim=False
             else:
-                self.left.prune(tips=tips)
-                self.right.prune(tips=tips)
+                self.left.collect_leaves_and_trim(tips=tips,tipnode_leaves=tipnode_leaves)
+                self.right.collect_leaves_and_trim(tips=tips,tipnode_leaves=tipnode_leaves)
 
+    def prune(self,tips=None):
+        '''
+        After this method, the root node will have an attribute tipnode_leaves,
+        which is in the form of {tipnode1:[leaf1,leaf2,...],tipnode2:[leaf3,...],...}
+        '''
+        if not hasattr(self,'tipnode_leaves'):
+            tipnode_leaves={}
+            self.collect_leaves_and_trim(tips=tips,tipnode_leaves=tipnode_leaves)
+            self.tipnode_leaves=tipnode_leaves
+        else:
+            raise TreePruneError('Can not prune a tree which is pruned before!')
 
-#Let's use this method to collect all the snvs for each leaf.
+#Let's use this method to collect all the snvs for each tipnode.
     #@profile
     def genotyping(self,genotypes=None):
         '''
-        Collect the genotypes on every SNV site for each leaf.
+        Collect the genotypes on every SNV site for each tipnode.
         And modify the dictionary (genotypes) directly.
         The dictionary's data structure is:
-        {leaf1:{pos1:genotype,pos2:genotype...},leaf2:{pos1:genotype,pos2:genotype...},...}
+        {tipnode1:{pos1:genotype,pos2:genotype...},tipnode2:{pos1:genotype,pos2:genotype...},...}
+        The genotype here means the count of alternative alleles of each SNV.
         '''
         #logging.debug('snv_genotyping: %s',self.nodeid)
         if genotypes==None:
             genotypes={}
         if self.snvs:
-            for leaf in self.leaves_naming():
-                if leaf not in genotypes:
-                    genotypes[leaf]={}
+            for tipnode in self.collect_tipnodes():
+                if tipnode not in genotypes:
+                    genotypes[tipnode]={}
                 for pos in [snv['start'] for snv in self.snvs]:
-                    if pos in genotypes[leaf]:
-                        genotypes[leaf][pos]+=1
+                    if pos in genotypes[tipnode]:
+                        genotypes[tipnode][pos]+=1
                     else:
-                        genotypes[leaf][pos]=1
+                        genotypes[tipnode][pos]=1
         if self.cnvs:
             for cnv in self.cnvs:
                 if cnv['copy']>0: #amplification
@@ -423,8 +450,8 @@ class Tree:
                         cp.genotyping(genotypes)
                 else:  #deletion
                     for pos in [snv['start'] for snv in cnv['pre_snvs']]:
-                        for leaf in self.leaves_naming():
-                            genotypes[leaf][pos]-=1
+                        for tipnode in self.collect_tipnodes():
+                            genotypes[tipnode][pos]-=1
         if self.left!=None:
             self.left.genotyping(genotypes)
         if self.right!=None:
@@ -433,20 +460,18 @@ class Tree:
     #@profile
     def cnv_genotyping(self,genotypes=None,parental=None):
         '''
-        Collect the genotypes on every CNV site for each leaf.
+        Collect the genotypes on every CNV site for each tipnode.
         '''
         #logging.debug('cnv_genotyping: %s',self.nodeid)
         if genotypes==None:
             genotypes={}
         if self.cnvs:
             for cnv in self.cnvs:
-                for leaf in self.leaves_naming():
-                    if leaf not in genotypes:
-                        genotypes[leaf]=[]
-                    else:
-#In order to use cnvs2pos_changes later, we set leaves_count as 1 here.
-#Actully, it makes sense, as each leaf's leaf count is 1.
-                        genotypes[leaf].append({'start':cnv['start'],'end':cnv['end'],'copy':cnv['copy'],'leaves_count':1,'parental':parental})
+                for tipnode in self.collect_tipnodes():
+                    if tipnode not in genotypes:
+                        genotypes[tipnode]=[]
+#set leaves_count=1 here, as each tipnode just each of the leaves under it,
+                    genotypes[tipnode].append({'start':cnv['start'],'end':cnv['end'],'copy':cnv['copy'],'leaves_count':1,'parental':parental})
                 if cnv['copy']>0: #amplification
                     for cp in cnv['new_copies']:
                         cp.cnv_genotyping(genotypes=genotypes,parental=parental)
@@ -456,10 +481,10 @@ class Tree:
             self.right.cnv_genotyping(genotypes=genotypes,parental=parental)
 
 #######################################
-#In order to build haplotype for each node efficiently, I will
+#In order to build haplotype for each tipnode efficiently, I will
 # 1. Store more information of each SNV in a dictionary, and collect all of the SNVs
-#    on the lineage leading to each tip node in accumulated_SNVs
-# 2. Collect all of the SNVs on the lineage leading to each tip node in accumulated_CNVs
+#    on the lineage leading to each tipnode in accumulated_SNVs
+# 2. Collect all of the SNVs on the lineage leading to each tipnode in accumulated_CNVs
 # 3. Traverse the whole haplotype tree and add one more pair of key:value to each CNV dictionary.
 #    The key is 'haplotypes', and the value is a list of dictionaries, each dictionary is:
 #    {'tip_node1':[SNVs+CNVs],'tip_node2':[SNVs+CNVs],...}
@@ -467,80 +492,59 @@ class Tree:
 # 4. Build a nested data structure can be used to build haplotype reference.
 #    {'start':start,'end':end,'vars':{'tip_node1':[SNVs+CNVs],'tip_node2':[SNVs+CNVs],...}}
 #It's not easy to build the nested data structure:
-#haptype->[vars->node->CNV->haplotypes(transformed from new_copies)->haplotype]
+#haptype->[vars->tipnode->CNV->haplotypes(transformed from new_copies)->haplotype]
 #Each layer has 5 sub-layers.
 #######################################
 
-    def tip_node_leaves(self,tip_leaves=None):
-        '''
-        Return a dictionary {tip_node1:[leaf_name1,leaf_name2...],tip_node2:[...],...}.
-        '''
-        if tip_leaves==None:
-            tip_leaves={}
-        if self.left!=None:
-            self.left.tip_node_leaves(tip_leaves=tip_leaves)
-        if self.right!=None:
-            self.right.tip_node_leaves(tip_leaves=tip_leaves)
-        if self.left==None and self.right==None:
-            tip_leaves[self.nodeid]=self.leaves_naming()
-        return tip_leaves
-
-    def leaf_vars(self,start=None,end=None,tip_vars=None):
+    def tipnode_accumulated_vars(self,start=None,end=None,tip_vars=None):
         '''
         Only return the vars on the main tree level, will not trace the vars on the new copies of each CNVs.
         '''
         if tip_vars==None:
             tip_vars={}
         if self.left!=None:
-            self.left.leaf_vars(start=start,end=end,tip_vars=tip_vars)
+            self.left.tipnode_accumulated_vars(start=start,end=end,tip_vars=tip_vars)
         if self.right!=None:
-            self.right.leaf_vars(start=start,end=end,tip_vars=tip_vars)
+            self.right.tipnode_accumulated_vars(start=start,end=end,tip_vars=tip_vars)
         if self.left==None and self.right==None:
             if tip_vars=={}:
-                logging.debug('???!!!!start: %s; end: %s',start,end)
                 tip_vars['start']=start
                 tip_vars['end']=end
                 tip_vars['vars']={}
-            else:
-                logging.debug('tip_vars: %s',str(tip_vars))
             tip_vars['vars'][self.nodeid]=self.accumulated_snvs+self.accumulated_cnvs
             tip_vars['vars'][self.nodeid].sort(key=lambda var:var['start'])
-        logging.debug('%s',self.nodeid)
-        logging.debug('start: %s; end: %s',start,end)
         return tip_vars
     
-    def add_cnvs_haps_key(self):
+    def add_haps2cnv(self):
         '''
         In this method, I will add haplotypes to each CNV on the tree.
-        This is just for CNV. For the main original chromosome, I have to add the haplotypes manually.
-        I will do this in construct_leaf_haplotype.
         '''
         for cnv in self.cnvs:
             if cnv['type']=='AMP':
                 cnv['haplotypes']=[]
                 for copy in cnv['new_copies']:
-                    cnv['haplotypes'].append(copy.leaf_vars(start=cnv['start'],end=cnv['end']))
-                    copy.add_cnvs_haps_key()
+                    cnv['haplotypes'].append(copy.tipnode_accumulated_vars(start=cnv['start'],end=cnv['end']))
+                    copy.add_haps2cnv()
         if self.left!=None:
-            self.left.add_cnvs_haps_key()
+            self.left.add_haps2cnv()
         if self.right!=None:
-            self.right.add_cnvs_haps_key()
+            self.right.add_haps2cnv()
 
-    def construct_leaf_haplotype(self,start=None,end=None):
+    def construct_tipnode_hap(self,start=None,end=None):
         '''
-        I will collect all vars (snvs+cnvs) for each tip node here.
+        I will collect all vars (snvs+cnvs) for each tipnode here.
         This function will apply to each haplotype.
         The function will fill a dictionary with the structure:
         {'start':start,'end':end,'vars':{'tip_node1':[SNVs+CNVs],'tip_node2':[SNVs+CNVs],...}}
         !!!In this structure, each haplotype of each haplotypes in CNVs will have the same structure as above.!!!
         '''
-        self.add_cnvs_haps_key()
+        self.add_haps2cnv()
         try:
             logging.debug('tip_vars : %s',tip_vars)
         except NameError:
             logging.debug('not exist yet')
-        leaf_haplotype=self.leaf_vars(start=start,end=end)
-        return leaf_haplotype
+        tipnode_hap=self.tipnode_accumulated_vars(start=start,end=end)
+        return tipnode_hap
 
     #@profile
     def snvs_freq_cnvs_profile(self,parental=None,snv_rate=None,cnv_rate=None,del_prob=None,
@@ -556,15 +560,17 @@ class Tree:
         nodes_vars={}
         all_snvs_alt_counts={}
         all_snvs_alt_freq=[]
-#leaf_snv_alts is a hash of hash, {leaf1:{pos1:genotype,pos2:genotype...},leaf2:{pos1:genotype,pos2:genotype...},...}
-        leaf_snv_alts={}
-        leaf_cnvs={}
-        leaf_cnvs_pos_changes={}
+#tipnode_snv_alts is a hash of hash, {tipnode1:{pos1:genotype,pos2:genotype...},tipnode2:{pos1:genotype,pos2:genotype...},...}
+        tipnode_snv_alts={}
+        tipnode_cnvs={}
+        tipnode_cnvs_pos_changes={}
         ploidy=len(parental)
 
         background=self.leaves_counting()*ploidy
         logging.debug('Your tree is: %s',self.tree2newick())
-        hap_cnvs=[]
+#I used haps_cnvs to calculate the count number of each parental copies before.
+#We do not need this feature anymore.
+#        haps_cnvs=[]
 #collect all snvs and cnvs
         for i in range(ploidy):
             logging.info(' Simulate tree %s (total: %s)',i+1,ploidy)
@@ -578,16 +584,17 @@ class Tree:
 
             all_snvs_alt_counts.update(hap_tree.all_snvs_summary())
 
-            hap_cnvs.append(hap_tree.all_cnvs_collect())
-            all_cnvs.extend(hap_cnvs[-1])
+            haplotype_cnvs=hap_tree.all_cnvs_collect()
+            all_cnvs.extend(haplotype_cnvs)
+#            haps_cnvs.append(haplotype_cnvs))
             nodes_vars=merge_two_dict_set(nodes_vars,hap_tree.nodes_vars_collect(chroms=chroms))
 
-            hap_tree.genotyping(genotypes=leaf_snv_alts)
-            hap_tree.cnv_genotyping(genotypes=leaf_cnvs,parental=parental[i])
+            hap_tree.genotyping(genotypes=tipnode_snv_alts)
+            hap_tree.cnv_genotyping(genotypes=tipnode_cnvs,parental=parental[i])
             if chain!=None:
-                leaf_haplotype=hap_tree.construct_leaf_haplotype(start=0,end=length)
-                logging.debug('Haplotypes: %s',leaf_haplotype)
-                output_leaf_haplotype(leaf_haplotype=leaf_haplotype,directory=chain,chroms=chroms,haplotype=i,parental=parental[i])
+                tipnode_hap=hap_tree.construct_tipnode_hap(start=0,end=length)
+                logging.debug('Haplotypes: %s',tipnode_hap)
+                output_tipnode_hap(tipnode_hap=tipnode_hap,directory=chain,chroms=chroms,haplotype=i,parental=parental[i])
 
         all_snvs_pos=sorted(all_snvs_alt_counts.keys())
 
@@ -595,67 +602,66 @@ class Tree:
         all_cnvs.sort(key=lambda cnv: cnv['start'])
         cnvs_pos_changes=cnvs2pos_changes(cnvs=all_cnvs,length=length,background=background)
 
+#I do not output this information anymore.
 #        hap_local_copy_for_all_snvs=hap_local_leaves(positions=all_snvs_pos,
-#            hap_cnvs=hap_cnvs,length=length,background=self.leaves_counting(),ploidy=ploidy)
+#            haps_cnvs=haps_cnvs,length=length,background=self.leaves_counting(),ploidy=ploidy)
 
 #construct cnv profile for each hap_tree, assuming the whole region start with 0 and end with length
 #translate cnvs_pos_changes to cnv_profile before its changing
         cnv_profile=pos_changes2region_profile(cnvs_pos_changes)
 
         region_mean_ploidy=0
+#I do not simulate purity of the tumor sample in module phylovar.
+#I will simulate it in module fa2ngs 
 #        normal_dosage=background*(1-purity)/purity
         normal_dosage=0
         for pos in all_snvs_pos:
             while pos>=cnvs_pos_changes[0][0]:
                 region_mean_ploidy+=cnvs_pos_changes.pop(0)[1]
-#adjust SNVs' frequency by taking the normal cells into account 
             all_snvs_alt_freq.append([pos,all_snvs_alt_counts[pos]['mutation'],all_snvs_alt_counts[pos]['alt_count']/(normal_dosage+region_mean_ploidy)])
 
-#build genotypes for each leaf
-#build genotypes on the variants of each leaf? or on variants on all leaves?
-        leaf_snv_refs={}
-        for leaf in self.leaves_naming():
-            if leaf not in leaf_cnvs:
-                leaf_cnvs[leaf]=[]
-            leaf_cnvs[leaf].sort(key=lambda cnv:(cnv['start'],cnv['end']))
-            leaf_cnvs_pos_changes[leaf]=cnvs2pos_changes(cnvs=leaf_cnvs[leaf],length=length,background=ploidy)
-            if leaf in leaf_snv_alts:
+#calculate the number of reference alleles of each SNV for each tipnode
+        tipnode_snv_refs={}
+        for tipnode in self.collect_tipnodes():
+            if tipnode not in tipnode_cnvs:
+                tipnode_cnvs[tipnode]=[]
+            tipnode_cnvs[tipnode].sort(key=lambda cnv:(cnv['start'],cnv['end']))
+            tipnode_cnvs_pos_changes[tipnode]=cnvs2pos_changes(cnvs=tipnode_cnvs[tipnode],length=length,background=ploidy)
+            if tipnode in tipnode_snv_alts:
                 for pos in all_snvs_pos:
-                    if pos not in leaf_snv_alts[leaf]:
-                        leaf_snv_alts[leaf][pos]=0
+                    if pos not in tipnode_snv_alts[tipnode]:
+                        tipnode_snv_alts[tipnode][pos]=0
             else:
-                leaf_snv_alts[leaf]={}
+                tipnode_snv_alts[tipnode]={}
                 for pos in all_snvs_pos:
-                    leaf_snv_alts[leaf][pos]=0
+                    tipnode_snv_alts[tipnode][pos]=0
             region_mean_ploidy=0
-            leaf_snv_refs[leaf]={}
-#            print(leaf)
-#            print(leaf_cnvs_pos_changes[leaf])
+            tipnode_snv_refs[tipnode]={}
             for pos in all_snvs_pos:
-                while pos>=leaf_cnvs_pos_changes[leaf][0][0]:
-                    region_mean_ploidy+=leaf_cnvs_pos_changes[leaf].pop(0)[1]
-                leaf_snv_refs[leaf][pos]=region_mean_ploidy-leaf_snv_alts[leaf][pos]
+                while pos>=tipnode_cnvs_pos_changes[tipnode][0][0]:
+                    region_mean_ploidy+=tipnode_cnvs_pos_changes[tipnode].pop(0)[1]
+                tipnode_snv_refs[tipnode][pos]=region_mean_ploidy-tipnode_snv_alts[tipnode][pos]
 
-        return all_snvs_alt_freq,all_cnvs,cnv_profile,nodes_vars,leaf_snv_alts,leaf_snv_refs,leaf_cnvs
-#        return all_snvs_alt_freq,all_cnvs,cnv_profile,nodes_vars,leaf_snv_alts,leaf_snv_refs,leaf_cnvs,hap_local_copy_for_all_snvs
+        return all_snvs_alt_freq,all_cnvs,cnv_profile,nodes_vars,tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs
+#        return all_snvs_alt_freq,all_cnvs,cnv_profile,nodes_vars,tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs,hap_local_copy_for_all_snvs
 
-    def tree2newick(self,lens=False,attrs=None):
+    def tree2newick(self,with_lens=False,attrs=None):
         '''
         Convert tree structure to string in Newick/NHX format.
         '''
         newick_str=''
 
         if self.left!=None:
-            newick_str+='(' + self.left.tree2newick(lens=lens,attrs=attrs)
+            newick_str+='(' + self.left.tree2newick(with_lens=with_lens,attrs=attrs)
         if self.name==None:
             newick_str+=','
         else:
             newick_str+=self.name
         if self.right!=None:
-            newick_str+=self.right.tree2newick(lens=lens,attrs=attrs) + ')'
-        if self.lens!=None and lens:
-            newick_str+= ':' + self.lens
-        if attrs!=None and lens==True:
+            newick_str+=self.right.tree2newick(with_lens=with_lens,attrs=attrs) + ')'
+        if self.lens!=None and with_lens:
+            newick_str+= ':' + str(self.lens)
+        if attrs!=None:
             newick_str+='[&&NHX'
             for attribute in attrs:
                 if getattr(self, attribute):
@@ -679,7 +685,6 @@ class Tree:
 def waiting_times(span=None,rate=None):
     elapse=0.0
     waiting_times=[]
-    span=float(span)
     if rate>0:
         while elapse<span:
             elapse+=numpy.random.exponential(1/rate)
@@ -732,7 +737,6 @@ def cnvs2pos_changes(cnvs=None,length=None,background=None):
     '''
     pos_changes=[[0,background],[length,-background]]
     for cnv in cnvs:
-#        print(cnv)
         change=cnv['copy']*cnv['leaves_count']
         pos_changes.extend([[cnv['start'],change],[cnv['end'],-change]])
     pos_changes.sort(key=lambda pos: pos[0])
@@ -774,7 +778,7 @@ def newick2tree(newick=None):
                 index=m.span()
                 lens=branch[1:index[1]]
                 branch=branch[index[1]:]
-                mytree.lens=lens
+                mytree.lens=float(lens)
             elif branch.startswith(')'):
                 branch=branch[1:]
                 mytree=mytree.top
@@ -793,8 +797,7 @@ def newick2tree(newick=None):
             elif branch==';':
                 break
             else:
-                print('Check your newick tree! Or maybe there are something I do not know about newick!')
-                raise ShouldNotBeHereError
+                raise ShouldNotBeHereError('Check your newick tree! Or maybe there are something I do not know about newick!')
         else:
             mytree=mytree.top
     return mytree
@@ -807,7 +810,7 @@ def simulate_sequence_coverage(mean_coverage=None,baf=None):
     b_allele_coverage=numpy.random.binomial(n=coverage,p=baf)
     return [coverage,b_allele_coverage]
 
-def hap_local_leaves(positions=None,hap_cnvs=None,length=None,background=None,ploidy=None):
+def hap_local_leaves(positions=None,haps_cnvs=None,length=None,background=None,ploidy=None):
     '''
     Calculates the local copy on each haplotype for each snvs.
     Return a list of lists, each sublist is have these elements:
@@ -821,8 +824,8 @@ def hap_local_leaves(positions=None,hap_cnvs=None,length=None,background=None,pl
     hap_cnvs_pos_changes=[]
     hap_local_copy=[]
     for i in range(ploidy):
-        hap_cnvs[i].sort(key=lambda cnv: cnv['start'])
-        hap_cnvs_pos_changes.append(cnvs2pos_changes(cnvs=hap_cnvs[i],length=length,background=background))
+        haps_cnvs[i].sort(key=lambda cnv: cnv['start'])
+        hap_cnvs_pos_changes.append(cnvs2pos_changes(cnvs=haps_cnvs[i],length=length,background=background))
         hap_local_copy.append(0)
     for pos in positions:
         all_pos_local_copy.append([pos])
@@ -832,14 +835,14 @@ def hap_local_leaves(positions=None,hap_cnvs=None,length=None,background=None,pl
             all_pos_local_copy[-1].append(hap_local_copy[i])
     return all_pos_local_copy
 
-def output_leaf_haplotype(leaf_haplotype=None,directory=None,chroms=None,haplotype=None,parental=None):
+def output_tipnode_hap(tipnode_hap=None,directory=None,chroms=None,haplotype=None,parental=None):
     '''
-    Output the variants of each tip node in the order of coordinate.
+    Output the variants of each tipnode in the order of coordinate.
     '''
-    for node in leaf_haplotype['vars'].keys():
-        with open('{}/{}.genome.chain'.format(directory,node),'a') as cfg_file:
+    for tipnode in tipnode_hap['vars'].keys():
+        with open('{}/{}.genome.chain'.format(directory,tipnode),'a') as cfg_file:
             cfg_file.write('>{}_Hap{} parental:{}\n'.format(chroms,haplotype,parental))
-            retrieve_tip_vars(tip_vars=leaf_haplotype,tip=node,out_file=cfg_file,chroms=chroms)
+            retrieve_tip_vars(tip_vars=tipnode_hap,tip=tipnode,out_file=cfg_file,chroms=chroms)
 
 def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
     '''
@@ -898,4 +901,7 @@ class TooManyMutationsError(Exception):
     pass
 
 class ShouldNotBeHereError(Exception):
+    pass
+
+class TreePruneError(Exception):
     pass

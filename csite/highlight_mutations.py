@@ -35,5 +35,5 @@ with open(args.tree,'rb') as input:
     mytree=pickle.load(input)
     mytree.highlight_snvs(mutations.values())
 #    print(set(mutations.values()))
-    print('{};'.format(mytree.tree2newick(lens=True,attrs=['C'])))
+    print('{};'.format(mytree.tree2newick(with_lens=True,attrs=['C'])))
 

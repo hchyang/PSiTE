@@ -360,7 +360,6 @@ def main(progname=None):
     if args.trunk_length:
         mytree.lens=args.trunk_length
     leaves_number=mytree.leaves_counting()
-    leaves_names=sorted(mytree.leaves_naming())
 
 ####### prune the tree if required
     if args.prune>0 and args.prune_proportion>0:
@@ -375,20 +374,29 @@ def main(progname=None):
         trim=leaves_number*args.prune_proportion
         if trim>=1:
             mytree.prune(tips=trim)
+    else:
+        mytree.prune(tips=0.5)
+    tipnode_leaves=mytree.tipnode_leaves
+    leaf_tipnode={}
+    leaves_names=[]
+    for tipnode,names in tipnode_leaves.items():
+        leaves_names.extend(names)
+        for name in names:
+            leaf_tipnode[name]=tipnode
+    leaves_names.sort()
 
 ###### output the map of tip_node(after pruning):leaf
     if args.chain:
-        tip_leaves=mytree.tip_node_leaves()
         os.mkdir(args.chain,mode=0o755)
         with open(args.chain+'/tip_node_sample.map','w') as tip_leaves_f:
             tip_leaves_f.write('#tip_node\tsample\n')
-            for tip_node in sorted(tip_leaves.keys()):
-                for leaf in sorted(tip_leaves[tip_node]):
+            for tip_node in sorted(tipnode_leaves.keys()):
+                for leaf in sorted(tipnode_leaves[tip_node]):
                     tip_leaves_f.write('{}\t{}\n'.format(tip_node,leaf))
         with open(args.chain+'/tip_node_sample.count','w') as tip_leaves_count_f:
             tip_leaves_count_f.write('#tip_node\tsample_count\n')
-            for tip_node in sorted(tip_leaves.keys()):
-                tip_leaves_count_f.write('{}\t{}\n'.format(tip_node,len(tip_leaves[tip_node])))
+            for tip_node in sorted(tipnode_leaves.keys()):
+                tip_leaves_count_f.write('{}\t{}\n'.format(tip_node,len(tipnode_leaves[tip_node])))
 
 ###### add trunk vars if supplied
     trunk_snvs={}
@@ -434,7 +442,7 @@ def main(progname=None):
         tstv_dist_cfg=tstv_dist(tstv=chroms_cfg['tstv'])
         
         (snvs_freq,cnvs,cnv_profile,nodes_vars,
-            leaf_snv_alts,leaf_snv_refs,leaf_cnvs,
+            tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs,
             )=mytree.snvs_freq_cnvs_profile(
                 parental=chroms_cfg['parental'],
                 snv_rate=chroms_cfg['snv_rate'],
@@ -457,11 +465,11 @@ def main(progname=None):
         if args.snv_genotype!=None:
             for pos in all_snvs_pos:
                 genotype_file.write('{}\t{}\t{}\n'.format(chroms,pos,
-                    '\t'.join([str(leaf_snv_alts[leaf][pos])+':'+str(leaf_snv_refs[leaf][pos]) for leaf in leaves_names])))
+                    '\t'.join([str(tipnode_snv_alts[leaf][pos])+':'+str(tipnode_snv_refs[leaf_tipnode[leaf]][pos]) for leaf in leaves_names])))
 
         if args.ind_cnvs!=None:
-            for leaf in sorted(leaf_cnvs.keys()):
-                for cnv in leaf_cnvs[leaf]:
+            for leaf in sorted(tipnode_cnvs.keys()):
+                for cnv in tipnode_cnvs[leaf]:
                     ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,cnv['parental'],chroms,cnv['start'],cnv['end'],cnv['copy']]])))
 
 #        if args.haplotype_copy!=None:
@@ -527,6 +535,6 @@ def main(progname=None):
     if args.vars_tree!=None:
         mytree.attach_info(attr='vars',info=all_nodes_vars)
         with open(args.vars_tree,'w') as tree_data_file:
-            tree_data_file.write('{};\n'.format(mytree.tree2newick(lens=True,attrs=['nodeid','vars'])))
+            tree_data_file.write('{};\n'.format(mytree.tree2newick(with_lens=True,attrs=['nodeid','vars'])))
 #            pickle.dump(mytree,tree_data_file)
 
