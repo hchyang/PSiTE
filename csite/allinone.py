@@ -16,8 +16,9 @@ import yaml
 import logging
 import subprocess
 import pyfaidx
-from csite.phylovar import check_prune,check_proportion,check_seed,random_int,check_config_file
 from csite.vcf2fa import check_sex
+from csite.phylovar import check_prune,check_proportion,check_seed,random_int,check_config_file
+from csite.fa2ngs import check_depth,check_purity
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe 
@@ -50,13 +51,13 @@ def main(progname=None):
     parse.add_argument('-X','--prune_proportion',type=check_proportion,default=default,
         help='trim all the children of the nodes with equal or less than this proportion of tips [{}]'.format(default))
     default=50
-    parse.add_argument('-d','--depth',type=float,default=default,
+    parse.add_argument('-d','--depth',type=check_depth,default=default,
         help='the mean depth of tumor for ART to simulate short reads [{}]'.format(default))
     default=0
-    parse.add_argument('-D','--normal_depth',type=float,default=default,
+    parse.add_argument('-D','--normal_depth',type=check_depth,default=default,
         help='the mean depth of normal for ART to simulate short reads [{}]'.format(default))
     default=0.5
-    parse.add_argument('-p','--purity',type=float,default=default,
+    parse.add_argument('-p','--purity',type=check_purity,default=default,
         help='the proportion of tumor cells in simulated sample [{}]'.format(default))
     default=None
     parse.add_argument('--trunk_vars',type=str,
@@ -107,7 +108,14 @@ def main(progname=None):
     logging.basicConfig(filename=args.log if args.start==1 else args.log+'.start'+str(args.start), 
         filemode='w',format='[%(asctime)s] %(levelname)s: %(message)s',
         datefmt='%m-%d %H:%M:%S',level='INFO')
-    logging.info(' Command: %s',' '.join(sys.argv[0:1]+['allinone']+sys.argv[1:]))
+    argv_copy=sys.argv[:]
+    try:
+        art_index=argv_copy.index('--art')
+        argv_copy[art_index+1]="'{}'".format(argv_copy[art_index+1])
+    except ValueError:
+        pass
+    argv_copy.insert(1,'allinone')
+    logging.info(' Command: %s',' '.join(argv_copy))
     if args.random_seed==None:
         seed=random_int()
     else:
@@ -184,15 +192,17 @@ def main(progname=None):
                 '--tumor',tumor_fa,
                 '--chain',tumor_chain,
                 '--depth',str(args.depth),
+                '--normal_depth',str(args.normal_depth),
                 '--cores',str(args.cores)]
-    if args.normal_depth>0:
-        cmd_params.extend(['--normal_depth',str(args.normal_depth)])
     if args.compress:
         cmd_params.extend(['--compress'])
     cmd_params.extend(['--purity',str(args.purity),
                        '--random_seed',str(random_int()),
                        '--output',art_reads,
-                       '--art',"{}".format(args.art)])
-    logging.info(' Command: %s',' '.join(cmd_params[:-1]+["'{}'".format(args.art)]))
+                       '--art','{}'.format(args.art)])
+    cmd_params_copy=cmd_params[:]
+    art_index=cmd_params_copy.index('--art')
+    cmd_params_copy[art_index+1]="'{}'".format(cmd_params_copy[art_index+1])
+    logging.info(' Command: %s',' '.join(cmd_params_copy))
     subprocess.run(args=cmd_params,check=True)
 

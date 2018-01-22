@@ -10,7 +10,6 @@
 import os
 import sys
 import argparse
-import logging
 import re
 import gzip
 import pyfaidx

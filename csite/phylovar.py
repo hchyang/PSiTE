@@ -342,7 +342,9 @@ def main(progname=None):
     logging.basicConfig(filename=args.log, filemode='w',
         format='[%(asctime)s] %(levelname)s: %(message)s',
         datefmt='%m-%d %H:%M:%S',level=args.loglevel)
-    logging.info(' Command: %s',' '.join(sys.argv))
+    argv_copy=sys.argv[:]
+    argv_copy.insert(1,'phylovar')
+    logging.info(' Command: %s',' '.join(argv_copy))
     if args.random_seed==None:
         seed=random_int()
     else:

@@ -18,9 +18,9 @@ from signal import signal, SIGPIPE, SIG_DFL
 signal(SIGPIPE,SIG_DFL) 
 
 #If you simulate large genome for a tumor sample with many cells,
-#the disk space occupied by tumor genome will be huge.
-#And because ART do not support compressed fasta, we can not output
-#the compressed genome fasta. So bad.
+#the disk space occupied by tumor genome (fasta) will be huge.
+#Because ART do not support compressed fasta, we can not output
+#the compressed genome fasta.
 
 __version__='0.9.0'
 
@@ -31,11 +31,11 @@ def usage():
     print("")
     print("Usage:   csite.py <command> [options]")
     print("")
-    print("Command: vcf2fa     build normal genome from input (germline) vcf file")
-    print("         phylovar   simulate somatic variations on a phylogeny")
-    print("         chain2fa   build tumor genomes from somatic mutations (chain file)")
-    print("         fa2ngs     simulate short reads from normal and tumor fasta")
-    print("         allinone   a wrapper for short reads simulation")
+    print("Command: vcf2fa     build normal genome from input germline vcf file")
+    print("         phylovar   simulate somatic variants along a phylogeny")
+    print("         chain2fa   build tumor genomes from somatic variants (encoded in the chain file)")
+    print("         fa2ngs     simulate NGS reads from normal and tumor genomes (in fasta format)")
+    print("         allinone   a wrapper for NGS reads simulation combining all previous steps")
     print("")
 
 def main():
@@ -61,7 +61,7 @@ def main():
             import csite.allinone
             csite.allinone.main(progname=progname)
         else:
-            print('Do not have this command in csite: {}'.format(command))
+            print("[csite] Unrecognized command: '{}'".format(command))
             exit()
         
 if __name__ == '__main__':
