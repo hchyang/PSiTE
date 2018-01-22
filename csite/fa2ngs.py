@@ -24,27 +24,41 @@ from csite.phylovar import check_seed,random_int
 from signal import signal, SIGPIPE, SIG_DFL 
 signal(SIGPIPE,SIG_DFL) 
 
+def check_purity(value=None):
+    fvalue=float(value)
+    if not 0<fvalue<=1: 
+        raise argparse.ArgumentTypeError("{} is an invalid value for --purity. ".format(value)+
+            "It should be a float number in the range of (0,1].")
+    return fvalue
+
+def check_depth(value=None):
+    fvalue=float(value)
+    if fvalue<0: 
+        raise argparse.ArgumentTypeError("{} is an invalid value for --depth/--normal_depth. ".format(value)+
+            "It should be a non-negative float number.")
+    return fvalue
+
 def main(progname=None):
     parse=argparse.ArgumentParser(
-        description='a wrapper of simulating short reads from normal and tumor genome fasta',
+        description='a wrapper of simulating NGS reads from normal and tumor genome fasta',
         prog=progname if progname else sys.argv[0])
-    parse.add_argument('-n','--normal',required=True,
+    parse.add_argument('-n','--normal',type=str,required=True,
         help='the directory of the normal fasta')
-    parse.add_argument('-t','--tumor',required=True,
+    parse.add_argument('-t','--tumor',type=str,required=True,
         help='the directory of the tumor fasta')
-    parse.add_argument('-c','--chain',required=True,
+    parse.add_argument('-c','--chain',type=str,required=True,
         help='the directory of the tumor chain')
     default='art_reads'
     parse.add_argument('-o','--output',type=str,default=default,
         help='output directory [{}]'.format(default))
     default=50
-    parse.add_argument('-d','--depth',type=float,default=default,
+    parse.add_argument('-d','--depth',type=check_depth,default=default,
         help='the mean depth of tumor for ART to simulate short reads [{}]'.format(default))
     default=0
-    parse.add_argument('-D','--normal_depth',type=float,default=default,
+    parse.add_argument('-D','--normal_depth',type=check_depth,default=default,
         help='the mean depth of normal for ART to simulate short reads [{}]'.format(default))
     default=0.5
-    parse.add_argument('-p','--purity',type=float,default=default,
+    parse.add_argument('-p','--purity',type=check_purity,default=default,
         help='the proportion of tumor cells in simulated sample [{}]'.format(default))
     default=None
     parse.add_argument('-s','--random_seed',type=check_seed,
@@ -62,11 +76,18 @@ def main(progname=None):
         help='compress the generated fastq files using gzip')
     args=parse.parse_args()
 
-###### logging and random seed setting
+# logging and random seed setting
     logging.basicConfig(filename=args.log, 
         filemode='w',format='[%(asctime)s] %(levelname)s: %(message)s',
         datefmt='%m-%d %H:%M:%S',level='INFO')
-    logging.info(' Command: %s',' '.join(sys.argv))
+    argv_copy=sys.argv[:]
+    try:
+        art_index=argv_copy.index('--art')
+        argv_copy[art_index+1]="'{}'".format(argv_copy[art_index+1])
+    except ValueError:
+        pass
+    argv_copy.insert(1,'fa2ngs')
+    logging.info(' Command: %s',' '.join(argv_copy))
     if args.random_seed==None:
         seed=random_int()
     else:
@@ -82,17 +103,21 @@ def main(progname=None):
 
 #tumor directory and chain directory must exist.
 #also file chain_dir/tip_node_sample.count.
+    assert os.path.isdir(args.tumor),'{} is not exist or not a folder.'.format(args.tumor)
     assert os.path.isdir(args.chain),'{} is not exist or not a folder.'.format(args.chain)
     assert os.path.isfile(args.chain+'/tip_node_sample.count'),\
-        'Can not find tip_node_sample.count under the chain directory: {}'.format(args.chain)
-    assert os.path.isdir(args.tumor),'{} is not exist or not a folder.'.format(args.chain)
+        'Can not find file tip_node_sample.count under the chain directory: {}'.format(args.chain)
+
+#exit the program if you do not want to simulate any reads for normal or tumor samples
+    if args.depth+args.normal_depth==0:
+        exit(0)
 
 #compute coverage and run ART
 #FIXME: cell number: float? int?
     normal_gsize=0
     for parental in 0,1:
         normal_gsize+=genomesize(fasta='{}/normal.parental_{}.fa'.format(args.normal,parental))
-    total_seq_bases=normal_gsize/2*args.depth
+    tumor_seq_bases=normal_gsize/2*args.depth
 
     tip_node_leaves=tip_node_leaves_counting(f='{}/tip_node_sample.count'.format(args.chain))
     tumor_cells=sum(tip_node_leaves.values())
@@ -114,40 +139,33 @@ def main(progname=None):
             tip_node_gsize[tip_node].append(genomesize(fasta='{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)))
         tip_node_gsize[tip_node].append(tip_node_gsize[tip_node][0]+tip_node_gsize[tip_node][1])
         tumor_dna+=tip_node_gsize[tip_node][2]*tip_node_leaves[tip_node]
-    seq_per_base=total_seq_bases/(normal_dna+tumor_dna)
+    tumor_seq_per_base=tumor_seq_bases/(normal_dna+tumor_dna)
 
+#create output folders
+    if os.path.exists(args.output):
+        if os.path.isdir(args.output):
+            pass
+        else:
+            exit("A file in the name of '{}' exists.\nDelete it or try another name as output folder.".format(args.output))
+    else:
+        os.mkdir(args.output)
     tumor_dir=args.output+'/tumor'
-    os.mkdir(args.output)
-    os.mkdir(tumor_dir)
     normal_dir=args.output+'/normal'
-    if args.normal_depth>0:
-        os.mkdir(normal_dir)
 
-#create a reference meta file which can be used by wessim to simulate exome-seq data
-    ref_meta=open('reference.meta','w')
-
-#collect parameters first
-#two normal cell haplotypes
+#collect simulation parameters first
     params_matrix=[]
     art_params=args.art
-    for parental in 0,1:
-        prefix='{}/normal.parental_{}.'.format(tumor_dir,parental)
-        fcov=normal_cells*seq_per_base
-        ref='{}/normal.parental_{}.fa'.format(args.normal,parental)
-        sim_cfg={
-            'gsize':normal_gsize/2,
-            'base_cmd':art_params,
-            'fcov':fcov,
-            'in':ref,
-            'out':prefix,
-            'id':'nm_prt{}'.format(parental)}
-        params_matrix.append(sim_cfg)
-        fullname=os.path.abspath(ref)
-        ref_meta.write('{}\t{}\n'.format(fullname,str(normal_cells/total_cells/2)))
 
-        if args.normal_depth>0:
+#simulation for normal sample
+    if args.normal_depth>0:
+        try:
+            os.mkdir(normal_dir)
+        except FileExistsError:
+            exit('{} exits already! Can not use it as the output folder of normal NGS reads.'.format(normal_dir))
+        for parental in 0,1:
             prefix='{}/normal.parental_{}.'.format(normal_dir,parental)
             fcov=args.normal_depth/2
+            ref='{}/normal.parental_{}.fa'.format(args.normal,parental)
             sim_cfg={
                 'gsize':normal_gsize/2,
                 'base_cmd':art_params,
@@ -157,31 +175,54 @@ def main(progname=None):
                 'id':'nm_prt{}'.format(parental)}
             params_matrix.append(sim_cfg)
 
-#tumor cells haplotypes
-    for tip_node in sorted(tip_node_leaves.keys()):
-        fcov=tip_node_leaves[tip_node]*seq_per_base
+#simulation for tumor sample
+    if args.depth>0:
+        try:
+            os.mkdir(tumor_dir)
+        except FileExistsError:
+            exit('{} exits already! Can not use it as the output folder of tumor NGS reads.'.format(normal_dir))
+#create a reference meta file which can be used by wessim to simulate exome-seq data
+        ref_meta=open('reference.meta','w')
+#two normal cell haplotypes
         for parental in 0,1:
-            ref='{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)
-            prefix='{}/{}.parental_{}.'.format(tumor_dir,tip_node,parental)
+            prefix='{}/normal.parental_{}.'.format(tumor_dir,parental)
+            fcov=normal_cells*tumor_seq_per_base
+            ref='{}/normal.parental_{}.fa'.format(args.normal,parental)
             sim_cfg={
-                'gsize':tip_node_gsize[tip_node][parental],
+                'gsize':normal_gsize/2,
                 'base_cmd':art_params,
                 'fcov':fcov,
                 'in':ref,
                 'out':prefix,
-                'id':'{}_prt{}'.format(tip_node,parental)}
+                'id':'nm_prt{}'.format(parental)}
             params_matrix.append(sim_cfg)
             fullname=os.path.abspath(ref)
-            ref_meta.write('{}\t{}\n'.format(fullname,str(tip_node_leaves[tip_node]/total_cells*tip_node_gsize[tip_node][parental]/tip_node_gsize[tip_node][2])))
+            ref_meta.write('{}\t{}\n'.format(fullname,str(normal_cells/total_cells/2)))
 
-    ref_meta.close()
+#tumor cells haplotypes
+        for tip_node in sorted(tip_node_leaves.keys()):
+            fcov=tip_node_leaves[tip_node]*tumor_seq_per_base
+            for parental in 0,1:
+                ref='{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)
+                prefix='{}/{}.parental_{}.'.format(tumor_dir,tip_node,parental)
+                sim_cfg={
+                    'gsize':tip_node_gsize[tip_node][parental],
+                    'base_cmd':art_params,
+                    'fcov':fcov,
+                    'in':ref,
+                    'out':prefix,
+                    'id':'{}_prt{}'.format(tip_node,parental)}
+                params_matrix.append(sim_cfg)
+                fullname=os.path.abspath(ref)
+                ref_meta.write('{}\t{}\n'.format(fullname,str(tip_node_leaves[tip_node]/total_cells*tip_node_gsize[tip_node][parental]/tip_node_gsize[tip_node][2])))
+        ref_meta.close()
 
 #generate fastq (and compress them) parallelly
 #every thread will generate at most 2 percent of the total data you want to simulate
-    minSize=0.02
+    sizeBlock=normal_gsize*(args.depth+args.normal_depth)*0.02
     final_params_matrix=[]
     for cfg in params_matrix:
-        n=math.ceil(cfg['gsize']*cfg['fcov']/(total_seq_bases*minSize))
+        n=math.ceil(cfg['gsize']*cfg['fcov']/sizeBlock)
         cfg['fcov']/=n
         for i in range(n):
             final_params_matrix.append(cfg.copy())
@@ -207,13 +248,14 @@ def main(progname=None):
                 target='{}/normal.{}'.format(normal_dir,suffix)
                 source.sort()
                 sample_fq_files.append([target,source])
-    for suffix in suffixes:
-        prefix='{}/*.parental_[01].[0-9][0-9].'.format(tumor_dir,parental)
-        source=glob.glob(prefix+suffix)
-        if len(source):
-            target='{}/tumor.{}'.format(tumor_dir,suffix)
-            source.sort()
-            sample_fq_files.append([target,source])
+    if args.depth>0:
+        for suffix in suffixes:
+            prefix='{}/*.parental_[01].[0-9][0-9].'.format(tumor_dir,parental)
+            source=glob.glob(prefix+suffix)
+            if len(source):
+                target='{}/tumor.{}'.format(tumor_dir,suffix)
+                source.sort()
+                sample_fq_files.append([target,source])
     pool=multiprocessing.Pool(processes=args.cores)
     for x in sample_fq_files:
         pool.apply_async(merge_fq,args=x)
