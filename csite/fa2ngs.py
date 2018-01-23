@@ -74,6 +74,8 @@ def main(progname=None):
         help='number of cores used to run the program [{}]'.format(default))
     parse.add_argument('--compress',action="store_true",
         help='compress the generated fastq files using gzip')
+    parse.add_argument('--single',action="store_true",
+        help="single cell mode. Output each tip node's NGS reads file seperately")
     args=parse.parse_args()
 
 # logging and random seed setting
@@ -223,6 +225,8 @@ def main(progname=None):
     final_params_matrix=[]
     for cfg in params_matrix:
         n=math.ceil(cfg['gsize']*cfg['fcov']/sizeBlock)
+        if n==0:
+            continue
         cfg['fcov']/=n
         for i in range(n):
             final_params_matrix.append(cfg.copy())
@@ -250,12 +254,21 @@ def main(progname=None):
                 sample_fq_files.append([target,source])
     if args.depth>0:
         for suffix in suffixes:
-            prefix='{}/*.parental_[01].[0-9][0-9].'.format(tumor_dir,parental)
-            source=glob.glob(prefix+suffix)
-            if len(source):
-                target='{}/tumor.{}'.format(tumor_dir,suffix)
-                source.sort()
-                sample_fq_files.append([target,source])
+            if args.single:
+                for tip_node in ['normal']+sorted(tip_node_leaves.keys()):
+                    prefix='{}/{}.parental_[01].[0-9][0-9].'.format(tumor_dir,tip_node)
+                    source=glob.glob(prefix+suffix)
+                    if len(source):
+                        target='{}/{}.{}'.format(tumor_dir,tip_node,suffix)
+                        source.sort()
+                        sample_fq_files.append([target,source])
+            else:
+                prefix='{}/*.parental_[01].[0-9][0-9].'.format(tumor_dir)
+                source=glob.glob(prefix+suffix)
+                if len(source):
+                    target='{}/tumor.{}'.format(tumor_dir,suffix)
+                    source.sort()
+                    sample_fq_files.append([target,source])
     pool=multiprocessing.Pool(processes=args.cores)
     for x in sample_fq_files:
         pool.apply_async(merge_fq,args=x)

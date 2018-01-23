@@ -82,6 +82,8 @@ def main(progname=None):
         help='number of cores used to run the program [{}]'.format(default))
     parse.add_argument('--compress',action="store_true",
         help='compress the generated fastq files using gzip')
+    parse.add_argument('--single',action="store_true",
+        help="single cell mode. Output each tip node's NGS reads file seperately")
     args=parse.parse_args()
     with open(args.config,'r') as configfile:
         config=yaml.safe_load(configfile)
@@ -193,13 +195,15 @@ def main(progname=None):
                 '--chain',tumor_chain,
                 '--depth',str(args.depth),
                 '--normal_depth',str(args.normal_depth),
-                '--cores',str(args.cores)]
+                '--purity',str(args.purity),
+                '--output',art_reads,
+                '--random_seed',str(random_int()),
+                '--cores',str(args.cores),
+                '--art','{}'.format(args.art)]
     if args.compress:
         cmd_params.extend(['--compress'])
-    cmd_params.extend(['--purity',str(args.purity),
-                       '--random_seed',str(random_int()),
-                       '--output',art_reads,
-                       '--art','{}'.format(args.art)])
+    if args.single:
+        cmd_params.extend(['--single'])
     cmd_params_copy=cmd_params[:]
     art_index=cmd_params_copy.index('--art')
     cmd_params_copy[art_index+1]="'{}'".format(cmd_params_copy[art_index+1])
