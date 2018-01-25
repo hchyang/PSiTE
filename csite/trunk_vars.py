@@ -30,25 +30,25 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
         for line in f:
             if line.startswith('#'):
                 continue
-            chrom,hap,start,end,var=line.split()
+            chroms,hap,start,end,var=line.split()
             hap=int(hap)
             start=int(start)
             end=int(end)
-            if chrom not in chroms_cfg['order']:
+            if chroms not in chroms_cfg['order']:
                 raise TrunkVarError('The chr of the variant below is not in the genome:\n{}'.format(line))
-            if not 0<=hap<len(chroms_cfg[chrom]['parental']):
+            if not 0<=hap<len(chroms_cfg[chroms]['parental']):
                 raise TrunkVarError('The haplotype of the variant below is out of range:\n{}'.format(line))
-            if not 0<=start<chroms_cfg[chrom]['length'] or not 0<=end<chroms_cfg[chrom]['length']: 
+            if not 0<=start<chroms_cfg[chroms]['length'] or not 0<=end<chroms_cfg[chroms]['length']: 
                 raise TrunkVarError('The coordinant of the variant below is out of range:\n{}'.format(line))
 
             if var.startswith('+') or var.startswith('-'):
                 copy=int(var)
-                if chrom not in cnvs:
-                    cnvs[chrom]={}
-                if hap not in cnvs[chrom]:
-                    cnvs[chrom][hap]=[]
+                if chroms not in cnvs:
+                    cnvs[chroms]={}
+                if hap not in cnvs[chroms]:
+                    cnvs[chroms][hap]=[]
 #construct cnv
-                cnvs[chrom][hap].append({'seg': [0,chroms_cfg[chrom]['length']],
+                cnvs[chroms][hap].append({'seg': [0,chroms_cfg[chroms]['length']],
                                          'start': start,
                                          'end': end,
                                          'copy': copy,
@@ -58,22 +58,22 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
                                         })
 
                 if copy==-1:
-                    cnvs[chrom][hap][-1]['type']='DEL'
-                    if chrom not in dels:
-                        dels[chrom]={}
-                    if hap not in dels[chrom]:
-                        dels[chrom][hap]=[]
-                    dels[chrom][hap].append([start,end,copy])
+                    cnvs[chroms][hap][-1]['type']='DEL'
+                    if chroms not in dels:
+                        dels[chroms]={}
+                    if hap not in dels[chroms]:
+                        dels[chroms][hap]=[]
+                    dels[chroms][hap].append([start,end,copy])
                 elif copy>0:
-                    cnvs[chrom][hap][-1]['type']='AMP'
-                    if chrom not in amps:
-                        amps[chrom]={}
-                    if hap not in amps[chrom]:
-                        amps[chrom][hap]=[]
-                    amps[chrom][hap].append([start,end,copy])
+                    cnvs[chroms][hap][-1]['type']='AMP'
+                    if chroms not in amps:
+                        amps[chroms]={}
+                    if hap not in amps[chroms]:
+                        amps[chroms][hap]=[]
+                    amps[chroms][hap].append([start,end,copy])
                     for i in range(copy):
                         segment=cp.deepcopy(tree)
-                        cnvs[chrom][hap][-1]['new_copies'].append(segment)
+                        cnvs[chroms][hap][-1]['new_copies'].append(segment)
                 else:
 #right now, copy must be -1 or a positive integer
                     raise TrunkVarError('The fourth column of the variant below is invalid:\n{}'.format(line))
@@ -81,11 +81,11 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
                 if end-start!=1:
                     raise TrunkVarError('The coordinant of the SNV below is not correct:\n{}'.format(line))
                 form=int(var)
-                if chrom not in snvs:
-                    snvs[chrom]={}
-                if hap not in snvs[chrom]:
-                    snvs[chrom][hap]=[]
-                snvs[chrom][hap].append({'type':'SNV',
+                if chroms not in snvs:
+                    snvs[chroms]={}
+                if hap not in snvs[chroms]:
+                    snvs[chroms][hap]=[]
+                snvs[chroms][hap].append({'type':'SNV',
                                          'start':start,
                                          'end':end,
                                          'mutation':form,
@@ -103,23 +103,23 @@ def check_vars(snvs,amps,dels):
     '''
     Check: whether any snv/amp overlap with deletion.
     '''
-    for chrom in sorted(dels.keys()):
-        snvs_chrom=snvs.get(chrom,{})
-        amps_chrom=amps.get(chrom,{})
-        for hap in sorted(dels[chrom].keys()):
-            snvs_chrom_hap=snvs_chrom.get(hap,[])
-            amps_chrom_hap=amps_chrom.get(hap,[])
-            for deletion in dels[chrom][hap]:
+    for chroms in sorted(dels.keys()):
+        snvs_chroms=snvs.get(chroms,{})
+        amps_chroms=amps.get(chroms,{})
+        for hap in sorted(dels[chroms].keys()):
+            snvs_chrom_hap=snvs_chroms.get(hap,[])
+            amps_chrom_hap=amps_chroms.get(hap,[])
+            for deletion in dels[chroms][hap]:
                 for snv in snvs_chrom_hap:
                     if deletion[0]<=snv['start']<deletion[1]:
                         raise TrunkVarError('Those variants below are conflict:\n'+
-                            '{}\n'.format('\t'.join([str(x) for x in [chrom,hap,snv['start'],snv['end'],snv['mutation']]]))+
-                            '{}\n'.format('\t'.join([str(x) for x in [chrom,hap,deletion[0],deletion[1],'-1']])))
+                            '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,snv['start'],snv['end'],snv['mutation']]]))+
+                            '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,deletion[0],deletion[1],'-1']])))
                 for amp in amps_chrom_hap:
                     if deletion[0]<=amp[0]<deletion[1] or deletion[0]<amp[1]<=deletion[1]:
                         raise TrunkVarError('Those variants below are conflict:\n'+
-                            '{}\n'.format('\t'.join([str(x) for x in [chrom,hap,amp[0],amp[1],'+'+str(amp[2])]]))+
-                            '{}\n'.format('\t'.join([str(x) for x in [chrom,hap,deletion[0],deletion[1],'-1']])))
+                            '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,amp[0],amp[1],'+'+str(amp[2])]]))+
+                            '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,deletion[0],deletion[1],'-1']])))
 
 class TrunkVarError(Exception):
     pass

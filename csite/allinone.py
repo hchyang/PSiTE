@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #########################################################################
-# Author: Hechuan
+# Author: Hechuan Yang
 # Created Time: 2017-04-04 18:00:34
 # File Name: allinone.py
 # Description: 
@@ -27,7 +27,7 @@ signal(SIGPIPE,SIG_DFL)
 
 def main(progname=None):
     parse=argparse.ArgumentParser(
-        description='a wrapper of simulating short reads from genome with germline and somatic variants',
+        description='an all-in-one wrapper for NGS reads simulation for tumor samples',
         prog=progname if progname else sys.argv[0])
     parse.add_argument('-r','--reference',type=str,required=True,
         help='a fasta file of the reference genome')
@@ -36,40 +36,40 @@ def main(progname=None):
     parse.add_argument('-t','--tree',type=str,required=True,
         help='a newick file contains ONE tree')
     parse.add_argument('-c','--config',type=str,required=True,
-        help='a yaml file contains configure for somatic variant simulation')
+        help='a YAML file which contains the configuration of somatic variant simulation')
     parse.add_argument('-o','--output',type=str,required=True,
-        help='output folder')
+        help='output directory')
     parse.add_argument('-a','--autosomes',type=str,required=True,
-        help='autosomes of the genome (seperated by comma)')
+        help='autosomes of the genome (e.g. 1,2,3,4,5 or 1..4,5)')
     default=None
     parse.add_argument('-s','--sex_chr',type=check_sex,default=default,
         help='sex chromosomes of the genome (seperated by comma) [{}]'.format(default))
     default=0
     parse.add_argument('-x','--prune',type=check_prune,default=default,
-        help='trim all the children of the nodes with equal or less than this number of tips [{}]'.format(default))
+        help='trim all the children of the nodes with equal or less than this number of leaves [{}]'.format(default))
     default=0.0
     parse.add_argument('-X','--prune_proportion',type=check_proportion,default=default,
-        help='trim all the children of the nodes with equal or less than this proportion of tips [{}]'.format(default))
+        help='trim all the children of the nodes with equal or less than this proportion of total leaves [{}]'.format(default))
     default=50
     parse.add_argument('-d','--depth',type=check_depth,default=default,
-        help='the mean depth of tumor for ART to simulate short reads [{}]'.format(default))
+        help='the mean depth of tumor sample for ART to simulate NGS reads [{}]'.format(default))
     default=0
     parse.add_argument('-D','--normal_depth',type=check_depth,default=default,
-        help='the mean depth of normal for ART to simulate short reads [{}]'.format(default))
+        help='the mean depth of normal sample for ART to simulate NGS reads [{}]'.format(default))
     default=0.5
     parse.add_argument('-p','--purity',type=check_purity,default=default,
-        help='the proportion of tumor cells in simulated sample [{}]'.format(default))
+        help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
     default=None
-    parse.add_argument('--trunk_vars',type=str,
-        help='the trunk variants file supplied by user [{}]'.format(default))
+    parse.add_argument('--trunk_vars',type=str,default=default,
+        help='a file containing truncal variants predefined by user [{}]'.format(default))
     default=0
-    parse.add_argument('--trunk_length',type=float,
-        help='the length of the truncal branch [{}]'.format(default))
+    parse.add_argument('--trunk_length',type=float,default=default,
+        help='the length of the trunk [{}]'.format(default))
     default='art_illumina --noALN --quiet --paired --len 100 --mflen 500 --sdev 20'
     parse.add_argument('--art',type=str,default=default,
         help='the parameters for ART program [{}]'.format(default))
     default=None
-    parse.add_argument('--random_seed',type=check_seed,
+    parse.add_argument('--random_seed',type=check_seed,default=default,
         help='the seed for random number generator [{}]'.format(default))
     default='allinone.log'
     parse.add_argument('--log',type=str,default=default,
@@ -103,7 +103,8 @@ def main(progname=None):
         except FileExistsError:
             exit('{} already exists. Try another directory to output! (-o/--output)'.format(outdir))
     else:
-        assert os.path.isdir(outdir),'Can not start from step {}, '.format(args.start)+'because I can not find previous results directory {}.'.format(outdir)
+        assert os.path.isdir(outdir),"Couldn't start from step {}, ".format(args.start)+\
+            'because I can not find the directory of previous results: {}.'.format(outdir)
     os.chdir(outdir)
 
 ###### logging and random seed setting
@@ -144,7 +145,7 @@ def main(progname=None):
         subprocess.run(args=cmd_params,check=True)
 
 #phylovar
-#I place random_int() here as I do not want to skip it in all situation.
+#I place random_int() here as I do not want to skip it in any situation.
 #Without this, you can not replicate the result with different --start setting.
     random_n=random_int()
     if args.start<3:
@@ -157,8 +158,6 @@ def main(progname=None):
                     '--config',config,
                     '--random_seed',str(random_n),
                     '--chain',tumor_chain]
-#                    '--depth',str(args.depth),
-#                    '--purity',str(args.purity)]
         if args.trunk_vars:
             cmd_params.extend(['--trunk_vars',trunk_vars])
         if args.trunk_length:

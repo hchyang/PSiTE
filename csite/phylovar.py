@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #########################################################################
-# Author: Hechuan
+# Author: Hechuan Yang
 # Created Time: 2017-04-04 18:00:34
 # File Name: phylovar.py
 # Description: 
@@ -167,7 +167,7 @@ def check_config_file(config=None):
             for parameter in chroms_cfg.keys():
                 assert isinstance(chroms_cfg[parameter],cfg_params[parameter]),'{} in of chromosome {} in config file should be a {}!'.format(parameter,chroms_n,cfg_params[parameter].__name__)
             if 'length' not in chroms_cfg:
-                raise ConfigFileError('Can not find length for chromosome:{}.'.format(chroms_n))
+                raise ConfigFileError("Couldn't find the length of chromosome:{}.".format(chroms_n))
             total_chroms_length+=chroms_cfg['length']
             if 'snv_rate' in chroms_cfg:
                 total_snv_rate+=chroms_cfg['snv_rate']
@@ -241,10 +241,10 @@ def main(progname=None):
 #        help='the mean depth for simulating coverage data [{}]'.format(default))
     default=0
     parse.add_argument('-x','--prune',type=check_prune,default=default,
-        help='trim all the children of the nodes with equal or less than this number of tips [{}]'.format(default))
+        help='trim all the children of the nodes with equal or less than this number of leaves [{}]'.format(default))
     default=0.0
     parse.add_argument('-X','--prune_proportion',type=check_proportion,default=default,
-        help='trim all the children of the nodes with equal or less than this proportion of tips [{}]'.format(default))
+        help='trim all the children of the nodes with equal or less than this proportion of total leaves [{}]'.format(default))
     default=None
     parse.add_argument('-s','--random_seed',type=check_seed,
         help='the seed for random number generator [{}]'.format(default))
@@ -275,11 +275,12 @@ def main(progname=None):
         help='the file to save CNVs for each cell individual')
 #    parse.add_argument('--haplotype_copy',type=str,
 #        help='the file to save haplotype copy for each SNV')
-    parse.add_argument('--trunk_vars',type=str,
-        help='the trunk variants file supplied by user')
+    default=None
+    parse.add_argument('--trunk_vars',type=str,default=default,
+        help='a file containing truncal variants predefined by user [{}]'.format(default))
     default=0
-    parse.add_argument('--trunk_length',type=float,
-        help='the length of the truncal branch [{}]'.format(default))
+    parse.add_argument('--trunk_length',type=float,default=default,
+        help='the length of the trunk [{}]'.format(default))
 #    default=None
 #    parse.add_argument('--expands',type=str,default=default,
 #        help='the basename of the file to output the snv and segment data for EXPANDS [{}]'.format(default))
@@ -294,7 +295,7 @@ def main(progname=None):
         help='directory to output chain files for each sample [{}]'.format(default))
     default=None
     parse.add_argument('--config',type=str,default=default,
-        help='configure file contains the setting of the somatic simulation in YAML format. '+
+        help='a YAML file which contains the configuration of somatic variant simulation. '+
             '-n/-r/-R/-d/-l/-L/-c/-C/-p will be ignored. [{}]'.format(default))
     args=parse.parse_args()
 

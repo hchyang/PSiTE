@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #########################################################################
-# Author: Hechuan
+# Author: Hechuan Yang
 # Created Time: 2017-09-12 16:28:34
 # File Name: chain2fa.py
 # Description: 

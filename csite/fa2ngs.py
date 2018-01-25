@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #########################################################################
-# Author: Hechuan
+# Author: Hechuan Yang
 # Created Time: 2017-04-04 18:00:34
 # File Name: fa2ngs.py
 # Description: 
@@ -53,13 +53,13 @@ def main(progname=None):
         help='output directory [{}]'.format(default))
     default=50
     parse.add_argument('-d','--depth',type=check_depth,default=default,
-        help='the mean depth of tumor for ART to simulate short reads [{}]'.format(default))
+        help='the mean depth of tumor sample for ART to simulate NGS reads [{}]'.format(default))
     default=0
     parse.add_argument('-D','--normal_depth',type=check_depth,default=default,
-        help='the mean depth of normal for ART to simulate short reads [{}]'.format(default))
+        help='the mean depth of normal sample for ART to simulate NGS reads [{}]'.format(default))
     default=0.5
     parse.add_argument('-p','--purity',type=check_purity,default=default,
-        help='the proportion of tumor cells in simulated sample [{}]'.format(default))
+        help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
     default=None
     parse.add_argument('-s','--random_seed',type=check_seed,
         help='the seed for random number generator [{}]'.format(default))
@@ -101,14 +101,14 @@ def main(progname=None):
     assert os.path.isdir(args.normal),'{} is not exist or not a folder.'.format(args.normal)
     for parental in 0,1:
         assert os.path.isfile('{}/normal.parental_{}.fa'.format(args.normal,parental)),\
-            'Can not find normal.parental_{}.fa under the normal directory: {}'.format(parental,args.normal)
+            "Couldn't find normal.parental_{}.fa under the normal directory: {}".format(parental,args.normal)
 
 #tumor directory and chain directory must exist.
 #also file chain_dir/tip_node_sample.count.
     assert os.path.isdir(args.tumor),'{} is not exist or not a folder.'.format(args.tumor)
     assert os.path.isdir(args.chain),'{} is not exist or not a folder.'.format(args.chain)
     assert os.path.isfile(args.chain+'/tip_node_sample.count'),\
-        'Can not find file tip_node_sample.count under the chain directory: {}'.format(args.chain)
+        "Could't find file tip_node_sample.count under the chain directory: {}".format(args.chain)
 
 #exit the program if you do not want to simulate any reads for normal or tumor samples
     if args.depth+args.normal_depth==0:
@@ -137,7 +137,7 @@ def main(progname=None):
         tip_node_gsize[tip_node]=[]
         for parental in 0,1:
             assert os.path.isfile('{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)),\
-                'Can not find {}.parental_{}.fa under the tumor directory: {}'.format(tip_node,parental,args.tumor)
+                "Couldn't find {}.parental_{}.fa under the tumor directory: {}".format(tip_node,parental,args.tumor)
             tip_node_gsize[tip_node].append(genomesize(fasta='{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)))
         tip_node_gsize[tip_node].append(tip_node_gsize[tip_node][0]+tip_node_gsize[tip_node][1])
         tumor_dna+=tip_node_gsize[tip_node][2]*tip_node_leaves[tip_node]
