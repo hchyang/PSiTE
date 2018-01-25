@@ -22,7 +22,7 @@ signal(SIGPIPE,SIG_DFL)
 nucleotide_re=re.compile('^[atcgnATCGN]$')
 
 def check_sex(chrs=None):
-    if len(chrs)==0:
+    if chrs==None or len(chrs)==0:
         sex_chr=[]
     else:
         sex_chr=chrs.split(',')
@@ -37,14 +37,14 @@ def main(progname=None):
         description='Build normal genome by integrating germline SNPs from a VCF file.',
         prog=progname if progname else sys.argv[0])
     parse.add_argument('-v','--vcf',type=str,required=True,
-        help='a VCF file contains germline SNPs')
+        help='a VCF file containing germline SNPs')
     parse.add_argument('-r','--reference',type=str,required=True,
         help='a fasta file of reference genome')
     default='normal_fa'
     parse.add_argument('-o','--output',type=str,default=default,
         help='output directory [{}]'.format(default))
     parse.add_argument('-a','--autosomes',type=str,required=True,
-        help='autosomes of the genome (seperated by comma)')
+        help='autosomes of the genome (e.g. 1,2,3,4,5 or 1..4,5)')
     default=None
     parse.add_argument('-s','--sex_chr',type=check_sex,default=default,
         help='sex chromosomes of the genome (seperated by comma) [{}]'.format(default))
@@ -64,7 +64,7 @@ def main(progname=None):
     except FileExistsError:
         exit('Folder {} exists. Delete it or try another folder.'.format(args.output))
     except FileNotFoundError:
-        exit("Can't create folder {}. Please create its parent directories first.".format(args.output))
+        exit("Couldn't create folder {}. Please create its parent directories first.".format(args.output))
 
     for i in range(2):
         with open('{}/normal.parental_{}.fa'.format(args.output,i),'w') as output:
@@ -86,7 +86,7 @@ def main(progname=None):
                         start=snp[0]
                     if start<genome_profile[chroms]['length']:
                         segments.append(reference[chroms][start:].seq)
-                    output.write('>{}\n'.format(chroms,i))
+                    output.write('>{}\n'.format(chroms))
                     for outputline in pyfaidx.wrap_sequence(genome_profile[chroms]['linebases'],''.join(segments)):
                         output.write(outputline)
 
@@ -103,21 +103,21 @@ def parse_autosomes(autosomes_str=None):
         if n==0:
             autosomes.append(i)
         elif n==1:
-            m=re.search('^(.*)([0-9]+)\.\.(\1)?([0-9]+)$',i)
+            m=re.search('^(.*)([0-9]+)\.\.(\\1)?([0-9]+)$',i)
             if m:
                 prefix=m.group(1)
                 start=int(m.group(2))
                 end=int(m.group(4))
                 autosomes.extend([prefix+str(x) for x in range(start,end+1)])
             else:
-                raise AutosomeError('The string {} is not valid in --autosomes'.format(i))
+                raise AutosomesError('The string {} is not valid in --autosomes'.format(i))
         else:
-            raise AutosomeError('The string {} is not valid in --autosomes'.format(i))
+            raise AutosomesError('The string {} is not valid in --autosomes'.format(i))
     return set(autosomes)
     
 def fai_info(fai=None,autosomes=None,sex_chr=None):
     '''
-    Extract fasta information from genome.fa.fai file.
+    Extract fasta information from the file genome.fa.fai.
     Will return a list with the structure:
     {'order':[chroms1,chrom2,...],
      chroms1:{length,linebases,hap_vars:[[],[]]},
@@ -126,22 +126,23 @@ def fai_info(fai=None,autosomes=None,sex_chr=None):
     }
     '''
     profile={'order':[]}
+    want=autosomes.union(sex_chr)
     with open(fai,'r') as fai_file:
         for line in fai_file:
-            line=line.rstrip()
-            chroms,length,linebases=[line.split('\t')[x] for x in [0,1,3]]
-            length=int(length)
-            linebases=int(linebases)
-            if chroms in autosomes or chroms in sex_chr:
+            field=line.rstrip().split('\t')
+            chroms=field[0]
+            length=int(field[1])
+            linebases=int(field[3])
+            if chroms in want:
                 profile['order'].append(chroms)
                 profile[chroms]={'length':length,
                                  'linebases':linebases,
                                  'hap_vars':[[],[]]}
                 if chroms in sex_chr and sex_chr[0]!=sex_chr[1]:
                     profile[chroms]['hap_vars']=[[]]
-    not_found=autosomes.union(sex_chr)-set(profile['order'])
+    not_found=want-set(profile['order'])
     if not_found:
-        raise ChrNotFoundError('Can not find {} in the reference file!'.format(not_found))
+        raise ChrNotFoundError("Couldn't find {} in the reference file!".format(not_found))
     return profile
 
 def add_vcf_vars(profile=None,vcf=None):
@@ -149,28 +150,29 @@ def add_vcf_vars(profile=None,vcf=None):
     Extract variants on each copy of each chromosome in vcf file.
     And fill in the list hap_vars in profile.
     '''
+    gz=False
     if vcf.endswith('vcf.gz'):
         vcf_file=gzip.open(vcf,'rb')
+        gz=True
     elif vcf.endswith('vcf'):
         vcf_file=open(vcf,'r')
     else:
         exit('For --vcf, only vcf/vcf.gz file are acceptable!')
     for line in vcf_file:
-        if isinstance(line,bytes):
+        if gz:
             line=line.decode('utf-8')
         line=line.strip()
         if line.startswith('#'):
             if line.startswith('#CHROM') and len(line.split())!=10:
-                raise VcfInputError('Only ONE sample in VCF is acceptable.')
+                raise VcfInputError('Only VCF containing ONE sample is acceptable.')
         else:
-            record=line.split('\t')
-            chroms=record[0]
+            field=line.split('\t')
+            chroms=field[0]
             if chroms in profile['order']:
-                pos=int(record[1])
-                ref=record[3]
-                alt=record[4]
-                alleles=[ref]
-                alleles.extend(alt.split(','))
+                pos=int(field[1])
+                ref=field[3]
+                alt=field[4]
+                alleles=[ref]+alt.split(',')
                 for n in alleles:
                     if not nucleotide_re.match(n):
                         raise VcfInputError('Only SNPs are acceptable! Check the record below:\n{}\n'.format(line))
@@ -178,17 +180,18 @@ def add_vcf_vars(profile=None,vcf=None):
                     if len(alt)==1:
                         profile[chroms]['hap_vars'][0].append([pos,alt])
                     else:
-                        raise VcfInputError('There is only one copy of chromosome: {},But multiple alternative alleles found in the record below:\n{}\n'.format(chroms,line))
+                        raise VcfInputError('There is only one copy of chromosome: {}, '.format(chroms)+
+                            'but multiple alternative alleles found in the record below:\n{}\n'.format(line))
                 else:
-                    tags=record[8]
-                    values=record[9]
+                    tags=field[8]
+                    values=field[9]
                     tags_list=tags.split(':')
                     values_list=values.split(':')
                     indiv_info={}
                     for i in range(len(tags_list)):
                         indiv_info[tags_list[i]]=values_list[i]
                     if 'GT' not in indiv_info:
-                        raise VcfInputError('Can not find GT information in the record below:\n{}\n'.format(line))
+                        raise VcfInputError("Couldn't find GT information in the record below:\n{}\n".format(line))
                     if '|' not in indiv_info['GT']:
                         raise VcfInputError('Not phased genotype in record below:\n{}\n'.format(line))
                     gt=indiv_info['GT'].split('|')
@@ -204,7 +207,7 @@ class ChrNotFoundError(Exception):
 class VcfInputError(Exception):
     pass
 
-class AutosomeError(Exception):
+class AutosomesError(Exception):
     pass
 
 class FolderExistsError(Exception):

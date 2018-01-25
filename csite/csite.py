@@ -19,8 +19,8 @@ signal(SIGPIPE,SIG_DFL)
 
 #If you simulate large genome for a tumor sample with many cells,
 #the disk space occupied by tumor genome (fasta) will be huge.
-#Because ART do not support compressed fasta, we can not output
-#the compressed genome fasta.
+#Because ART does not support compressed fasta, we can not output
+#compressed genome fasta to save disk space.
 
 __version__='0.9.0'
 
@@ -39,7 +39,7 @@ def usage():
     print("")
 
 def main():
-    if len(sys.argv)==1 or sys.argv[1]=='-h':
+    if len(sys.argv)==1 or sys.argv[1]=='-h' or sys.argv[1]=='--help':
         usage()
     else:
         command=sys.argv[1]
@@ -61,7 +61,7 @@ def main():
             import csite.allinone
             csite.allinone.main(progname=progname)
         else:
-            print("[csite] Unrecognized command: '{}'".format(command))
+            print("[csite.py] Unrecognized command: '{}'".format(command))
             exit()
         
 if __name__ == '__main__':
