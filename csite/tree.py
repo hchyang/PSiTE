@@ -539,10 +539,6 @@ class Tree:
         !!!In this structure, each haplotype of each haplotypes in CNVs will have the same structure as above.!!!
         '''
         self.add_haps2cnv()
-        try:
-            logging.debug('tip_vars : %s',tip_vars)
-        except NameError:
-            logging.debug('not exist yet')
         tipnode_hap=self.tipnode_accumulated_vars(start=start,end=end)
         return tipnode_hap
 

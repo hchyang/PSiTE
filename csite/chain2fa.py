@@ -14,6 +14,7 @@ import argparse
 import pyfaidx
 import glob
 import numpy
+from csite.vcf2fa import check_output_folder
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe 
@@ -22,45 +23,36 @@ signal(SIGPIPE,SIG_DFL)
 
 def check_chain_folder(directory=None):
     if not os.path.isdir(directory):
-        raise argparse.ArgumentTypeError("{} is not exist or not a folder.".format(directory))
+        raise argparse.ArgumentTypeError("{} doesn't exist or isn't a folder.".format(directory))
     return directory
     
-def check_reference_file(reference=None):
-    for fa in reference.split(','):
+def check_normal_fastas(fastas=None):
+    for fa in fastas.split(','):
         if not os.path.isfile(fa):
-            raise argparse.ArgumentTypeError("{} is not exist or not a file.".format(fa))
-    return reference
-    
-def check_sequence_folder(directory=None):
-    good_charactors=re.compile('^[0-9a-zA-Z/_\-]+$') 
-    if not good_charactors.match(directory):
-        raise argparse.ArgumentTypeError("{} is an invalid string for --output. ".format(directory)+
-            "Please only use number, alphabet and _/- in the directory name.")
-    if os.path.exists(directory):
-        raise argparse.ArgumentTypeError("{} is already exist. Delete it or use another name instead.".format(directory))
-    return directory
+            raise argparse.ArgumentTypeError("{} doesn't exist or isn't a file.".format(fa))
+    return fastas
     
 def main(progname=None):
     parse=argparse.ArgumentParser(
-        description='Build reference genomes for ART to simulate short reads',
+        description='Build tumor genomes from somatic variants (encoded in the chain file)',
         prog=progname if progname else sys.argv[0])
-    parse.add_argument('-d','--chain',required=True,type=check_chain_folder,
-        help='the folder contain the chain file of genomes')
-    parse.add_argument('-r','--reference',required=True,type=check_reference_file,
-        help='one or multiple (seperated by comma) fasta file of reference genome')
+    parse.add_argument('-c','--chain',required=True,type=check_chain_folder,
+        help='the folder containing the chain files of tumor genomes')
+    parse.add_argument('-n','--normal',required=True,type=check_normal_fastas,
+        help='two fasta files (seperated by comma) of normal genome')
     default='tumor_fa'
-    parse.add_argument('-o','--output',default=default,type=check_sequence_folder,
+    parse.add_argument('-o','--output',default=default,type=check_output_folder,
         help='output directory [{}]'.format(default))
     default=50
     parse.add_argument('-w','--width',default=default,type=int,
-        help='the line width of output fasta [{}]'.format(default))
+        help='the line width of output fasta files [{}]'.format(default))
     args=parse.parse_args()
 
     refs=[]
-    for fa in args.reference.split(','):
+    for fa in args.normal.split(','):
         refs.append(pyfaidx.Fasta(fa))
     os.mkdir(args.output,mode=0o755)
-    parentalre=re.compile('^parental:[0-9]$')
+    parentalre=re.compile('^parental:[01]$')
     for node_chain in glob.glob(args.chain+'/node*.chain'):
         node=os.path.basename(node_chain)
         node=node.split('.')[0]
@@ -85,28 +77,30 @@ def main(progname=None):
                         try:
                             reference=refs[parental]
                         except IndexError:
-                            raise ReferenceFileError('The is no parental {} avalible!\n'.format(parental)+
-                                'Which is required in the record:\n{}\n'.format(line))
+                            raise FastaMissingError('There is no parental {} avalible,\n'.format(parental)+
+                                'which is required in the record ({}):\n{}\n'.format(node_chain,line))
                     else:
-                        raise DraftFileError('This format of the line below in Draft file is not correct:\n{}\n'.format(line))
+                        raise ChainFileError('The format of this line below from the chain file '+
+                            '({}) is not correct:\n{}\n'.format(node_chain,line))
                     seq=[]
                 else:
-                    record=line.split()
-                    chroms=record[0]
-                    start=int(record[1])
-                    end=int(record[2])
-                    seq_type=record[3]
+                    column=line.split()
+                    chroms=column[0]
+                    start=int(column[1])
+                    end=int(column[2])
+                    seq_type=column[3]
                     segment=''
                     if seq_type=='ref':
                         segment=reference[chroms][start:end].seq
                     elif seq_type=='SNV':
                         ref=reference[chroms][start:end].seq
-                        m=Mutation(ref=ref,form=record[4])
+                        m=Mutation(ref=ref,form=column[4])
                         segment=m.alternative
                     elif seq_type=='DEL':
                         pass
                     else:
-                        raise ShouldNotBeHereError
+                        raise ChainFileError('Can not recognize the sequence type ({}) '.format(seq_type)+
+                            'of the record below from the chain file ({}):\n{}\n'.format(node_chain,line))
                     seq.append(segment)
             if seq:
                 outputf[parental].write('>{}\n'.format(seq_name))
@@ -117,10 +111,10 @@ def main(progname=None):
                         
 class Mutation:
     '''
-    Mutation form are fixed in configure file. We just need to retrieve the alternative
+    Mutation form are fixed in chain files. We just need to retrieve the alternative
     allele according the reference nuleotide.
     If we do not fix the mutation form first, the same mutation (occured in the common 
-    ancestor) in different individuals will have different alternative alleles.
+    ancestor) in different individuals may have different alternative alleles.
     '''
     _mutation_matrix={'N':['N','N','N'],
                       'A':['G','C','T'],
@@ -134,18 +128,18 @@ class Mutation:
         try:
             self.alternative=Mutation._mutation_matrix[self.ref][self.form]
         except KeyError as e:
-            raise Exception('{} is not a nucleotide, which is found in your reference fasta file.'.format(ref)) from e
+            raise FastaFileError("'{}' is not a nucleotide, but it's found in your normal fasta file.".format(ref)) from e
         except IndexError as e:
-            raise Exception('{} is not a valid mutation form, which is found in your genome configure file.'.format(form)+
+            raise ChainFileError("'{}' is not a valid mutation form, but it's found in your chain file.".format(form)+
                 '\nOnly 0 (transition), 1 and 2 (transversion) are acceptable.') from e
 
-class ShouldNotBeHereError(Exception):
+class ChainFileError(Exception):
     pass
          
-class DraftFileError(Exception):
+class FastaMissingError(Exception):
     pass
          
-class ReferenceFileError(Exception):
+class FastaFileError(Exception):
     pass
          
 if __name__ == '__main__':

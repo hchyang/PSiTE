@@ -84,7 +84,7 @@ def check_folder(directory=None):
         raise argparse.ArgumentTypeError("{} is an invalid string for --chain. ".format(directory)+
             "Please only use number, alphabet and _/- in the directory name.")
     if os.path.exists(directory):
-        raise argparse.ArgumentTypeError("{} is already exist. Delete it or use another name instead.".format(directory))
+        raise argparse.ArgumentTypeError("{} exists already. Delete it or use another name instead.".format(directory))
     return directory
     
 def check_cnv_length_cfg(chroms=None,cnv_length_beta=None,cnv_length_max=None,chr_length=None):

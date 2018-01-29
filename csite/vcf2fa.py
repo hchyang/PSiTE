@@ -32,6 +32,15 @@ def check_sex(chrs=None):
                 'just write it twice and seprate them by a comma! e.g. --sex_chr X,X \n')
     return sex_chr
 
+def check_output_folder(directory=None):
+    good_charactors=re.compile('^[0-9a-zA-Z/_\-]+$') 
+    if not good_charactors.match(directory):
+        raise argparse.ArgumentTypeError("{} is an invalid string for --output. ".format(directory)+
+            "Please only the combination of numbers, alphabets and _/- as the directory name.")
+    if os.path.exists(directory):
+        raise argparse.ArgumentTypeError("{} exists already. Delete it or use another name instead.".format(directory))
+    return directory
+    
 def main(progname=None):
     parse=argparse.ArgumentParser(
         description='Build normal genome by integrating germline SNPs from a VCF file.',
@@ -41,7 +50,7 @@ def main(progname=None):
     parse.add_argument('-r','--reference',type=str,required=True,
         help='a fasta file of reference genome')
     default='normal_fa'
-    parse.add_argument('-o','--output',type=str,default=default,
+    parse.add_argument('-o','--output',type=check_output_folder,default=default,
         help='output directory [{}]'.format(default))
     parse.add_argument('-a','--autosomes',type=str,required=True,
         help='autosomes of the genome (e.g. 1,2,3,4,5 or 1..4,5)')
@@ -60,9 +69,7 @@ def main(progname=None):
     add_vcf_vars(profile=genome_profile,vcf=args.vcf)
 
     try:
-        os.mkdir(args.output) 
-    except FileExistsError:
-        exit('Folder {} exists. Delete it or try another folder.'.format(args.output))
+        os.mkdir(args.output,mode=0o755) 
     except FileNotFoundError:
         exit("Couldn't create folder {}. Please create its parent directories first.".format(args.output))
 

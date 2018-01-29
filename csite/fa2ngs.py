@@ -40,7 +40,7 @@ def check_depth(value=None):
 
 def main(progname=None):
     parse=argparse.ArgumentParser(
-        description='a wrapper of simulating NGS reads from normal and tumor genome fasta',
+        description='A wrapper of simulating NGS reads from normal and tumor genome fasta',
         prog=progname if progname else sys.argv[0])
     parse.add_argument('-n','--normal',type=str,required=True,
         help='the directory of the normal fasta')
@@ -98,15 +98,15 @@ def main(progname=None):
     numpy.random.seed(seed)
 
 #there must be two haplotype fasta in the normal dir
-    assert os.path.isdir(args.normal),'{} is not exist or not a folder.'.format(args.normal)
+    assert os.path.isdir(args.normal),"{} doesn't exist or isn't a folder.".format(args.normal)
     for parental in 0,1:
         assert os.path.isfile('{}/normal.parental_{}.fa'.format(args.normal,parental)),\
             "Couldn't find normal.parental_{}.fa under the normal directory: {}".format(parental,args.normal)
 
 #tumor directory and chain directory must exist.
 #also file chain_dir/tip_node_sample.count.
-    assert os.path.isdir(args.tumor),'{} is not exist or not a folder.'.format(args.tumor)
-    assert os.path.isdir(args.chain),'{} is not exist or not a folder.'.format(args.chain)
+    assert os.path.isdir(args.tumor),"{} doesn't exist or not a folder.".format(args.tumor)
+    assert os.path.isdir(args.chain),"{} doesn't exist or not a folder.".format(args.chain)
     assert os.path.isfile(args.chain+'/tip_node_sample.count'),\
         "Could't find file tip_node_sample.count under the chain directory: {}".format(args.chain)
 
@@ -150,7 +150,7 @@ def main(progname=None):
         else:
             exit("A file in the name of '{}' exists.\nDelete it or try another name as output folder.".format(args.output))
     else:
-        os.mkdir(args.output)
+        os.mkdir(args.output,mode=0o755)
     tumor_dir=args.output+'/tumor'
     normal_dir=args.output+'/normal'
 
@@ -161,7 +161,7 @@ def main(progname=None):
 #simulation for normal sample
     if args.normal_depth>0:
         try:
-            os.mkdir(normal_dir)
+            os.mkdir(normal_dir,mode=0o755)
         except FileExistsError:
             exit('{} exits already! Can not use it as the output folder of normal NGS reads.'.format(normal_dir))
         for parental in 0,1:
@@ -180,7 +180,7 @@ def main(progname=None):
 #simulation for tumor sample
     if args.depth>0:
         try:
-            os.mkdir(tumor_dir)
+            os.mkdir(tumor_dir,mode=0o755)
         except FileExistsError:
             exit('{} exits already! Can not use it as the output folder of tumor NGS reads.'.format(normal_dir))
 #create a reference meta file which can be used by wessim to simulate exome-seq data
@@ -281,7 +281,7 @@ def merge_fq(target=None,source=None):
     there will be multiple fq files for each genome.
     I will merge them into one file for each genome.
     '''
-    assert not os.path.isfile(target),'{} is exist already!'
+    assert not os.path.isfile(target),'{} exists already!'
     with open(target,'a') as output:
         for f in source:
             subprocess.run(args=['cat',f],check=True,stdout=output)
