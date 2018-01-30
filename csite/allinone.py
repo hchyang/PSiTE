@@ -29,56 +29,56 @@ def main(progname=None):
     parse=argparse.ArgumentParser(
         description='an all-in-one wrapper for NGS reads simulation for tumor samples',
         prog=progname if progname else sys.argv[0])
-    parse.add_argument('-r','--reference',type=str,required=True,
+    parse.add_argument('-r','--reference',type=str,required=True,metavar='FILE',
         help='a fasta file of the reference genome')
-    parse.add_argument('-v','--vcf',type=str,required=True,
+    parse.add_argument('-v','--vcf',type=str,required=True,metavar='FILE',
         help='a vcf file contains germline variants')
-    parse.add_argument('-t','--tree',type=str,required=True,
+    parse.add_argument('-t','--tree',type=str,required=True,metavar='FILE',
         help='a newick file contains ONE tree')
-    parse.add_argument('-c','--config',type=str,required=True,
+    parse.add_argument('-c','--config',type=str,required=True,metavar='FILE',
         help='a YAML file which contains the configuration of somatic variant simulation')
-    parse.add_argument('-o','--output',type=str,required=True,
+    parse.add_argument('-o','--output',type=str,required=True,metavar='DIR',
         help='output directory')
-    parse.add_argument('-a','--autosomes',type=str,required=True,
+    parse.add_argument('-a','--autosomes',type=str,required=True,metavar='STR',
         help='autosomes of the genome (e.g. 1,2,3,4,5 or 1..4,5)')
     default=None
-    parse.add_argument('-s','--sex_chr',type=check_sex,default=default,
+    parse.add_argument('-s','--sex_chr',type=check_sex,default=default,metavar='STR',
         help='sex chromosomes of the genome (seperated by comma) [{}]'.format(default))
     default=0
-    parse.add_argument('-x','--prune',type=check_prune,default=default,
+    parse.add_argument('-x','--prune',type=check_prune,default=default,metavar='INT',
         help='trim all the children of the nodes with equal or less than this number of leaves [{}]'.format(default))
     default=0.0
-    parse.add_argument('-X','--prune_proportion',type=check_proportion,default=default,
+    parse.add_argument('-X','--prune_proportion',type=check_proportion,default=default,metavar='FLOAT',
         help='trim all the children of the nodes with equal or less than this proportion of total leaves [{}]'.format(default))
     default=50
-    parse.add_argument('-d','--depth',type=check_depth,default=default,
+    parse.add_argument('-d','--depth',type=check_depth,default=default,metavar='FLOAT',
         help='the mean depth of tumor sample for ART to simulate NGS reads [{}]'.format(default))
     default=0
-    parse.add_argument('-D','--normal_depth',type=check_depth,default=default,
+    parse.add_argument('-D','--normal_depth',type=check_depth,default=default,metavar='FLOAT',
         help='the mean depth of normal sample for ART to simulate NGS reads [{}]'.format(default))
     default=0.5
-    parse.add_argument('-p','--purity',type=check_purity,default=default,
+    parse.add_argument('-p','--purity',type=check_purity,default=default,metavar='FLOAT',
         help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
     default=None
-    parse.add_argument('--trunk_vars',type=str,default=default,
+    parse.add_argument('--trunk_vars',type=str,default=default,metavar='FILE',
         help='a file containing truncal variants predefined by user [{}]'.format(default))
     default=0
-    parse.add_argument('--trunk_length',type=float,default=default,
+    parse.add_argument('--trunk_length',type=float,default=default,metavar='FLOAT',
         help='the length of the trunk [{}]'.format(default))
     default='art_illumina --noALN --quiet --paired --len 100 --mflen 500 --sdev 20'
-    parse.add_argument('--art',type=str,default=default,
+    parse.add_argument('--art',type=str,default=default,metavar='STR',
         help='the parameters for ART program [{}]'.format(default))
     default=None
-    parse.add_argument('--random_seed',type=check_seed,default=default,
+    parse.add_argument('--random_seed',type=check_seed,default=default,metavar='INT',
         help='the seed for random number generator [{}]'.format(default))
     default='allinone.log'
-    parse.add_argument('--log',type=str,default=default,
+    parse.add_argument('--log',type=str,default=default,metavar='FILE',
         help='the log file to save the settings of each command [{}]'.format(default))
     default=1
     parse.add_argument('--start',type=int,default=default,choices=[1,2,3,4],
         help='the serial number of the module from which to start [{}]'.format(default))
     default=1
-    parse.add_argument('--cores',type=int,default=default,
+    parse.add_argument('--cores',type=int,default=default,metavar='INT',
         help='number of cores used to run the program [{}]'.format(default))
     parse.add_argument('--compress',action="store_true",
         help='compress the generated fastq files using gzip')
@@ -131,6 +131,8 @@ def main(progname=None):
     tumor_fa='tumor_fa'
     tumor_chain='tumor_chain'
     art_reads='art_reads'
+#map file
+    map_file='tipnode_samples.map'
 
 #vcf2fa
     if args.start<2:
@@ -157,6 +159,7 @@ def main(progname=None):
                     '--tree',tree,
                     '--config',config,
                     '--random_seed',str(random_n),
+                    '--map',map_file,
                     '--chain',tumor_chain]
         if args.trunk_vars:
             cmd_params.extend(['--trunk_vars',trunk_vars])
@@ -191,7 +194,7 @@ def main(progname=None):
     cmd_params=[sys.argv[0],'fa2ngs',
                 '--normal',normal_fa,
                 '--tumor',tumor_fa,
-                '--chain',tumor_chain,
+                '--map',map_file,
                 '--depth',str(args.depth),
                 '--normal_depth',str(args.normal_depth),
                 '--purity',str(args.purity),

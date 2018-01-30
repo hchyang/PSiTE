@@ -546,7 +546,6 @@ class Tree:
     def snvs_freq_cnvs_profile(self,parental=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,
                                trunk_snvs=None,trunk_cnvs=None,
-#                               purity=None,
                                length=None,chain=None,chroms=None):
         '''
         Produce the true frequency of SNVs in the samples.

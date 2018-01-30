@@ -45,17 +45,17 @@ def main(progname=None):
     parse=argparse.ArgumentParser(
         description='Build normal genome by integrating germline SNPs from a VCF file.',
         prog=progname if progname else sys.argv[0])
-    parse.add_argument('-v','--vcf',type=str,required=True,
+    parse.add_argument('-v','--vcf',type=str,required=True,metavar='FILE',
         help='a VCF file containing germline SNPs')
-    parse.add_argument('-r','--reference',type=str,required=True,
+    parse.add_argument('-r','--reference',type=str,required=True,metavar='FILE',
         help='a fasta file of reference genome')
     default='normal_fa'
-    parse.add_argument('-o','--output',type=check_output_folder,default=default,
+    parse.add_argument('-o','--output',type=check_output_folder,default=default,metavar='DIR',
         help='output directory [{}]'.format(default))
-    parse.add_argument('-a','--autosomes',type=str,required=True,
+    parse.add_argument('-a','--autosomes',type=str,required=True,metavar='STR',
         help='autosomes of the genome (e.g. 1,2,3,4,5 or 1..4,5)')
     default=None
-    parse.add_argument('-s','--sex_chr',type=check_sex,default=default,
+    parse.add_argument('-s','--sex_chr',type=check_sex,default=default,metavar='STR',
         help='sex chromosomes of the genome (seperated by comma) [{}]'.format(default))
     args=parse.parse_args()
     if args.sex_chr==None:

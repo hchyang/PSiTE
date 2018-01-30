@@ -42,35 +42,35 @@ def main(progname=None):
     parse=argparse.ArgumentParser(
         description='A wrapper of simulating NGS reads from normal and tumor genome fasta',
         prog=progname if progname else sys.argv[0])
-    parse.add_argument('-n','--normal',type=str,required=True,
+    parse.add_argument('-n','--normal',type=str,required=True,metavar='DIR',
         help='the directory of the normal fasta')
-    parse.add_argument('-t','--tumor',type=str,required=True,
+    parse.add_argument('-t','--tumor',type=str,required=True,metavar='DIR',
         help='the directory of the tumor fasta')
-    parse.add_argument('-c','--chain',type=str,required=True,
-        help='the directory of the tumor chain')
+    parse.add_argument('-m','--map',type=str,required=True,metavar='FILE',
+        help='the map file containing the relationship between tip nodes and samples')
     default='art_reads'
-    parse.add_argument('-o','--output',type=str,default=default,
+    parse.add_argument('-o','--output',type=str,default=default,metavar='DIR',
         help='output directory [{}]'.format(default))
     default=50
-    parse.add_argument('-d','--depth',type=check_depth,default=default,
+    parse.add_argument('-d','--depth',type=check_depth,default=default,metavar='FLOAT',
         help='the mean depth of tumor sample for ART to simulate NGS reads [{}]'.format(default))
     default=0
-    parse.add_argument('-D','--normal_depth',type=check_depth,default=default,
+    parse.add_argument('-D','--normal_depth',type=check_depth,default=default,metavar='FLOAT',
         help='the mean depth of normal sample for ART to simulate NGS reads [{}]'.format(default))
     default=0.5
-    parse.add_argument('-p','--purity',type=check_purity,default=default,
+    parse.add_argument('-p','--purity',type=check_purity,default=default,metavar='FLOAT',
         help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
     default=None
-    parse.add_argument('-s','--random_seed',type=check_seed,
+    parse.add_argument('-s','--random_seed',type=check_seed,metavar='INT',
         help='the seed for random number generator [{}]'.format(default))
     default='fa2ngs.log'
-    parse.add_argument('-g','--log',type=str,default=default,
+    parse.add_argument('-g','--log',type=str,default=default,metavar='FILE',
         help='the log file to save the settings of each command [{}]'.format(default))
     default='art_illumina --noALN --quiet --paired --len 100 --mflen 500 --sdev 20'
-    parse.add_argument('--art',type=str,default=default,
+    parse.add_argument('--art',type=str,default=default,metavar='STR',
         help='the parameters for ART program [{}]'.format(default))
     default=1
-    parse.add_argument('--cores',type=int,default=default,
+    parse.add_argument('--cores',type=int,default=default,metavar='INT',
         help='number of cores used to run the program [{}]'.format(default))
     parse.add_argument('--compress',action="store_true",
         help='compress the generated fastq files using gzip')
@@ -103,12 +103,9 @@ def main(progname=None):
         assert os.path.isfile('{}/normal.parental_{}.fa'.format(args.normal,parental)),\
             "Couldn't find normal.parental_{}.fa under the normal directory: {}".format(parental,args.normal)
 
-#tumor directory and chain directory must exist.
-#also file chain_dir/tip_node_sample.count.
-    assert os.path.isdir(args.tumor),"{} doesn't exist or not a folder.".format(args.tumor)
-    assert os.path.isdir(args.chain),"{} doesn't exist or not a folder.".format(args.chain)
-    assert os.path.isfile(args.chain+'/tip_node_sample.count'),\
-        "Could't find file tip_node_sample.count under the chain directory: {}".format(args.chain)
+#tumor directory and map file must exist.
+    assert os.path.isdir(args.tumor),"{} doesn't exist or isn't a folder.".format(args.tumor)
+    assert os.path.isfile(args.map),"{} doesn't exist or isn't a file.".format(args.map)
 
 #exit the program if you do not want to simulate any reads for normal or tumor samples
     if args.depth+args.normal_depth==0:
@@ -121,7 +118,7 @@ def main(progname=None):
         normal_gsize+=genomesize(fasta='{}/normal.parental_{}.fa'.format(args.normal,parental))
     tumor_seq_bases=normal_gsize/2*args.depth
 
-    tip_node_leaves=tip_node_leaves_counting(f='{}/tip_node_sample.count'.format(args.chain))
+    tip_node_leaves=tip_node_leaves_counting(f=args.map)
     tumor_cells=sum(tip_node_leaves.values())
     total_cells=tumor_cells/args.purity
     normal_cells=total_cells-tumor_cells
@@ -317,7 +314,7 @@ def tip_node_leaves_counting(f=None):
     with open(f,'r') as input:
         for line in input:
             if not line.startswith('#'):
-                tip_node,leaves=line.split()
+                tip_node,leaves=line.split()[:2]
                 tip_node_leaves[tip_node]=int(leaves)
     return tip_node_leaves
 
