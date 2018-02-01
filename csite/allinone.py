@@ -18,7 +18,7 @@ import subprocess
 import pyfaidx
 from csite.vcf2fa import check_sex
 from csite.phylovar import check_prune,check_proportion,check_seed,random_int,check_config_file
-from csite.fa2ngs import check_depth,check_purity
+from csite.fa2wgs import check_depth,check_purity
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe 
@@ -186,12 +186,12 @@ def main(progname=None):
         logging.info(' Command: %s',' '.join(cmd_params))
         subprocess.run(args=cmd_params,check=True)
 
-#fa2ngs
+#fa2wgs
     if os.path.isdir(art_reads):
         shutil.rmtree(art_reads)
     elif os.path.isfile(art_reads):
         os.remove(art_reads)
-    cmd_params=[sys.argv[0],'fa2ngs',
+    cmd_params=[sys.argv[0],'fa2wgs',
                 '--normal',normal_fa,
                 '--tumor',tumor_fa,
                 '--map',map_file,

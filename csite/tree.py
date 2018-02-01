@@ -607,7 +607,7 @@ class Tree:
 
         region_mean_ploidy=0
 #I do not simulate purity of the tumor sample in module phylovar.
-#I will simulate it in module fa2ngs 
+#I will simulate it in module fa2wgs 
 #        normal_dosage=background*(1-purity)/purity
         normal_dosage=0
         for pos in all_snvs_pos:
@@ -862,7 +862,7 @@ def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
 #in AMP events.
         if var['type']=='SNV': #snv
             if var['start']>breakpoint:
-                out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'ref']))
+                out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'REF']))
                 out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type'],var['mutation']]))
             elif var['start']==breakpoint:
                 out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type'],var['mutation']]))
@@ -871,7 +871,7 @@ def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
             breakpoint=var['end']
         elif var['type']=='DEL': #deletion
             if var['start']>breakpoint:
-                out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'ref']))
+                out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'REF']))
                 out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type']]))
             elif var['start']==breakpoint:
                 out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type']]))
@@ -880,14 +880,14 @@ def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
             breakpoint=var['end']
         elif var['type']=='AMP': #amplification
             if var['start']>breakpoint:
-                out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'ref']))
+                out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'REF']))
                 breakpoint=var['start']
             for haplotype in var['haplotypes']:
                 retrieve_tip_vars(tip_vars=haplotype,tip=tip,out_file=out_file,chroms=chroms)
         else: 
             raise ShouldNotBeHereError
     if tip_vars['end']>breakpoint:
-        out_file.write(build_line(elements=[chroms,breakpoint,tip_vars['end'],'ref']))
+        out_file.write(build_line(elements=[chroms,breakpoint,tip_vars['end'],'REF']))
     elif tip_vars['end']==breakpoint:
         pass
     else:

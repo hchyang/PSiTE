@@ -3,7 +3,7 @@
 #########################################################################
 # Author: Hechuan Yang
 # Created Time: 2017-04-04 18:00:34
-# File Name: fa2ngs.py
+# File Name: fa2wgs.py
 # Description: 
 #########################################################################
 
@@ -63,7 +63,7 @@ def main(progname=None):
     default=None
     parse.add_argument('-s','--random_seed',type=check_seed,metavar='INT',
         help='the seed for random number generator [{}]'.format(default))
-    default='fa2ngs.log'
+    default='fa2wgs.log'
     parse.add_argument('-g','--log',type=str,default=default,metavar='FILE',
         help='the log file to save the settings of each command [{}]'.format(default))
     default='art_illumina --noALN --quiet --paired --len 100 --mflen 500 --sdev 20'
@@ -88,7 +88,7 @@ def main(progname=None):
         argv_copy[art_index+1]="'{}'".format(argv_copy[art_index+1])
     except ValueError:
         pass
-    argv_copy.insert(1,'fa2ngs')
+    argv_copy.insert(1,'fa2wgs')
     logging.info(' Command: %s',' '.join(argv_copy))
     if args.random_seed==None:
         seed=random_int()

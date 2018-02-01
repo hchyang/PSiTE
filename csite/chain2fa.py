@@ -90,7 +90,7 @@ def main(progname=None):
                     end=int(column[2])
                     seq_type=column[3]
                     segment=''
-                    if seq_type=='ref':
+                    if seq_type=='REF':
                         segment=reference[chroms][start:end].seq
                     elif seq_type=='SNV':
                         ref=reference[chroms][start:end].seq

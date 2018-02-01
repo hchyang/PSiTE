@@ -34,7 +34,7 @@ def usage():
     print("Command: vcf2fa     build normal genome from input germline vcf file")
     print("         phylovar   simulate somatic variants along a phylogeny")
     print("         chain2fa   build tumor genomes from somatic variants (encoded in the chain file)")
-    print("         fa2ngs     simulate NGS reads from normal and tumor genomes (in fasta format)")
+    print("         fa2wgs     simulate WGS reads from normal and tumor genomes (in fasta format)")
     print("         allinone   a wrapper for NGS reads simulation combining all previous steps")
     print("")
 
@@ -54,9 +54,9 @@ def main():
         elif command=='chain2fa':
             import csite.chain2fa
             csite.chain2fa.main(progname=progname)
-        elif command=='fa2ngs':
-            import csite.fa2ngs
-            csite.fa2ngs.main(progname=progname)
+        elif command=='fa2wgs':
+            import csite.fa2wgs
+            csite.fa2wgs.main(progname=progname)
         elif command=='allinone':
             import csite.allinone
             csite.allinone.main(progname=progname)
