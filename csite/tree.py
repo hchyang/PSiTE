@@ -59,7 +59,7 @@ class Tree:
             inherent_cnvs=[]
         length=end-start
         logging.debug('%s with length: %s',self.nodeid,self.lens)
-        logging.debug('Structure: %s',self.tree2newick())
+        logging.debug('Structure: %s',self.tree2nhx())
         self.snvs=[]
         self.cnvs=[]
         self.accumulated_snvs=[]
@@ -114,7 +114,7 @@ class Tree:
                         self.accumulated_snvs.append(snv)
                         logging.debug('New SNV: %s',pos)
                         logging.debug('The length of the branch new SNV locates at: %s',self.lens)
-                        logging.debug('Structure: %s',self.tree2newick())
+                        logging.debug('Structure: %s',self.tree2nhx())
                 else:
 #cnvs
 #if the new cnv overlap with accumulated_dels, compare it with the accumulated dels 
@@ -394,6 +394,7 @@ class Tree:
         '''
         if self.left==None and self.right==None:
             tipnode_leaves[self.nodeid]=self.leaves_naming()
+            self.name=self.nodeid
             if self.leaves_count<=tips:
                 self.sim=False
         else:
@@ -401,8 +402,7 @@ class Tree:
                 tipnode_leaves[self.nodeid]=self.leaves_naming()
                 self.left=None
                 self.right=None
-                if self.name==None:
-                    self.name=self.nodeid
+                self.name=self.nodeid
                 if self.leaves_count<=tips:
                     self.sim=False
             else:
@@ -562,7 +562,7 @@ class Tree:
         ploidy=len(parental)
 
         background=self.leaves_counting()*ploidy
-        logging.debug('Your tree is: %s',self.tree2newick())
+        logging.debug('Your tree is: %s',self.tree2nhx())
 #I used haps_cnvs to calculate the count number of each parental copies before.
 #We do not need this feature anymore.
 #        haps_cnvs=[]
@@ -640,27 +640,35 @@ class Tree:
         return all_snvs_alt_freq,all_cnvs,cnv_profile,nodes_vars,tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs
 #        return all_snvs_alt_freq,all_cnvs,cnv_profile,nodes_vars,tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs,hap_local_copy_for_all_snvs
 
-    def tree2newick(self,with_lens=False,attrs=None):
+    def tree2nhx(self,with_lens=False,attrs=None):
         '''
         Convert tree structure to string in Newick/NHX format.
         '''
         newick_str=''
 
         if self.left!=None:
-            newick_str+='(' + self.left.tree2newick(with_lens=with_lens,attrs=attrs)
+            newick_str+='(' + self.left.tree2nhx(with_lens=with_lens,attrs=attrs)
         if self.name==None:
             newick_str+=','
         else:
             newick_str+=self.name
         if self.right!=None:
-            newick_str+=self.right.tree2newick(with_lens=with_lens,attrs=attrs) + ')'
+            newick_str+=self.right.tree2nhx(with_lens=with_lens,attrs=attrs) + ')'
         if self.lens!=None and with_lens:
             newick_str+= ':' + str(self.lens)
         if attrs!=None:
             newick_str+='[&&NHX'
             for attribute in attrs:
                 if getattr(self, attribute):
-                    newick_str+=':{}={}'.format(attribute,getattr(self, attribute))
+                    if isinstance(getattr(self, attribute),list):
+                        newick_str+=':{}=LIST{{{}}}'.format(attribute,'@'.join([str(x) for x in getattr(self, attribute)]))
+                    elif isinstance(getattr(self, attribute),set):
+                        newick_str+=':{}=SET{{{}}}'.format(attribute,'@'.join([str(x) for x in getattr(self, attribute)]))
+                    elif isinstance(getattr(self, attribute),dict):
+                        tmp=getattr(self, attribute)
+                        newick_str+=':{}=DICT{{{}}}'.format(attribute,'@'.join(['{}>{}'.format(x,tmp[x]) for x in tmp]))
+                    else:
+                        newick_str+=':{}={}'.format(attribute,getattr(self, attribute))
             newick_str+=']'
         return newick_str
 

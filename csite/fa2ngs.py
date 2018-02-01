@@ -98,14 +98,14 @@ def main(progname=None):
     numpy.random.seed(seed)
 
 #there must be two haplotype fasta in the normal dir
-    assert os.path.isdir(args.normal),"{} doesn't exist or isn't a folder.".format(args.normal)
+    assert os.path.isdir(args.normal),"'{}' doesn't exist or isn't a folder.".format(args.normal)
     for parental in 0,1:
         assert os.path.isfile('{}/normal.parental_{}.fa'.format(args.normal,parental)),\
             "Couldn't find normal.parental_{}.fa under the normal directory: {}".format(parental,args.normal)
 
 #tumor directory and map file must exist.
-    assert os.path.isdir(args.tumor),"{} doesn't exist or isn't a folder.".format(args.tumor)
-    assert os.path.isfile(args.map),"{} doesn't exist or isn't a file.".format(args.map)
+    assert os.path.isdir(args.tumor),"'{}' doesn't exist or isn't a folder.".format(args.tumor)
+    assert os.path.isfile(args.map),"'{}' doesn't exist or isn't a file.".format(args.map)
 
 #exit the program if you do not want to simulate any reads for normal or tumor samples
     if args.depth+args.normal_depth==0:
@@ -160,7 +160,7 @@ def main(progname=None):
         try:
             os.mkdir(normal_dir,mode=0o755)
         except FileExistsError:
-            exit('{} exits already! Can not use it as the output folder of normal NGS reads.'.format(normal_dir))
+            exit("'{}' exists already! Can not use it as the output folder of normal NGS reads.".format(normal_dir))
         for parental in 0,1:
             prefix='{}/normal.parental_{}.'.format(normal_dir,parental)
             fcov=args.normal_depth/2
@@ -179,7 +179,7 @@ def main(progname=None):
         try:
             os.mkdir(tumor_dir,mode=0o755)
         except FileExistsError:
-            exit('{} exits already! Can not use it as the output folder of tumor NGS reads.'.format(normal_dir))
+            exit("'{}' exists already! Can not use it as the output folder of tumor NGS reads.".format(normal_dir))
 #create a reference meta file which can be used by wessim to simulate exome-seq data
         ref_meta=open('reference.meta','w')
 #two normal cell haplotypes
@@ -278,7 +278,7 @@ def merge_fq(target=None,source=None):
     there will be multiple fq files for each genome.
     I will merge them into one file for each genome.
     '''
-    assert not os.path.isfile(target),'{} exists already!'
+    assert not os.path.isfile(target),"'{}' exists already!"
     with open(target,'a') as output:
         for f in source:
             subprocess.run(args=['cat',f],check=True,stdout=output)

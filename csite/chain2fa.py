@@ -23,13 +23,13 @@ signal(SIGPIPE,SIG_DFL)
 
 def check_chain_folder(directory=None):
     if not os.path.isdir(directory):
-        raise argparse.ArgumentTypeError("{} doesn't exist or isn't a folder.".format(directory))
+        raise argparse.ArgumentTypeError("'{}' doesn't exist or isn't a folder.".format(directory))
     return directory
     
 def check_normal_fastas(fastas=None):
     for fa in fastas.split(','):
         if not os.path.isfile(fa):
-            raise argparse.ArgumentTypeError("{} doesn't exist or isn't a file.".format(fa))
+            raise argparse.ArgumentTypeError("'{}' doesn't exist or isn't a file.".format(fa))
     return fastas
     
 def main(progname=None):

@@ -101,10 +101,10 @@ def main(progname=None):
         try:
             os.mkdir(outdir,mode=0o755)
         except FileExistsError:
-            exit('{} already exists. Try another directory to output! (-o/--output)'.format(outdir))
+            exit("'{}' already exists. Try another directory to output! (-o/--output)".format(outdir))
     else:
         assert os.path.isdir(outdir),"Couldn't start from step {}, ".format(args.start)+\
-            'because I can not find the directory of previous results: {}.'.format(outdir)
+            "because I can not find the directory of previous results: '{}'.".format(outdir)
     os.chdir(outdir)
 
 ###### logging and random seed setting

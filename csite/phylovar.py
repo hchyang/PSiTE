@@ -13,6 +13,7 @@ import re
 import argparse
 import numpy
 import logging
+import copy
 import csite.trunk_vars
 import csite.tree
 import yaml
@@ -81,10 +82,10 @@ def check_tstv(value=None):
 def check_folder(directory=None):
     good_charactors=re.compile('^[0-9a-zA-Z/_\-]+$') 
     if not good_charactors.match(directory):
-        raise argparse.ArgumentTypeError("{} is an invalid string for --chain. ".format(directory)+
+        raise argparse.ArgumentTypeError("'{}' is an invalid string for --chain. ".format(directory)+
             "Please only use number, alphabet and _/- in the directory name.")
     if os.path.exists(directory):
-        raise argparse.ArgumentTypeError("{} exists already. Delete it or use another name instead.".format(directory))
+        raise argparse.ArgumentTypeError("'{}' exists already. Delete it or use another name instead.".format(directory))
     return directory
     
 def check_cnv_length_cfg(chroms=None,cnv_length_beta=None,cnv_length_max=None,chr_length=None):
@@ -140,13 +141,13 @@ def check_config_file(config=None):
         raise ConfigFileError('Check your config file. The format in genome section is not correct.')
     lack=set(cfg_params)-set(config['genome'])
     if lack!=set():
-        raise ConfigFileError('{} are required in the genome section of config file.'.format(','.join([str(x) for x in lack])))
+        raise ConfigFileError("'{}' are required in the genome section of config file.".format(','.join([str(x) for x in lack])))
     over=set(config['genome'])-set(cfg_params)
     if over!=set():
-        raise ConfigFileError('{} are not acceptable parameters in config file.'.format(','.join([str(x) for x in over])))
+        raise ConfigFileError("'{}' are not acceptable parameters in config file.".format(','.join([str(x) for x in over])))
 
     for parameter in cfg_params:
-        assert isinstance(config['genome'][parameter],cfg_params[parameter]),'{} in genome section of config file should be a {}!'.format(parameter,cfg_params[parameter].__name__)
+        assert isinstance(config['genome'][parameter],cfg_params[parameter]),"'{}' in genome section of config file should be a {}!".format(parameter,cfg_params[parameter].__name__)
 
     if not isinstance(config['chromosomes'],list):
         raise ConfigFileError('Check your config file. The format in chromosomes section is not correct.')
@@ -162,10 +163,10 @@ def check_config_file(config=None):
             assert isinstance(chroms_n,str),'The name of chromosome {} in config file should be a str!'.format(chroms_n)
             over=set(chroms_cfg)-set(cfg_params)
             if over!=set():
-                raise ConfigFileError('{} are not acceptable parameters '.format(','.join([str(x) for x in over]))+
+                raise ConfigFileError("'{}' are not acceptable parameters ".format(','.join([str(x) for x in over]))+
                     'in the section of chromosome {} in your config file!'.format(chroms))
             for parameter in chroms_cfg.keys():
-                assert isinstance(chroms_cfg[parameter],cfg_params[parameter]),'{} in of chromosome {} in config file should be a {}!'.format(parameter,chroms_n,cfg_params[parameter].__name__)
+                assert isinstance(chroms_cfg[parameter],cfg_params[parameter]),"'{}' in of chromosome {} in config file should be a {}!".format(parameter,chroms_n,cfg_params[parameter].__name__)
             if 'length' not in chroms_cfg:
                 raise ConfigFileError("Couldn't find the length of chromosome:{}.".format(chroms_n))
             total_chroms_length+=chroms_cfg['length']
@@ -275,8 +276,11 @@ def main(progname=None):
     group4.add_argument('-G','--loglevel',type=str,default=default,choices=['DEBUG','INFO'],
         help='the logging level [{}]'.format(default))
     default=None
-    group4.add_argument('-T','--vars_tree',type=str,default=default,metavar='FILE',
-        help='the output file in NHX format to save the tree with nodeid and all variants [{}]'.format(default))
+    group4.add_argument('--nhx',type=str,default=default,metavar='FILE',
+        help='the output file in NHX format to save the pruned tree with all variants [{}]'.format(default))
+    default=None
+    group4.add_argument('--NHX',type=str,default=default,metavar='FILE',
+        help='the output file in NHX format to save the original tree with all variants [{}]'.format(default))
     default=None
     group4.add_argument('--cnv_profile',type=str,default=default,metavar='FILE',
         help='the file to save CNVs profile [{}]'.format(default))
@@ -360,6 +364,8 @@ def main(progname=None):
     mytree=csite.tree.newick2tree(newick)
     if args.trunk_length:
         mytree.lens=args.trunk_length
+#################original_tree
+    original_tree=copy.deepcopy(mytree)
     leaves_number=mytree.leaves_counting()
 
 ####### prune the tree if required
@@ -391,12 +397,11 @@ def main(progname=None):
         os.mkdir(args.chain,mode=0o755)
     if args.map:
         with open(args.map,'w') as tipnode_samples_map_f:
-            tipnode_samples_map_f.write('#tip_node\tsample_count\tsamples\n')
+            tipnode_samples_map_f.write('#tip_node\tcell_count\tcells\n')
             for tip_node in sorted(tipnode_leaves.keys()):
                 tipnode_samples_map_f.write('{}\t{}\t'.format(tip_node,len(tipnode_leaves[tip_node])))
                 tipnode_samples_map_f.write(','.join(sorted(tipnode_leaves[tip_node])))
                 tipnode_samples_map_f.write('\n')
-        tipnode_samples_map_f.close()
 
 
 
@@ -411,7 +416,7 @@ def main(progname=None):
     cnv_file=open(args.cnv,'w')
     cnv_file.write('#chr\tstart\tend\tcopy\tcarrier\n')
     snv_file=open(args.snv,'w')
-    snv_file.write('#chr\tpos\tform\tfreq\n')
+    snv_file.write('#chr\tstart\tend\tform\tfrequency\n')
 
     if args.cnv_profile!=None:
         cnv_profile_file=open(args.cnv_profile,'w')
@@ -472,17 +477,19 @@ def main(progname=None):
         if args.ind_cnvs!=None:
             for leaf in leaves_names:
                 for cnv in tipnode_cnvs[leaf_tipnode[leaf]]:
-                    ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,cnv['parental'],chroms,cnv['start'],cnv['end'],cnv['copy']]])))
+                    cnv_copy='+{}'.format(cnv['copy']) if cnv['copy']>0 else str(cnv['copy'])
+                    ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,cnv['parental'],chroms,cnv['start'],cnv['end'],cnv_copy]])))
 
 #        if args.haplotype_copy!=None:
 #            for snv in hap_local_copy_for_all_snvs:
 #                parental_copy_file.write('{}\t{}\n'.format(chroms,'\t'.join([str(x) for x in snv])))
 
         for cnv in cnvs:
-            cnv_file.write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,cnv['start'],cnv['end'],cnv['copy'],cnv['leaves_count']))
+            cnv_copy='+{}'.format(cnv['copy']) if cnv['copy']>0 else str(cnv['copy'])
+            cnv_file.write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,cnv['start'],cnv['end'],cnv_copy,cnv['leaves_count']))
 
         for pos,mutation,freq in snvs_freq:
-            snv_file.write('{}\t{}\t{}\t{}\n'.format(chroms,pos,mutation,freq))
+            snv_file.write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,pos,pos+1,mutation,freq))
 
         if args.cnv_profile!=None:
             for seg in cnv_profile:
@@ -523,9 +530,12 @@ def main(progname=None):
 #http://stackoverflow.com/questions/4677012/python-cant-pickle-type-x-attribute-lookup-failed
 #FIXME: right now, it does not consider the deletion effect on pre_snvs.
 #FIXME: output in .nhx format
-    if args.vars_tree!=None:
+    if args.nhx!=None:
         mytree.attach_info(attr='vars',info=all_nodes_vars)
-        with open(args.vars_tree,'w') as tree_data_file:
-            tree_data_file.write('{};\n'.format(mytree.tree2newick(with_lens=True,attrs=['nodeid','vars'])))
-#            pickle.dump(mytree,tree_data_file)
+        with open(args.nhx,'w') as tree_data_file:
+            tree_data_file.write('{};\n'.format(mytree.tree2nhx(with_lens=True,attrs=['nodeid','vars'])))
 
+    if args.NHX!=None:
+        original_tree.attach_info(attr='vars',info=all_nodes_vars)
+        with open(args.NHX,'w') as tree_data_file:
+            tree_data_file.write('{};\n'.format(original_tree.tree2nhx(with_lens=True,attrs=['nodeid','vars'])))

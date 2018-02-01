@@ -27,7 +27,7 @@ def check_sex(chrs=None):
     else:
         sex_chr=chrs.split(',')
         if len(sex_chr)!=2:
-            raise argparse.ArgumentTypeError('{} is an invalid value for --sex_chr.\n'.format(chrs)+
+            raise argparse.ArgumentTypeError("'{}' is an invalid value for --sex_chr.\n".format(chrs)+
                 'Please specify two sex chromosomes. If there are two copies of the same chromosome, \n'+
                 'just write it twice and seprate them by a comma! e.g. --sex_chr X,X \n')
     return sex_chr
@@ -35,10 +35,10 @@ def check_sex(chrs=None):
 def check_output_folder(directory=None):
     good_charactors=re.compile('^[0-9a-zA-Z/_\-]+$') 
     if not good_charactors.match(directory):
-        raise argparse.ArgumentTypeError("{} is an invalid string for --output. ".format(directory)+
+        raise argparse.ArgumentTypeError("'{}' is an invalid string for --output. ".format(directory)+
             "Please only the combination of numbers, alphabets and _/- as the directory name.")
     if os.path.exists(directory):
-        raise argparse.ArgumentTypeError("{} exists already. Delete it or use another name instead.".format(directory))
+        raise argparse.ArgumentTypeError("'{}' exists already. Delete it or use another name instead.".format(directory))
     return directory
     
 def main(progname=None):
@@ -71,7 +71,7 @@ def main(progname=None):
     try:
         os.mkdir(args.output,mode=0o755) 
     except FileNotFoundError:
-        exit("Couldn't create folder {}. Please create its parent directories first.".format(args.output))
+        exit("Couldn't create folder '{}'. Please create its parent directories first.".format(args.output))
 
     for i in range(2):
         with open('{}/normal.parental_{}.fa'.format(args.output,i),'w') as output:
@@ -117,9 +117,9 @@ def parse_autosomes(autosomes_str=None):
                 end=int(m.group(4))
                 autosomes.extend([prefix+str(x) for x in range(start,end+1)])
             else:
-                raise AutosomesError('The string {} is not valid in --autosomes'.format(i))
+                raise AutosomesError("The string '{}' is not valid in --autosomes".format(i))
         else:
-            raise AutosomesError('The string {} is not valid in --autosomes'.format(i))
+            raise AutosomesError("The string '{}' is not valid in --autosomes".format(i))
     return set(autosomes)
     
 def fai_info(fai=None,autosomes=None,sex_chr=None):
@@ -149,7 +149,7 @@ def fai_info(fai=None,autosomes=None,sex_chr=None):
                     profile[chroms]['hap_vars']=[[]]
     not_found=want-set(profile['order'])
     if not_found:
-        raise ChrNotFoundError("Couldn't find {} in the reference file!".format(not_found))
+        raise ChrNotFoundError("Couldn't find chromosome '{}' in the reference file!".format(not_found))
     return profile
 
 def add_vcf_vars(profile=None,vcf=None):
