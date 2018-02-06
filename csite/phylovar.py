@@ -14,9 +14,10 @@ import argparse
 import numpy
 import logging
 import copy
+import yaml
 import csite.trunk_vars
 import csite.tree
-import yaml
+from csite.vcf2fa import check_sex
 #import pickle
 
 #handle the error below
@@ -77,6 +78,13 @@ def check_tstv(value=None):
     if fvalue<=0: 
         raise argparse.ArgumentTypeError("{} is an invalid value for transition/transversion ratio. ".format(value)+
             "It should be an float larger than 0.")
+    return fvalue
+
+def check_purity(value=None):
+    fvalue=float(value)
+    if not 0<fvalue<=1: 
+        raise argparse.ArgumentTypeError("{} is an invalid value for --purity. ".format(value)+
+            "It should be a float number in the range of (0,1].")
     return fvalue
 
 def check_folder(directory=None):
@@ -147,7 +155,8 @@ def check_config_file(config=None):
         raise ConfigFileError("'{}' are not acceptable parameters in config file.".format(','.join([str(x) for x in over])))
 
     for parameter in cfg_params:
-        assert isinstance(config['genome'][parameter],cfg_params[parameter]),"'{}' in genome section of config file should be a {}!".format(parameter,cfg_params[parameter].__name__)
+        assert isinstance(config['genome'][parameter],cfg_params[parameter]),\
+            "'{}' in genome section of config file should be a {}!".format(parameter,cfg_params[parameter].__name__)
 
     if not isinstance(config['chromosomes'],list):
         raise ConfigFileError('Check your config file. The format in chromosomes section is not correct.')
@@ -166,7 +175,8 @@ def check_config_file(config=None):
                 raise ConfigFileError("'{}' are not acceptable parameters ".format(','.join([str(x) for x in over]))+
                     'in the section of chromosome {} in your config file!'.format(chroms))
             for parameter in chroms_cfg.keys():
-                assert isinstance(chroms_cfg[parameter],cfg_params[parameter]),"'{}' in of chromosome {} in config file should be a {}!".format(parameter,chroms_n,cfg_params[parameter].__name__)
+                assert isinstance(chroms_cfg[parameter],cfg_params[parameter]),\
+                    "'{}' in of chromosome {} in config file should be a {}!".format(parameter,chroms_n,cfg_params[parameter].__name__)
             if 'length' not in chroms_cfg:
                 raise ConfigFileError("Couldn't find the length of chromosome:{}.".format(chroms_n))
             total_chroms_length+=chroms_cfg['length']
@@ -262,6 +272,12 @@ def main(progname=None):
     default=0
     group3.add_argument('--trunk_length',type=float,default=default,metavar='FLOAT',
         help='the length of the trunk [{}]'.format(default))
+    default=0.8
+    group3.add_argument('--purity',type=check_purity,default=default,metavar='FLOAT',
+        help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
+    default=None
+    group3.add_argument('--sex_chr',type=check_sex,default=default,metavar='STR',
+        help='sex chromosomes of the genome (seperated by comma) [{}]'.format(default))
     group4=parse.add_argument_group('Output Related Parameters')
     default='phylovar.snvs'
     group4.add_argument('-S','--snv',type=str,default=default,metavar='FILE',
@@ -444,6 +460,9 @@ def main(progname=None):
 #        expands_segs_file.write("chr\tstartpos\tendpos\tCN_Estimate\n")
 
 ###### simulate variants for each chroms
+    sex_chrs=set()
+    if args.sex_chr:
+        sex_chrs=set(args.sex_chr.split(','))
     all_nodes_vars={}
     for chroms in final_chroms_cfg['order']:
         chroms_cfg=final_chroms_cfg[chroms]
@@ -452,6 +471,10 @@ def main(progname=None):
         cn_dist_cfg=cn_dist(copy_max=chroms_cfg['copy_max'],copy_parameter=chroms_cfg['copy_parameter'])
         tstv_dist_cfg=tstv_dist(tstv=chroms_cfg['tstv'])
         logging.info(' Start the simulation for chromosome: %s',chroms)
+#I need use normal_dosage to adjust the frequency of snv under under different purity
+        normal_dosage=leaves_number*2*(1-args.purity)/args.purity
+        if chroms in sex_chrs and len(sex_chrs)==2:
+            normal_dosage=leaves_number*1*(1-args.purity)/args.purity
         
         (snvs_freq,cnvs,cnv_profile,nodes_vars,
             tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs,
@@ -467,6 +490,7 @@ def main(progname=None):
                 trunk_snvs=trunk_snvs.get(chroms,{}),
                 trunk_cnvs=trunk_cnvs.get(chroms,{}),
                 length=chroms_cfg['length'],
+                normal_dosage=normal_dosage,
                 chain=args.chain,
                 chroms=chroms,
             )

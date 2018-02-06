@@ -17,7 +17,7 @@ import logging
 import pyfaidx
 import subprocess
 import multiprocessing
-from csite.phylovar import check_seed,random_int
+from csite.phylovar import check_seed,check_purity,random_int
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe 
@@ -34,13 +34,6 @@ def check_file(directory=None):
         raise argparse.ArgumentTypeError("'{}' doesn't exist or isn't a file.".format(directory))
     return directory
     
-def check_purity(value=None):
-    fvalue=float(value)
-    if not 0<fvalue<=1: 
-        raise argparse.ArgumentTypeError("{} is an invalid value for --purity. ".format(value)+
-            "It should be a float number in the range of (0,1].")
-    return fvalue
-
 def check_depth(value=None):
     fvalue=float(value)
     if fvalue<0: 
@@ -67,7 +60,7 @@ def main(progname=None):
     default=0
     parse.add_argument('-D','--normal_depth',type=check_depth,default=default,metavar='FLOAT',
         help='the mean depth of normal sample for ART to simulate NGS reads [{}]'.format(default))
-    default=0.5
+    default=0.8
     parse.add_argument('-p','--purity',type=check_purity,default=default,metavar='FLOAT',
         help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
     default=None

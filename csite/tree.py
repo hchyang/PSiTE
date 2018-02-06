@@ -412,7 +412,7 @@ class Tree:
     def prune(self,tips=None):
         '''
         After this method, the root node will have an attribute tipnode_leaves,
-        which is in the form of {tipnode1:[leaf1,leaf2,...],tipnode2:[leaf3,...],...}
+        which is a dictionary in the form of {tipnode1:[leaf1,leaf2,...],tipnode2:[leaf3,...],...}
         '''
         if not hasattr(self,'tipnode_leaves'):
             tipnode_leaves={}
@@ -545,8 +545,8 @@ class Tree:
     #@profile
     def snvs_freq_cnvs_profile(self,parental=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,
-                               trunk_snvs=None,trunk_cnvs=None,
-                               length=None,chain=None,chroms=None):
+                               trunk_snvs=None,trunk_cnvs=None,length=None,
+                               normal_dosage=None,chain=None,chroms=None):
         '''
         Produce the true frequency of SNVs in the samples.
         It's a warpper for generating SNVs/CNVs on a tree and summarize their frequency.
@@ -605,15 +605,11 @@ class Tree:
 #translate cnvs_pos_changes to cnv_profile before its changing
         cnv_profile=pos_changes2region_profile(cnvs_pos_changes)
 
-        region_mean_ploidy=0
-#I do not simulate purity of the tumor sample in module phylovar.
-#I will simulate it in module fa2wgs 
-#        normal_dosage=background*(1-purity)/purity
-        normal_dosage=0
+        local_tumor_dosage=0
         for pos in all_snvs_pos:
             while pos>=cnvs_pos_changes[0][0]:
-                region_mean_ploidy+=cnvs_pos_changes.pop(0)[1]
-            all_snvs_alt_freq.append([pos,all_snvs_alt_counts[pos]['mutation'],all_snvs_alt_counts[pos]['alt_count']/(normal_dosage+region_mean_ploidy)])
+                local_tumor_dosage+=cnvs_pos_changes.pop(0)[1]
+            all_snvs_alt_freq.append([pos,all_snvs_alt_counts[pos]['mutation'],all_snvs_alt_counts[pos]['alt_count']/(normal_dosage+local_tumor_dosage)])
 
 #calculate the number of reference alleles of each SNV for each tipnode
         tipnode_snv_refs={}
@@ -630,12 +626,12 @@ class Tree:
                 tipnode_snv_alts[tipnode]={}
                 for pos in all_snvs_pos:
                     tipnode_snv_alts[tipnode][pos]=0
-            region_mean_ploidy=0
+            local_ploidy=0
             tipnode_snv_refs[tipnode]={}
             for pos in all_snvs_pos:
                 while pos>=tipnode_cnvs_pos_changes[tipnode][0][0]:
-                    region_mean_ploidy+=tipnode_cnvs_pos_changes[tipnode].pop(0)[1]
-                tipnode_snv_refs[tipnode][pos]=region_mean_ploidy-tipnode_snv_alts[tipnode][pos]
+                    local_ploidy+=tipnode_cnvs_pos_changes[tipnode].pop(0)[1]
+                tipnode_snv_refs[tipnode][pos]=local_ploidy-tipnode_snv_alts[tipnode][pos]
 
         return all_snvs_alt_freq,all_cnvs,cnv_profile,nodes_vars,tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs
 #        return all_snvs_alt_freq,all_cnvs,cnv_profile,nodes_vars,tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs,hap_local_copy_for_all_snvs
@@ -734,7 +730,7 @@ def merge_two_dict_set(dict1=None,dict2=None):
     
 def cnvs2pos_changes(cnvs=None,length=None,background=None):
     '''
-    Return a list of lists. Each sublist contain two elements. The first is the postion, and the second 
+    Return a list of lists. Each sublist contain two elements. The first is the position, and the second 
     is the copy number CHANGES across all the samples between that positon and the next position.
     [[pos,relative_copy_number_change],...]
     '''
