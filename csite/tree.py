@@ -568,7 +568,7 @@ class Tree:
 #        haps_cnvs=[]
 #collect all snvs and cnvs
         for i in range(ploidy):
-            logging.info(' Simulate tree %s (total: %s)',i+1,ploidy)
+            logging.info(' Simulate haplotype %s (total: %s)',i+1,ploidy)
             hap_tree=copy.deepcopy(self)
             hap_trunk_snvs=trunk_snvs.get(i,[])
             hap_trunk_cnvs=trunk_cnvs.get(i,[])

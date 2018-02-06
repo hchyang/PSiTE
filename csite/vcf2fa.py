@@ -68,10 +68,7 @@ def main(progname=None):
 #fill in the list hap_vars in genome_profile
     add_vcf_vars(profile=genome_profile,vcf=args.vcf)
 
-    try:
-        os.mkdir(args.output,mode=0o755) 
-    except FileNotFoundError:
-        exit("Couldn't create folder '{}'. Please create its parent directories first.".format(args.output))
+    os.mkdir(args.output,mode=0o755) 
 
     for i in range(2):
         with open('{}/normal.parental_{}.fa'.format(args.output,i),'w') as output:
@@ -164,7 +161,7 @@ def add_vcf_vars(profile=None,vcf=None):
     elif vcf.endswith('vcf'):
         vcf_file=open(vcf,'r')
     else:
-        exit('For --vcf, only vcf/vcf.gz file are acceptable!')
+        raise VcfInputError('For --vcf, only vcf/vcf.gz file are acceptable!')
     for line in vcf_file:
         if gz:
             line=line.decode('utf-8')

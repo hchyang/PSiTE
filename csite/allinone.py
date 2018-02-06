@@ -100,8 +100,8 @@ def main(progname=None):
     if args.start==1:
         try:
             os.mkdir(outdir,mode=0o755)
-        except FileExistsError:
-            exit("'{}' already exists. Try another directory to output! (-o/--output)".format(outdir))
+        except FileExistsError as e:
+            raise OutputExistsError("'{}' already exists. Try another directory to output! (-o/--output)".format(outdir)) from e
     else:
         assert os.path.isdir(outdir),"Couldn't start from step {}, ".format(args.start)+\
             "because I can not find the directory of previous results: '{}'.".format(outdir)
@@ -212,3 +212,5 @@ def main(progname=None):
     logging.info(' Command: %s',' '.join(cmd_params_copy))
     subprocess.run(args=cmd_params,check=True)
 
+class OutputExistsError(Exception):
+    pass

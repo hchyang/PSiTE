@@ -21,7 +21,7 @@ from csite.vcf2fa import check_output_folder
 from signal import signal, SIGPIPE, SIG_DFL 
 signal(SIGPIPE,SIG_DFL) 
 
-def check_chain_folder(directory=None):
+def check_folder(directory=None):
     if not os.path.isdir(directory):
         raise argparse.ArgumentTypeError("'{}' doesn't exist or isn't a folder.".format(directory))
     return directory
@@ -36,7 +36,7 @@ def main(progname=None):
     parse=argparse.ArgumentParser(
         description='Build tumor genomes from somatic variants (encoded in the chain file)',
         prog=progname if progname else sys.argv[0])
-    parse.add_argument('-c','--chain',required=True,type=check_chain_folder,metavar='DIR',
+    parse.add_argument('-c','--chain',required=True,type=check_folder,metavar='DIR',
         help='the folder containing the chain files of tumor genomes')
     parse.add_argument('-n','--normal',required=True,type=check_normal_fastas,metavar='FILES',
         help='two fasta files (seperated by comma) of normal genome')

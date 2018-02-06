@@ -391,6 +391,9 @@ def main(progname=None):
         for name in names:
             leaf_tipnode[name]=tipnode
     leaves_names.sort()
+    logging.info(' There are %s leaves on your input tree.',len(leaves_names))
+    if args.prune>0 or args.prune_proportion>0:
+        logging.info(' After pruning, there are %s tip nodes on the tree.',len(tipnode_leaves))
 
 ###### output the map of tip_node(after pruning):leaf
     if args.chain:
@@ -448,6 +451,7 @@ def main(progname=None):
             cnv_length_max=chroms_cfg['cnv_length_max'],chr_length=chroms_cfg['length'])
         cn_dist_cfg=cn_dist(copy_max=chroms_cfg['copy_max'],copy_parameter=chroms_cfg['copy_parameter'])
         tstv_dist_cfg=tstv_dist(tstv=chroms_cfg['tstv'])
+        logging.info(' Start the simulation for chromosome: %s',chroms)
         
         (snvs_freq,cnvs,cnv_profile,nodes_vars,
             tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs,

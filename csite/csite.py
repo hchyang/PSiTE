@@ -62,7 +62,7 @@ def main():
             csite.allinone.main(progname=progname)
         else:
             print("[csite.py] Unrecognized command: '{}'".format(command))
-            exit()
+            sys.exit()
         
 if __name__ == '__main__':
     main()
