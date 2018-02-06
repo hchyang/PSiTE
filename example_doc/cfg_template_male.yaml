@@ -1,4 +1,4 @@
-#a male human genome (hs37d5), with anouploidy on chromsome 3 (00), 9 (011) and 15 (1).
+#a male human genome (GRCh37), with anouploidy on chromsome 3 (00), 9 (011) and 15 (1).
 genome:
     snv_rate: 300.0
     cnv_rate: 3.0
@@ -11,56 +11,56 @@ genome:
     tstv: 2.0
     length: 3095677412
 chromosomes:
-   - "1":
+   - '1':
         length: 249250621
-   - "2":
+   - '2':
         length: 243199373
-   - "3":
+   - '3':
         parental: '00'
         length: 198022430
-   - "4":
+   - '4':
         length: 191154276
-   - "5":
+   - '5':
         length: 180915260
-   - "6":
+   - '6':
         length: 171115067
-   - "7":
+   - '7':
         length: 159138663
-   - "8":
+   - '8':
         length: 146364022
-   - "9":
+   - '9':
         parental: '011'
         length: 141213431
-   - "10":
+   - '10':
         length: 135534747
-   - "11":
+   - '11':
         length: 135006516
-   - "12":
+   - '12':
         length: 133851895
-   - "13":
+   - '13':
         length: 115169878
-   - "14":
+   - '14':
         length: 107349540
-   - "15":
+   - '15':
         parental: '1'
         length: 102531392
-   - "16":
+   - '16':
         length: 90354753
-   - "17":
+   - '17':
         length: 81195210
-   - "18":
+   - '18':
         length: 78077248
-   - "19":
+   - '19':
         length: 59128983
-   - "20":
+   - '20':
         length: 63025520
-   - "21":
+   - '21':
         length: 48129895
-   - "22":
+   - '22':
         length: 51304566
-   - "X":
+   - 'X':
         parental: '0'
         length: 155270560
-   - "Y":
+   - 'Y':
         parental: '0'
         length: 59373566
