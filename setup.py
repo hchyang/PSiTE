@@ -33,7 +33,7 @@ setup(
     description = "CSiTE is a Python program for jointly simulating Single Nucleotide Variants (SNVs) and Copy Number Variants (CNVs) for a sample of tumor cells.",
     long_description = long_descr,
     author = "Hechuan Yang",
-    author_email = "yanghechuan@gmail.com",
+    author_email = "yanghch@outlook.com",
     url = "https://github.com/hchyang/CSiTE.git",
 #https://docs.python.org/3/library/subprocess.html
 #The subprocess.run() function was added in Python 3.5
