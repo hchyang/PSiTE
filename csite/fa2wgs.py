@@ -24,6 +24,16 @@ from csite.phylovar import check_seed,random_int
 from signal import signal, SIGPIPE, SIG_DFL 
 signal(SIGPIPE,SIG_DFL) 
 
+def check_folder(directory=None):
+    if not os.path.isdir(directory):
+        raise argparse.ArgumentTypeError("'{}' doesn't exist or isn't a folder.".format(directory))
+    return directory
+    
+def check_file(directory=None):
+    if not os.path.isfile(directory):
+        raise argparse.ArgumentTypeError("'{}' doesn't exist or isn't a file.".format(directory))
+    return directory
+    
 def check_purity(value=None):
     fvalue=float(value)
     if not 0<fvalue<=1: 
@@ -40,13 +50,13 @@ def check_depth(value=None):
 
 def main(progname=None):
     parse=argparse.ArgumentParser(
-        description='A wrapper of simulating NGS reads from normal and tumor genome fasta',
+        description='A wrapper of simulating WGS reads from normal and tumor genome fasta',
         prog=progname if progname else sys.argv[0])
-    parse.add_argument('-n','--normal',type=str,required=True,metavar='DIR',
+    parse.add_argument('-n','--normal',type=check_folder,required=True,metavar='DIR',
         help='the directory of the normal fasta')
-    parse.add_argument('-t','--tumor',type=str,required=True,metavar='DIR',
+    parse.add_argument('-t','--tumor',type=check_folder,required=True,metavar='DIR',
         help='the directory of the tumor fasta')
-    parse.add_argument('-m','--map',type=str,required=True,metavar='FILE',
+    parse.add_argument('-m','--map',type=check_file,required=True,metavar='FILE',
         help='the map file containing the relationship between tip nodes and samples')
     default='art_reads'
     parse.add_argument('-o','--output',type=str,default=default,metavar='DIR',
@@ -97,19 +107,25 @@ def main(progname=None):
     logging.info(' Random seed: %s',seed)
     numpy.random.seed(seed)
 
-#there must be two haplotype fasta in the normal dir
-    assert os.path.isdir(args.normal),"'{}' doesn't exist or isn't a folder.".format(args.normal)
-    for parental in 0,1:
-        assert os.path.isfile('{}/normal.parental_{}.fa'.format(args.normal,parental)),\
-            "Couldn't find normal.parental_{}.fa under the normal directory: {}".format(parental,args.normal)
-
-#tumor directory and map file must exist.
-    assert os.path.isdir(args.tumor),"'{}' doesn't exist or isn't a folder.".format(args.tumor)
-    assert os.path.isfile(args.map),"'{}' doesn't exist or isn't a file.".format(args.map)
-
 #exit the program if you do not want to simulate any reads for normal or tumor samples
     if args.depth+args.normal_depth==0:
-        exit(0)
+        sys.exit('Do nothing as the total depth (normal+tumor) is 0!')
+
+#create index file (.fai) for each fasta
+    tip_node_leaves=tip_node_leaves_counting(f=args.map)
+    pool=multiprocessing.Pool(processes=args.cores)
+    for parental in 0,1:
+        fasta='{}/normal.parental_{}.fa'.format(args.normal,parental)
+        assert os.path.isfile(fasta),\
+            "Couldn't find {} under the normal directory: {}".format(fasta,args.normal)
+        pool.apply_async(pyfaidx.Faidx,args=(fasta,))
+        for tip_node in tip_node_leaves.keys():
+            fasta='{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)
+            assert os.path.isfile(fasta),\
+                "Couldn't find {} under the tumor directory: {}".format(fasta,args.tumor)
+            pool.apply_async(pyfaidx.Faidx,args=(fasta,))
+    pool.close()
+    pool.join()
 
 #compute coverage and run ART
 #FIXME: cell number: float? int?
@@ -118,7 +134,6 @@ def main(progname=None):
         normal_gsize+=genomesize(fasta='{}/normal.parental_{}.fa'.format(args.normal,parental))
     tumor_seq_bases=normal_gsize/2*args.depth
 
-    tip_node_leaves=tip_node_leaves_counting(f=args.map)
     tumor_cells=sum(tip_node_leaves.values())
     total_cells=tumor_cells/args.purity
     normal_cells=total_cells-tumor_cells
@@ -133,8 +148,6 @@ def main(progname=None):
 #2)the sum of parental 0 and 1
         tip_node_gsize[tip_node]=[]
         for parental in 0,1:
-            assert os.path.isfile('{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)),\
-                "Couldn't find {}.parental_{}.fa under the tumor directory: {}".format(tip_node,parental,args.tumor)
             tip_node_gsize[tip_node].append(genomesize(fasta='{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)))
         tip_node_gsize[tip_node].append(tip_node_gsize[tip_node][0]+tip_node_gsize[tip_node][1])
         tumor_dna+=tip_node_gsize[tip_node][2]*tip_node_leaves[tip_node]
@@ -145,7 +158,7 @@ def main(progname=None):
         if os.path.isdir(args.output):
             pass
         else:
-            exit("A file in the name of '{}' exists.\nDelete it or try another name as output folder.".format(args.output))
+            raise OutputExistsError("A file in the name of '{}' exists.\nDelete it or try another name as output folder.".format(args.output))
     else:
         os.mkdir(args.output,mode=0o755)
     tumor_dir=args.output+'/tumor'
@@ -159,8 +172,9 @@ def main(progname=None):
     if args.normal_depth>0:
         try:
             os.mkdir(normal_dir,mode=0o755)
-        except FileExistsError:
-            exit("'{}' exists already! Can not use it as the output folder of normal NGS reads.".format(normal_dir))
+        except FileExistsError as e:
+            raise OutputExistsError("'{}' exists already! \nCan not use it as the output folder of normal NGS reads.".format(normal_dir)+
+                '\nDelete it or use another folder as output folder.') from e
         for parental in 0,1:
             prefix='{}/normal.parental_{}.'.format(normal_dir,parental)
             fcov=args.normal_depth/2
@@ -178,8 +192,9 @@ def main(progname=None):
     if args.depth>0:
         try:
             os.mkdir(tumor_dir,mode=0o755)
-        except FileExistsError:
-            exit("'{}' exists already! Can not use it as the output folder of tumor NGS reads.".format(normal_dir))
+        except FileExistsError as e:
+            raise OutputExistsError("'{}' exists already! \nCan not use it as the output folder of tumor NGS reads.".format(normal_dir)+
+                '\nDelete it or use another folder as output folder.') from e
 #create a reference meta file which can be used by wessim to simulate exome-seq data
         ref_meta=open('reference.meta','w')
 #two normal cell haplotypes
@@ -328,3 +343,5 @@ def genomesize(fasta=None):
         gsize+=fa.index[chroms].rlen
     return gsize
 
+class OutputExistsError(Exception):
+    pass
