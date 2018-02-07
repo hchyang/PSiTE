@@ -77,8 +77,12 @@ def main(progname=None):
         help='number of cores used to run the program [{}]'.format(default))
     parse.add_argument('--compress',action="store_true",
         help='compress the generated fastq files using gzip')
+    parse.add_argument('--seperate',action="store_true",
+        help="keep each tip node's NGS reads file seperately")
     parse.add_argument('--single',action="store_true",
-        help="single cell mode. Output each tip node's NGS reads file seperately")
+        help="single cell mode. "+\
+        "After this setting, the value of --depth is the depth of each tumor cell "+\
+        "(not the total depth of tumor sample anymore).")
     args=parse.parse_args()
 
 # logging and random seed setting
@@ -104,8 +108,14 @@ def main(progname=None):
     if args.depth+args.normal_depth==0:
         sys.exit('Do nothing as the total depth (normal+tumor) is 0!')
 
-#create index file (.fai) for each fasta
+#single cell mode or bulk tumor mode
     tip_node_leaves=tip_node_leaves_counting(f=args.map)
+    if args.single:
+        for tip_node in tip_node_leaves:
+            assert tip_node_leaves[tip_node]==1,\
+                'In single mode, each tip node should represent 1 cell.\n'+\
+                'But found {} leaves underneath tip node {} in your map file!'.format(tip_node_leaves[tip_node],tip_node)
+#create index file (.fai) for each fasta
     pool=multiprocessing.Pool(processes=args.cores)
     for parental in 0,1:
         fasta='{}/normal.parental_{}.fa'.format(args.normal,parental)
@@ -192,6 +202,8 @@ def main(progname=None):
         ref_meta=open('reference.meta','w')
 #two normal cell haplotypes
         for parental in 0,1:
+            if args.single:
+                continue
             prefix='{}/normal.parental_{}.'.format(tumor_dir,parental)
             fcov=normal_cells*tumor_seq_per_base
             ref='{}/normal.parental_{}.fa'.format(args.normal,parental)
@@ -208,7 +220,11 @@ def main(progname=None):
 
 #tumor cells haplotypes
         for tip_node in sorted(tip_node_leaves.keys()):
-            fcov=tip_node_leaves[tip_node]*tumor_seq_per_base
+            fcov=None
+            if args.single:
+                fcov=args.depth
+            else:
+                fcov=tip_node_leaves[tip_node]*tumor_seq_per_base
             for parental in 0,1:
                 ref='{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)
                 prefix='{}/{}.parental_{}.'.format(tumor_dir,tip_node,parental)
@@ -220,13 +236,20 @@ def main(progname=None):
                     'out':prefix,
                     'id':'{}_prt{}'.format(tip_node,parental)}
                 params_matrix.append(sim_cfg)
+                if args.single:
+                    continue
                 fullname=os.path.abspath(ref)
-                ref_meta.write('{}\t{}\n'.format(fullname,str(tip_node_leaves[tip_node]/total_cells*tip_node_gsize[tip_node][parental]/tip_node_gsize[tip_node][2])))
+                ref_meta.write('{}\t{}\n'.format(fullname,
+                    str(tip_node_leaves[tip_node]/total_cells*tip_node_gsize[tip_node][parental]/tip_node_gsize[tip_node][2])))
         ref_meta.close()
 
 #generate fastq (and compress them) parallelly
 #every thread will generate at most 2 percent of the total data you want to simulate
-    sizeBlock=normal_gsize*(args.depth+args.normal_depth)*0.02
+    sizeBlock=None
+    if args.single:
+        sizeBlock=(normal_gsize*args.normal_depth+sum([x[2] for x in tip_node_gsize.values()])*args.depth)*0.02
+    else:
+        sizeBlock=normal_gsize*(args.depth+args.normal_depth)*0.02
     final_params_matrix=[]
     for cfg in params_matrix:
         n=math.ceil(cfg['gsize']*cfg['fcov']/sizeBlock)
@@ -259,7 +282,7 @@ def main(progname=None):
                 sample_fq_files.append([target,source])
     if args.depth>0:
         for suffix in suffixes:
-            if args.single:
+            if args.single or args.seperate:
                 for tip_node in ['normal']+sorted(tip_node_leaves.keys()):
                     prefix='{}/{}.parental_[01].[0-9][0-9].'.format(tumor_dir,tip_node)
                     source=glob.glob(prefix+suffix)

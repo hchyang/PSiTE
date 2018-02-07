@@ -82,9 +82,15 @@ def main(progname=None):
         help='number of cores used to run the program [{}]'.format(default))
     parse.add_argument('--compress',action="store_true",
         help='compress the generated fastq files using gzip')
+    parse.add_argument('--seperate',action="store_true",
+        help="keep each tip node's NGS reads file seperately")
     parse.add_argument('--single',action="store_true",
-        help="single cell mode. Output each tip node's NGS reads file seperately")
+        help="single cell mode. "+\
+        "After this setting, the value of --depth is the depth of each tumor cell "+\
+        "(not the total depth of tumor sample anymore).")
     args=parse.parse_args()
+    if (args.prune or args.prune_proportion) and args.single:
+        raise argparse.ArgumentTypeError("Can not prune the tree in single cell mode!")
     with open(args.config,'r') as configfile:
         config=yaml.safe_load(configfile)
     check_config_file(config=config)
