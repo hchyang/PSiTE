@@ -14,6 +14,7 @@ import argparse
 import pyfaidx
 import glob
 import numpy
+import multiprocessing
 from csite.vcf2fa import check_output_folder
 
 #handle the error below
@@ -46,68 +47,78 @@ def main(progname=None):
     default=50
     parse.add_argument('-w','--width',default=default,type=int,metavar='INT',
         help='the line width of output fasta files [{}]'.format(default))
+    default=1
+    parse.add_argument('--cores',type=int,default=default,metavar='INT',
+        help='number of cores used to run the program [{}]'.format(default))
+
     args=parse.parse_args()
 
-    refs=[]
-    for fa in args.normal.split(','):
-        refs.append(pyfaidx.Fasta(fa))
     os.mkdir(args.output,mode=0o755)
-    parentalre=re.compile('^parental:[01]$')
+    pool=multiprocessing.Pool(processes=args.cores)
     for node_chain in glob.glob(args.chain+'/node*.chain'):
-        node=os.path.basename(node_chain)
-        node=node.split('.')[0]
-        outputf=[]
-        for parental in 0,1:
-            outputf.append(open('{}/{}.parental_{}.fa'.format(args.output,node,parental),'w'))
-        reference=None
-        with open(node_chain) as inputf:
-            seq_name=None
-            parental=None
-            seq=[]
-            for line in inputf:
-                line=line.rstrip()
-                if line.startswith('>'):
-                    if seq:
-                        outputf[parental].write('>{}\n'.format(seq_name))
-                        for outputline in pyfaidx.wrap_sequence(args.width,''.join(seq)):
-                            outputf[parental].write(outputline)
-                    seq_name,parental=line[1:].split()
-                    if parentalre.match(parental):
-                        parental=int(parental.split(':')[1])
-                        try:
-                            reference=refs[parental]
-                        except IndexError:
-                            raise FastaMissingError('There is no parental {} avalible,\n'.format(parental)+
-                                'which is required in the record ({}):\n{}\n'.format(node_chain,line))
-                    else:
-                        raise ChainFileError('The format of this line below from the chain file '+
-                            '({}) is not correct:\n{}\n'.format(node_chain,line))
-                    seq=[]
+        pool.apply_async(build_fasta,args=(args.output,node_chain,args.normal,args.width))
+    pool.close()
+    pool.join()
+
+def build_fasta(output=None,chain=None,normal_fa=None,width=None):
+    refs=[]
+    for fa in normal_fa.split(','):
+        refs.append(pyfaidx.Fasta(fa))
+    parentalre=re.compile('^parental:[01]$')
+    node=os.path.basename(chain)
+    node=node.split('.')[0]
+    outputf=[]
+    for parental in 0,1:
+        outputf.append(open('{}/{}.parental_{}.fa'.format(output,node,parental),'w'))
+    reference=None
+    with open(chain) as inputf:
+        seq_name=None
+        parental=None
+        seq=[]
+        for line in inputf:
+            line=line.rstrip()
+            if line.startswith('>'):
+                if seq:
+                    outputf[parental].write('>{}\n'.format(seq_name))
+                    for outputline in pyfaidx.wrap_sequence(width,''.join(seq)):
+                        outputf[parental].write(outputline)
+                seq_name,parental=line[1:].split()
+                if parentalre.match(parental):
+                    parental=int(parental.split(':')[1])
+                    try:
+                        reference=refs[parental]
+                    except IndexError:
+                        raise FastaMissingError('There is no parental {} avalible,\n'.format(parental)+
+                            'which is required in the record ({}):\n{}\n'.format(chain,line))
                 else:
-                    column=line.split()
-                    chroms=column[0]
-                    start=int(column[1])
-                    end=int(column[2])
-                    seq_type=column[3]
-                    segment=''
-                    if seq_type=='REF':
-                        segment=reference[chroms][start:end].seq
-                    elif seq_type=='SNV':
-                        ref=reference[chroms][start:end].seq
-                        m=Mutation(ref=ref,form=column[4])
-                        segment=m.alternative
-                    elif seq_type=='DEL':
-                        pass
-                    else:
-                        raise ChainFileError('Can not recognize the sequence type ({}) '.format(seq_type)+
-                            'of the record below from the chain file ({}):\n{}\n'.format(node_chain,line))
-                    seq.append(segment)
-            if seq:
-                outputf[parental].write('>{}\n'.format(seq_name))
-                for outputline in pyfaidx.wrap_sequence(args.width,''.join(seq)):
-                    outputf[parental].write(outputline)
-        for parental in 0,1:
-            outputf[parental].close()
+                    raise ChainFileError('The format of this line below from the chain file '+
+                        '({}) is not correct:\n{}\n'.format(chain,line))
+                seq=[]
+            else:
+                column=line.split()
+                chroms=column[0]
+                start=int(column[1])
+                end=int(column[2])
+                seq_type=column[3]
+                segment=''
+                if seq_type=='REF':
+                    segment=reference[chroms][start:end].seq
+                elif seq_type=='SNV':
+                    ref=reference[chroms][start:end].seq
+                    m=Mutation(ref=ref,form=column[4])
+                    segment=m.alternative
+                elif seq_type=='DEL':
+                    pass
+                else:
+                    raise ChainFileError('Can not recognize the sequence type ({}) '.format(seq_type)+
+                        'of the record below from the chain file ({}):\n{}\n'.format(chain,line))
+                seq.append(segment)
+        if seq:
+            outputf[parental].write('>{}\n'.format(seq_name))
+            for outputline in pyfaidx.wrap_sequence(width,''.join(seq)):
+                outputf[parental].write(outputline)
+    for parental in 0,1:
+        outputf[parental].close()
                         
 class Mutation:
     '''
