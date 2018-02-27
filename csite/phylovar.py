@@ -277,7 +277,7 @@ def main(progname=None):
         help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
     default=None
     group3.add_argument('--sex_chr',type=check_sex,default=default,metavar='STR',
-        help='sex chromosomes of the genome (seperated by comma) [{}]'.format(default))
+        help='sex chromosomes of the genome (separated by comma) [{}]'.format(default))
     group4=parse.add_argument_group('Output Related Parameters')
     default='phylovar.snvs'
     group4.add_argument('-S','--snv',type=str,default=default,metavar='FILE',

@@ -78,7 +78,7 @@ def main(progname=None):
         help='autosomes of the genome (e.g. 1,2,3,4,5 or 1..4,5)')
     default=None
     parse.add_argument('-s','--sex_chr',type=check_sex,default=default,metavar='STR',
-        help='sex chromosomes of the genome (seperated by comma) [{}]'.format(default))
+        help='sex chromosomes of the genome (separated by comma) [{}]'.format(default))
     args=parse.parse_args()
     if args.sex_chr==None:
         args.sex_chr=[]

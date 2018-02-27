@@ -40,7 +40,7 @@ def main(progname=None):
     parse.add_argument('-c','--chain',required=True,type=check_folder,metavar='DIR',
         help='the folder containing the chain files of tumor genomes')
     parse.add_argument('-n','--normal',required=True,type=check_normal_fastas,metavar='FILES',
-        help='two fasta files (seperated by comma) of normal genome')
+        help='two fasta files (separated by comma) of normal genome')
     default='tumor_fa'
     parse.add_argument('-o','--output',default=default,type=check_output_folder,metavar='DIR',
         help='output directory [{}]'.format(default))

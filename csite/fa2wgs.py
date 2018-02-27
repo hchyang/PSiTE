@@ -77,8 +77,8 @@ def main(progname=None):
         help='number of cores used to run the program [{}]'.format(default))
     parse.add_argument('--compress',action="store_true",
         help='compress the generated fastq files using gzip')
-    parse.add_argument('--seperate',action="store_true",
-        help="keep each tip node's NGS reads file seperately")
+    parse.add_argument('--separate',action="store_true",
+        help="keep each tip node's NGS reads file separately")
     parse.add_argument('--single',action="store_true",
         help="single cell mode. "+\
         "After this setting, the value of --depth is the depth of each tumor cell "+\
@@ -282,7 +282,7 @@ def main(progname=None):
                 sample_fq_files.append([target,source])
     if args.depth>0:
         for suffix in suffixes:
-            if args.single or args.seperate:
+            if args.single or args.separate:
                 for tip_node in ['normal']+sorted(tip_node_leaves.keys()):
                     prefix='{}/{}.parental_[01].[0-9][0-9].'.format(tumor_dir,tip_node)
                     source=glob.glob(prefix+suffix)

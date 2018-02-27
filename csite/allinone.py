@@ -43,7 +43,7 @@ def main(progname=None):
         help='autosomes of the genome (e.g. 1,2,3,4,5 or 1..4,5)')
     default=None
     parse.add_argument('-s','--sex_chr',type=check_sex,default=default,metavar='STR',
-        help='sex chromosomes of the genome (seperated by comma) [{}]'.format(default))
+        help='sex chromosomes of the genome (separated by comma) [{}]'.format(default))
     default=0
     parse.add_argument('-x','--prune',type=check_prune,default=default,metavar='INT',
         help='trim all the children of the nodes with equal or less than this number of leaves [{}]'.format(default))
@@ -82,8 +82,8 @@ def main(progname=None):
         help='number of cores used to run the program [{}]'.format(default))
     parse.add_argument('--compress',action="store_true",
         help='compress the generated fastq files using gzip')
-    parse.add_argument('--seperate',action="store_true",
-        help="keep each tip node's NGS reads file seperately")
+    parse.add_argument('--separate',action="store_true",
+        help="keep each tip node's NGS reads file separately")
     parse.add_argument('--single',action="store_true",
         help="single cell mode. "+\
         "After this setting, the value of --depth is the depth of each tumor cell "+\
