@@ -21,16 +21,38 @@ signal(SIGPIPE,SIG_DFL)
 
 nucleotide_re=re.compile('^[atcgnATCGN]$')
 
+
+def check_vcf(vcf=None):
+    if not vcf.endswith(('vcf','VCF','vcf.gz','VCF.gz','VCF.GZ','vcf.GZ')):
+        raise argparse.ArgumentTypeError('For --vcf, only vcf/vcf.gz file are acceptable!')
+    return vcf
+
+def check_autosomes(autosomes_str=None):
+    tmp=autosomes_str.split(',')
+    for i in tmp:
+        n=i.count('..')
+        if n==0:
+            pass
+        elif n==1:
+            m=re.search('^(.*)([0-9]+)\.\.(\\1)?([0-9]+)$',i)
+            if m:
+                start=int(m.group(2))
+                end=int(m.group(4))
+                if start>=end:
+                    raise argparse.ArgumentTypeError("The string '{}' is not valid in --autosomes".format(i))
+            else:
+                raise argparse.ArgumentTypeError("The string '{}' is not valid in --autosomes".format(i))
+        else:
+            raise argparse.ArgumentTypeError("The string '{}' is not valid in --autosomes".format(i))
+    return autosomes_str
+
 def check_sex(chrs=None):
-    if chrs==None or len(chrs)==0:
-        sex_chr=[]
-    else:
-        sex_chr=chrs.split(',')
-        if len(sex_chr)!=2:
-            raise argparse.ArgumentTypeError("'{}' is an invalid value for --sex_chr.\n".format(chrs)+
-                'Please specify two sex chromosomes. If there are two copies of the same chromosome, \n'+
-                'just write it twice and seprate them by a comma! e.g. --sex_chr X,X \n')
-    return sex_chr
+    sex_chr=chrs.split(',')
+    if len(sex_chr)!=2:
+        raise argparse.ArgumentTypeError("'{}' is an invalid value for --sex_chr.\n".format(chrs)+
+            'Please specify two sex chromosomes. If there are two copies of the same chromosome, \n'+
+            'just write it twice and seprate them by a comma! e.g. --sex_chr X,X \n')
+    return chrs
 
 def check_output_folder(directory=None):
     good_charactors=re.compile('^[0-9a-zA-Z/_\-]+$') 
@@ -45,14 +67,14 @@ def main(progname=None):
     parse=argparse.ArgumentParser(
         description='Build normal genome by integrating germline SNPs from a VCF file.',
         prog=progname if progname else sys.argv[0])
-    parse.add_argument('-v','--vcf',type=str,required=True,metavar='FILE',
+    parse.add_argument('-v','--vcf',type=check_vcf,required=True,metavar='FILE',
         help='a VCF file containing germline SNPs')
     parse.add_argument('-r','--reference',type=str,required=True,metavar='FILE',
         help='a fasta file of reference genome')
     default='normal_fa'
     parse.add_argument('-o','--output',type=check_output_folder,default=default,metavar='DIR',
         help='output directory [{}]'.format(default))
-    parse.add_argument('-a','--autosomes',type=str,required=True,metavar='STR',
+    parse.add_argument('-a','--autosomes',type=check_autosomes,required=True,metavar='STR',
         help='autosomes of the genome (e.g. 1,2,3,4,5 or 1..4,5)')
     default=None
     parse.add_argument('-s','--sex_chr',type=check_sex,default=default,metavar='STR',
@@ -60,6 +82,8 @@ def main(progname=None):
     args=parse.parse_args()
     if args.sex_chr==None:
         args.sex_chr=[]
+    else:
+        args.sex_chr=args.sex_chr.split(',')
     autosomes=parse_autosomes(args.autosomes)
 
 #build the data structure: genome_profile
@@ -114,9 +138,9 @@ def parse_autosomes(autosomes_str=None):
                 end=int(m.group(4))
                 autosomes.extend([prefix+str(x) for x in range(start,end+1)])
             else:
-                raise AutosomesError("The string '{}' is not valid in --autosomes".format(i))
+                raise argparse.ArgumentTypeError("The string '{}' is not valid in --autosomes".format(i))
         else:
-            raise AutosomesError("The string '{}' is not valid in --autosomes".format(i))
+            raise argparse.ArgumentTypeError("The string '{}' is not valid in --autosomes".format(i))
     return set(autosomes)
     
 def fai_info(fai=None,autosomes=None,sex_chr=None):
@@ -155,13 +179,11 @@ def add_vcf_vars(profile=None,vcf=None):
     And fill in the list hap_vars in profile.
     '''
     gz=False
-    if vcf.endswith('vcf.gz'):
+    if vcf.endswith(('gz','GZ')):
         vcf_file=gzip.open(vcf,'rb')
         gz=True
-    elif vcf.endswith('vcf'):
-        vcf_file=open(vcf,'r')
     else:
-        raise VcfInputError('For --vcf, only vcf/vcf.gz file are acceptable!')
+        vcf_file=open(vcf,'r')
     for line in vcf_file:
         if gz:
             line=line.decode('utf-8')
@@ -209,9 +231,6 @@ class ChrNotFoundError(Exception):
     pass
 
 class VcfInputError(Exception):
-    pass
-
-class AutosomesError(Exception):
     pass
 
 class FolderExistsError(Exception):
