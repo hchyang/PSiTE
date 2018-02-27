@@ -25,12 +25,12 @@ from csite.vcf2fa import check_sex
 from signal import signal, SIGPIPE, SIG_DFL 
 signal(SIGPIPE,SIG_DFL) 
 
-#TODO: check wheter parental is parental. sometimes it's mean haplotype...
+#TODO: check whether parental is parental. sometimes it's mean haplotype...
 #TODO: SNV true_freq
-#rewrite the description of the output of SNVs 
+#TODO: rewrite the description of the output of SNVs 
 
-#I defined those two parameters as global variants. As they will be used in function
-#random_int and check_config_file, which will be used in allinone.py.
+#I defined those two parameters as global variables. As they will be used in function
+#random_int and check_config_file, which are also used in allinone.py.
 largest=2**32
 cfg_params={'snv_rate':float,
             'cnv_rate':float,
