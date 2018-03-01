@@ -538,15 +538,6 @@ def main(progname=None):
 
     check_input(args)
 
-    # Add folder and execute permission to system path for simulation
-    wes_dir = os.path.join(os.path.dirname(sys.argv[0]), 'wes')
-    util_dir = os.path.join(wes_dir, 'util')
-    os.environ["PATH"] += os.pathsep + util_dir
-    file_path = os.path.join(util_dir, 'GemErr.py')
-    subprocess.call(['chmod', '0755', file_path])
-    file_path = os.path.join(util_dir, 'probe2fa.py')
-    subprocess.call(['chmod', '0755', file_path])
-
     # Copy Snakefile
     if args.simulator == "capsim":
         snake_file = os.path.join(os.path.dirname(sys.argv[0]), 'wes/config/Snakefile_capsim')
@@ -554,15 +545,11 @@ def main(progname=None):
         snake_file = os.path.join(os.path.dirname(sys.argv[0]), 'wes/config/Snakefile_wessim')
         wessim_dir = os.path.join(wes_dir, 'wessim')
         os.environ["PATH"] += os.pathsep + wessim_dir
-        file_path = os.path.join(wessim_dir, 'Wessim2.py')
-        subprocess.call(['chmod', '0755', file_path])
     else: # capgem
         snake_file = os.path.join(os.path.dirname(sys.argv[0]), 'wes/config/Snakefile_capgem')
         capgem_dir = os.path.join(wes_dir, 'capgem')
         os.environ["PATH"] += os.pathsep + os.path.join(capgem_dir, 'bin')
         os.environ["PATH"] += os.pathsep + os.path.join(capgem_dir, 'src')
-        file_path = os.path.join(capgem_dir, 'src/frag2read.py')
-        subprocess.call(['chmod', '0755', file_path])
     assert os.path.isfile(snake_file), 'Cannot find Snakefile under the program directory'
 
     normal_gsize = compute_normal_gsize(args.normal)
