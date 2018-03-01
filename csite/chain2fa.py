@@ -34,24 +34,24 @@ def check_normal_fastas(fastas=None):
     return fastas
     
 def main(progname=None):
-    parse=argparse.ArgumentParser(
+    parser=argparse.ArgumentParser(
         description='Build tumor genomes from somatic variants (encoded in the chain file)',
         prog=progname if progname else sys.argv[0])
-    parse.add_argument('-c','--chain',required=True,type=check_folder,metavar='DIR',
+    parser.add_argument('-c','--chain',required=True,type=check_folder,metavar='DIR',
         help='the folder containing the chain files of tumor genomes')
-    parse.add_argument('-n','--normal',required=True,type=check_normal_fastas,metavar='FILES',
+    parser.add_argument('-n','--normal',required=True,type=check_normal_fastas,metavar='FILES',
         help='two fasta files (separated by comma) of normal genome')
     default='tumor_fa'
-    parse.add_argument('-o','--output',default=default,type=check_output_folder,metavar='DIR',
+    parser.add_argument('-o','--output',default=default,type=check_output_folder,metavar='DIR',
         help='output directory [{}]'.format(default))
     default=50
-    parse.add_argument('-w','--width',default=default,type=int,metavar='INT',
+    parser.add_argument('-w','--width',default=default,type=int,metavar='INT',
         help='the line width of output fasta files [{}]'.format(default))
     default=1
-    parse.add_argument('--cores',type=int,default=default,metavar='INT',
+    parser.add_argument('--cores',type=int,default=default,metavar='INT',
         help='number of cores used to run the program [{}]'.format(default))
 
-    args=parse.parse_args()
+    args=parser.parse_args()
 
     os.mkdir(args.output,mode=0o755)
     pool=multiprocessing.Pool(processes=args.cores)
