@@ -2,7 +2,6 @@
 
 import argparse
 
-
 def main():
     parser = argparse.ArgumentParser(description='probe2fa: a program to convert probe sequences to FASTA format', prog='probe2fa', formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-i', metavar='FILE', dest='probe_file', required=True,
