@@ -33,17 +33,15 @@ MAX_READNUM = 1e6
 def check_input(args):
     # there must be two haplotype fasta in the normal dir
     assert os.path.isdir(
-        args.normal), '{} is not exist or not a folder.'.format(args.normal)
+        args.normal), "'{}' dosen't exist or isn't a folder.".format(args.normal)
     for parental in 0, 1:
         assert os.path.isfile('{}/normal.parental_{}.fa'.format(args.normal, parental)),\
             'Can not find normal.parental_{}.fa under the normal directory: {}'.format(
                 parental, args.normal)
 
-    # tumor directory and chain directory must exist.
-    # also file chain_dir/tip_node_sample.count.
-    assert os.path.isdir(args.chain), '{} is not exist or not a folder.'.format(args.chain)
+    # tumor directory and map file must exist.
     assert os.path.isfile(args.map),"'{}' doesn't exist or isn't a file.".format(args.map)
-    assert os.path.isdir(args.tumor), '{} is not exist or not a folder.'.format(args.chain)
+    assert os.path.isdir(args.tumor), "'{}' doesn't exist or isn't a folder.".format(args.tumor)
 
     assert args.simulator in ["capsim","wessim","capgem"], "The specified simulator {} is not supported".format(args.simulator)
     if args.simulator in ["wessim","capgem"]:
@@ -448,8 +446,6 @@ def main(progname=None):
                        help='The directory of the fasta files of normal genomes')
     group1.add_argument('-t', '--tumor', metavar='DIR', type=str, required=True,
                        help='The directory of the fasta files of tumor genomes')
-    group1.add_argument('-c', '--chain', metavar='DIR', type=str, required=True,
-                       help='The directory of the tumor chain files')
     group1.add_argument('-m','--map', metavar='FILE', type=str, required=True,
                        help='The map file containing the relationship between tip nodes and samples')
     group1.add_argument( '--probe', metavar='FILE', type=str, required=True,
