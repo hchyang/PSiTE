@@ -1,0 +1,83 @@
+# shell environment used for each job
+# note, this is a naked shell, not aware of your bashrc!
+shell.executable("/bin/bash")
+# unofficial bash strict mode
+shell.prefix("set -eo pipefail;")  # don't forget trailing semicolon
+
+done_list = []
+for sample in config['samples'].keys():
+    gid = config['samples'][sample]['gid']
+    done_list.append("log/wessim_reads/{}/{}.done".format(gid, sample))
+
+
+def sim_done(wildcards):
+    return expand("wessim_reads/{gid}/{sample}_{index}.fastq.gz", gid=config['samples'][wildcards.sample]['gid'], sample=wildcards.sample, index=range(1, 3))
+
+
+rule all:
+    input:
+        done_list,
+
+
+rule build_fasta_index:
+    input:
+        genome=lambda wildcards: config['genomes'][wildcards.gid],
+    output:
+        "{input.genome}.fai"
+    log:
+        "log/build_fasta_index.log"
+    shell:
+        '''
+        samtools faidx {input.genome}
+        '''
+
+rule build_blat_index:
+    input:
+        genome=lambda wildcards: config['genomes'][wildcards.gid],
+    params:
+        prefix = "genome_index/{gid}"
+    output:
+        "genome_index/{gid}.2bit"
+    log:
+        "log/build_blat_index.log"
+    shell:
+        '''
+        faToTwoBit {input.genome} {params.prefix}.2bit
+        '''
+
+rule align_probe:
+    input:
+        f2bit = rules.build_blat_index.output,
+        probe = config['probe']
+    output:
+        psl = "mapping/{gid}.psl",
+    log:
+        "log/align_probe.log"
+    shell:
+        '''
+        blat {input.f2bit} {input.probe} -minIdentity=90 -minScore=100 {output.psl}
+        '''
+
+rule run_wessim:
+    input:
+        genome=lambda wildcards: config['genomes'][wildcards.gid],
+        probe = config['probe'],
+        psl = "mapping/{gid}.psl",
+        fmodel = config['error_model'],
+    params:
+        readnum=lambda wildcards: config['samples'][wildcards.sample]['readnum'],
+        sprefix = "wessim_reads/{gid}/{sample}",
+    output:
+        expand("wessim_reads/{{gid}}/{{sample}}_{index}.fastq.gz", index=range(1, 3))
+    log:
+        "log/run_wessim.log"
+    shell:
+        '''
+        Wessim2.py -R {input.genome} -P {input.probe} -B {input.psl}  -n {params.readnum}  -l {config[rlen]} -M {input.fmodel} -pz -o {params.sprefix}
+        '''
+
+rule mark_done:
+    input:
+        sim_done
+    output:
+        touch("log/wessim_reads/{gid}/{sample}.done")

@@ -4,7 +4,7 @@
 # Author: Hechuan Yang
 # Created Time: 2017-09-27 10:50:14
 # File Name: csite.py
-# Description: 
+# Description:
 #########################################################################
 
 import os
@@ -13,9 +13,9 @@ import logging
 import pyfaidx
 
 #handle the error below
-#python | head == IOError: [Errno 32] Broken pipe 
-from signal import signal, SIGPIPE, SIG_DFL 
-signal(SIGPIPE,SIG_DFL) 
+#python | head == IOError: [Errno 32] Broken pipe
+from signal import signal, SIGPIPE, SIG_DFL
+signal(SIGPIPE,SIG_DFL)
 
 #If you simulate large genome for a tumor sample with many cells,
 #the disk space occupied by tumor genome (fasta) will be huge.
@@ -35,6 +35,7 @@ def usage():
     print("         phylovar   simulate somatic variants along a phylogeny")
     print("         chain2fa   build tumor genomes from somatic variants (encoded in the chain file)")
     print("         fa2wgs     simulate WGS reads from normal and tumor genomes (in fasta format)")
+    print("         fa2wes     simulate WES short reads from normal and tumor fasta")
     print("         allinone   a wrapper for NGS reads simulation combining all previous steps")
     print("")
 
@@ -46,7 +47,7 @@ def main():
         progname='csite.py '+command
         del sys.argv[1]
         if command=='vcf2fa':
-            import csite.vcf2fa 
+            import csite.vcf2fa
             csite.vcf2fa.main(progname=progname)
         elif command=='phylovar':
             import csite.phylovar
@@ -57,13 +58,16 @@ def main():
         elif command=='fa2wgs':
             import csite.fa2wgs
             csite.fa2wgs.main(progname=progname)
+        elif command=='fa2wes':
+            import csite.fa2wes
+            csite.fa2wes.main(progname=progname)
         elif command=='allinone':
             import csite.allinone
             csite.allinone.main(progname=progname)
         else:
             print("[csite.py] Unrecognized command: '{}'".format(command))
             sys.exit()
-        
+
+
 if __name__ == '__main__':
     main()
-
