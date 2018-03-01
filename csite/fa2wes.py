@@ -548,7 +548,8 @@ def main(progname=None):
     else: # capgem
         snake_file = os.path.join(os.path.dirname(sys.argv[0]), 'wes/config/Snakefile_capgem')
         capgem_dir = os.path.join(wes_dir, 'capgem')
-        os.environ["PATH"] += os.pathsep + os.path.join(capgem_dir, 'bin')
+        if os.path.exists(os.path.join(capgem_dir, 'bin')):
+            os.environ["PATH"] += os.pathsep + os.path.join(capgem_dir, 'bin')
         os.environ["PATH"] += os.pathsep + os.path.join(capgem_dir, 'src')
     assert os.path.isfile(snake_file), 'Cannot find Snakefile under the program directory'
 
