@@ -42,48 +42,51 @@ def check_depth(value=None):
     return fvalue
 
 def main(progname=None):
-    parse=argparse.ArgumentParser(
+    parser=argparse.ArgumentParser(
         description='A wrapper of simulating WGS reads from normal and tumor genome fasta',
         prog=progname if progname else sys.argv[0])
-    parse.add_argument('-n','--normal',type=check_folder,required=True,metavar='DIR',
+    group1 = parser.add_argument_group('Input options')
+    group1.add_argument('-n','--normal',type=check_folder,required=True,metavar='DIR',
         help='the directory of the normal fasta')
-    parse.add_argument('-t','--tumor',type=check_folder,required=True,metavar='DIR',
+    group1.add_argument('-t','--tumor',type=check_folder,required=True,metavar='DIR',
         help='the directory of the tumor fasta')
-    parse.add_argument('-m','--map',type=check_file,required=True,metavar='FILE',
+    group1.add_argument('-m','--map',type=check_file,required=True,metavar='FILE',
         help='the map file containing the relationship between tip nodes and samples')
-    default='art_reads'
-    parse.add_argument('-o','--output',type=str,default=default,metavar='DIR',
-        help='output directory [{}]'.format(default))
+    group2 = parser.add_argument_group('Parameters for simulation')
     default=50
-    parse.add_argument('-d','--depth',type=check_depth,default=default,metavar='FLOAT',
+    group2.add_argument('-d','--depth',type=check_depth,default=default,metavar='FLOAT',
         help='the mean depth of tumor sample for ART to simulate NGS reads [{}]'.format(default))
     default=0
-    parse.add_argument('-D','--normal_depth',type=check_depth,default=default,metavar='FLOAT',
+    group2.add_argument('-D','--normal_depth',type=check_depth,default=default,metavar='FLOAT',
         help='the mean depth of normal sample for ART to simulate NGS reads [{}]'.format(default))
     default=0.8
-    parse.add_argument('-p','--purity',type=check_purity,default=default,metavar='FLOAT',
+    group2.add_argument('-p','--purity',type=check_purity,default=default,metavar='FLOAT',
         help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
     default=None
-    parse.add_argument('-s','--random_seed',type=check_seed,metavar='INT',
+    group2.add_argument('-s','--random_seed',type=check_seed,metavar='INT',
         help='the seed for random number generator [{}]'.format(default))
-    default='fa2wgs.log'
-    parse.add_argument('-g','--log',type=str,default=default,metavar='FILE',
-        help='the log file to save the settings of each command [{}]'.format(default))
     default='art_illumina --noALN --quiet --paired --len 100 --mflen 500 --sdev 20'
-    parse.add_argument('--art',type=str,default=default,metavar='STR',
-        help='the parameters for ART program [{}]'.format(default))
+    group2.add_argument('--art',type=str,default=default,metavar='STR',
+        help="the parameters for ART program ['{}']".format(default))
     default=1
-    parse.add_argument('--cores',type=int,default=default,metavar='INT',
+    group2.add_argument('--cores',type=int,default=default,metavar='INT',
         help='number of cores used to run the program [{}]'.format(default))
-    parse.add_argument('--compress',action="store_true",
+    group2.add_argument('--compress',action="store_true",
         help='compress the generated fastq files using gzip')
-    parse.add_argument('--separate',action="store_true",
+    group2.add_argument('--separate',action="store_true",
         help="keep each tip node's NGS reads file separately")
-    parse.add_argument('--single',action="store_true",
+    group2.add_argument('--single',action="store_true",
         help="single cell mode. "+\
         "After this setting, the value of --depth is the depth of each tumor cell "+\
         "(not the total depth of tumor sample anymore).")
-    args=parse.parse_args()
+    group3 = parser.add_argument_group('Output options')
+    default='art_reads'
+    group3.add_argument('-o','--output',type=str,default=default,metavar='DIR',
+        help='output directory [{}]'.format(default))
+    default='fa2wgs.log'
+    group3.add_argument('-g','--log',type=str,default=default,metavar='FILE',
+        help='the log file to save the settings of each command [{}]'.format(default))
+    args=parser.parse_args()
 
 # logging and random seed setting
     logging.basicConfig(filename=args.log, 
