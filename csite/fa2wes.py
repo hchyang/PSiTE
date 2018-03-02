@@ -26,7 +26,8 @@ signal(SIGPIPE, SIG_DFL)
 
 
 # MAX_INT = 1e8   # CapSim cannot accept a seed that is too large
-# This option specifies the maximum number of short reads for a single run of simulation. If a large number of reads are simulated, this allows simulation in several batches, with each batch generating a smaller number of reads. Different batches can run at the same time. In the end, the output files from different batches are merged.
+
+# MAX_READNUM specifies the maximum number of short reads for a single run of simulation. If a large number of reads are simulated, this allows simulation in several batches, with each batch generating a smaller number of reads. Different batches can run at the same time. In the end, the output files from different batches are merged.
 MAX_READNUM = 1e6
 
 
@@ -43,7 +44,6 @@ def check_input(args):
     assert os.path.isfile(args.map),"'{}' doesn't exist or isn't a file.".format(args.map)
     assert os.path.isdir(args.tumor), "'{}' doesn't exist or isn't a folder.".format(args.tumor)
 
-    assert args.simulator in ["capsim","wessim","capgem"], "The specified simulator {} is not supported".format(args.simulator)
     if args.simulator in ["wessim","capgem"]:
         assert os.path.isfile(args.error_model),"'{}' doesn't exist or isn't a file.".format(args.error_model)
 
@@ -111,9 +111,9 @@ def compute_tumor_dna(tumor_dir, tip_node_leaves):
     else:
         for tip_node, leaves in tip_node_leaves.items():
             # The value of tip_node_gsize[tip_node] is a list of three elements:
-            # 0)genomesize of parental 0
-            # 1)genomesize of parental 1
-            # 2)the sum of parental 0 and 1
+            # 0) genomesize of parental 0
+            # 1) genomesize of parental 1
+            # 2) the sum of parental 0 and 1
             tip_node_gsize[tip_node] = []
 
             for parental in 0, 1:
@@ -145,7 +145,6 @@ def merge_fq(target=None, source=None):
     with open(target, 'a') as output:
         for f in source:
             subprocess.run(args=['cat', f], check=True, stdout=output)
-            # subprocess.run(args=['rm', f], check=True)
 
 
 def merge_normal_sample(args, outdir):
@@ -154,13 +153,11 @@ def merge_normal_sample(args, outdir):
     for suffix in suffixes:
         prefix = '{}/{}_reads/normal.parental_[01]/normal.parental_[01]*_'.format(outdir, args.simulator)
         source = glob.glob(prefix + suffix)
-        # print('Number of files: {}\n{}\n'.format(len(source), source))
         if len(source):
             target_dir = os.path.join(outdir, 'merged')
             if not os.path.exists(target_dir):
                 os.makedirs(target_dir)
             target = '{}/{}_normal_{}'.format(target_dir, args.simulator, suffix)
-            # print('target: {}\n'.format(target))
             source.sort()
             sample_fq_files.append([target, source])
 
@@ -203,13 +200,11 @@ def merge_tumor_sample(args, tip_node_leaves, outdir):
         else:
             prefix = '{}/{}_reads/*.parental_[01]/*.parental_[01]*_'.format(outdir, args.simulator)
             source = glob.glob(prefix + suffix)
-            # print('Number of files: {}\n{}\n'.format(len(source), source))
             if len(source):
                 target_dir = os.path.join(outdir, 'merged')
                 if not os.path.exists(target_dir):
                     os.makedirs(target_dir)
                 target = '{}/{}_tumor_{}'.format(target_dir, args.simulator, suffix)
-                # print('target: {}\n'.format(target))
                 source.sort()
                 sample_fq_files.append([target, source])
 
@@ -224,9 +219,9 @@ def clean_output(level, outdir):
     '''
     Remove intermediate output of WES simulators according to the specified levels.
     Level 0: keep all the files.
-    Level 1: remove "stdout", ".snakemake", "log", "XXX_reads".
-    Level 2: keep "config", "genome_index", "mapping", "frags"(capgem), "merged".
-    Level 3: keep only "merged".
+    Level 1: remove "stdout", ".snakemake".
+    Level 2: keep "config", "genome_index", "mapping", "frags"(output from capgem), "merged", and "separate".
+    Level 3: keep only "merged" and "separate".
     '''
     if level == 0:
         return
@@ -410,7 +405,7 @@ def run_snakemake(outdir, args, jobs, sample_file, snake_file):
         snake_file_copy = os.path.join(outdir, 'config/Snakefile_wessim')
     else:
         snake_file_copy = os.path.join(outdir, 'config/Snakefile_capgem')
-    # Copy Snakefile  to the output folder
+    # Copy Snakefile to the output folder
     shutil.copyfile(snake_file, snake_file_copy)
 
     orig_params = args.snakemake.split()
@@ -475,24 +470,18 @@ def main(progname=None):
     group2.add_argument('--read_length', metavar='INT', type=int, default=default,
                        help='Illumina: read length [{}]'.format(default))
     # TODO: Comute target size from provided bed files
-    # default = 51189318
-    # group2.add_argument('--target_size', metavar='INT', type=int, default=default,
-    #                    help='The size of target regions for simulating short reads [{}]'.format(default))
     # default = 0.5
     # group2.add_argument('--capture_efficiency', metavar='FLOAT', type=float, default=default,
     #                    help='The capture efficiency of the capture kit [{}]'.format(default))
-    # default = 1e6
-    # group2.add_argument('--max_readnum', metavar='INT', type=int, default=default,
-    #                    help='The number of maximum short reads [{}] for a single run of simulation'.format(default))
     # default = None
     # group2.add_argument('-s', '--random_seed', type=check_seed,
     #                    help='The seed for random number generator [{}]'.format(default))
     default = 'capgem'
-    group2.add_argument('--simulator', nargs='?', default=default, choices=['capgem', 'wessim', 'capsim'],
+    group2.add_argument('--simulator', default=default, choices=['capgem', 'wessim', 'capsim'],
                        help='The whole-exome sequencing simulator used for simulating short reads [{}]'.format(default))
     default = ''
     group2.add_argument('--error_model', metavar='FILE', type=str,
-                       help='The file containing the empirical error model for NGS reads generated by GemErr (It must be provided when capgem or wessim is used for simulation)')
+                       help='The file containing the empirical error model for NGS reads generated by GemErr (It must be provided when capgem or wessim is used for simulation)[{}]'.format(default))
     default = False
     group2.add_argument('--single', action="store_true",
         help='single cell mode [{}]. After this setting, the value of --depth/--rnum is the depth of each tumor cell (not the total depth of tumor sample anymore)'.format(default))
@@ -514,9 +503,9 @@ def main(progname=None):
     group3.add_argument('--out_level', metavar='INT', type=int, default=default,
                        help='The level used to indicate how many intermediate output files are kept [{}]. \
                        Level 0: keep all the files.\
-                           Level 1: remove "stdout", ".snakemake", "log", "XXX_reads". \
-                           Level 2: keep "config", "genome_index", "mapping", "frags"(capgem), "merged".\
-                           Level 3: keep only "merged".'.format(default))
+                       Level 1: remove "stdout", ".snakemake". \
+                       Level 2: keep "config", "genome_index", "mapping", "frags"(output from capgem), "merged", and "separate".\
+                       Level 3: keep only "merged" and "separate".'.format(default))
     default = False
     group3.add_argument('--separate', action="store_true",
                         help='Output the reads of each genome separately [{}]'.format(default))
@@ -585,7 +574,6 @@ def main(progname=None):
         sample_file = os.path.join(outdir, 'config/sample.yaml')
         total_num_splits = prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gsize, tip_node_leaves, tip_node_gsize, target_size)
 
-        # jobs = 4 * (len(tip_node_leaves) * 2 + 2)
         jobs = total_num_splits
         run_snakemake(outdir, args, jobs, sample_file, snake_file)
         merge_tumor_sample(args, tip_node_leaves, outdir)
