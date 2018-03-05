@@ -56,7 +56,9 @@ def main(progname=None):
     os.mkdir(args.output,mode=0o755)
     pool=multiprocessing.Pool(processes=args.cores)
     for node_chain in glob.glob(args.chain+'/node*.chain'):
-        pool.apply_async(build_fasta,args=(args.output,node_chain,args.normal,args.width))
+        result=pool.apply_async(build_fasta,args=(args.output,node_chain,args.normal,args.width))
+#handle exceptions if any
+        result.get()
     pool.close()
     pool.join()
 
@@ -87,9 +89,9 @@ def build_fasta(output=None,chain=None,normal_fa=None,width=None):
                     parental=int(parental.split(':')[1])
                     try:
                         reference=refs[parental]
-                    except IndexError:
+                    except IndexError as e:
                         raise FastaMissingError('There is no parental {} avalible,\n'.format(parental)+
-                            'which is required in the record ({}):\n{}\n'.format(chain,line))
+                            'which is required in the record ({}):\n{}\n'.format(chain,line)) from e
                 else:
                     raise ChainFileError('The format of this line below from the chain file '+
                         '({}) is not correct:\n{}\n'.format(chain,line))
