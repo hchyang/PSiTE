@@ -19,17 +19,23 @@ inds = {'A': 0, 'T': 1, 'G': 2, 'C': 3, 'N': 4,
         'a': 0, 't': 1, 'g': 2, 'c': 3, 'n': 4}
 
 
+MAX_INT = 2**16
+def random_int():
+    return random.randint(0, MAX_INT)
+
 def main(argv):
     t0 = time()
     parser = argparse.ArgumentParser(description='sub-wessim: a sub-program for Wessim2. (NOTE!) Do not run this program. Use "Wessim2.py" instead. ',
                                      prog='wessim2-sub', formatter_class=argparse.RawTextHelpFormatter)
-    group1 = parser.add_argument_group('Mandatory input files')
+    group1 = parser.add_argument_group('Input options')
     group1.add_argument('-R', metavar='FILE', dest='reference',
                         required=True, help='(R)eference genome FASTA file')
     group1.add_argument('-P', metavar='FILE', dest='probe',
                         required=True, help='(P)robe sequence FASTA file')
     group1.add_argument('-B', metavar='FILE', dest='probeblat',
                         required=True, help='(B)lat matched probe regions .PSL file')
+    default = 0
+    group1.add_argument('-s', metavar='INT', type=int, dest='random_seed', help='The seed for random number generator [{}]'.format(default))
 
     group2 = parser.add_argument_group('Parameters for exome capture')
     group2.add_argument('-f', metavar='INT', type=int, dest='fragsize', required=False,
@@ -77,6 +83,13 @@ def main(argv):
     metamode = False
     probefile = args.probe
     alignfile = args.probeblat
+
+    if args.random_seed == None:
+        seed = random_int()
+    else:
+        seed = args.random_seed
+    print('Random seed for sub-wessim: {}'.format(seed))
+    random.seed(seed)
 
     isize = args.fragsize
     isd = args.fragsd
@@ -260,7 +273,7 @@ def main(argv):
         iQList.append(bisect_choiceTUP(iL))
     # choose read length
     if readlength == 'd':
-        rdlog.info('Using empirical read length distribution')
+        print('Using empirical read length distribution')
         lgth = []
         keys = rdLenD.keys()
         # keys.sort()

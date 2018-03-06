@@ -1,3 +1,4 @@
+# This file specifies the parameter settings for running snakemake on a cluster
 {
     "__default__" :
     {

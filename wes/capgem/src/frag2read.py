@@ -17,6 +17,10 @@ import math
 inds = {'A': 0, 'T': 1, 'G': 2, 'C': 3, 'N': 4,
         'a': 0, 't': 1, 'g': 2, 'c': 3, 'n': 4}
 
+MAX_INT = 2**16
+def random_int():
+    return random.randint(0, MAX_INT)
+
 
 def main():
     t0 = time()
@@ -25,10 +29,12 @@ def main():
     group1 = parser.add_argument_group('Input options')
     group1.add_argument('-f', metavar='FILE', dest='fragment_file', required=True,
                         help='The file containing sequences of selected (f)ragment.')
-    group1.add_argument('-s', metavar='INT', type=int,
+    group1.add_argument('-S', metavar='INT', type=int,
                         dest='fragsize', default=200, help='mean (f)ragment size. this corresponds to insert size when sequencing in paired-end mode. 0 for empirical.')
     # group1.add_argument('-t', metavar='FILE', dest='haplotype_file',
     #                     help='The haplo(t)ype_file file specifying location and frequency of snps')
+    default = 0
+    group1.add_argument('-s', metavar='INT', type=int, dest='random_seed', help='The seed for random number generator [{}]'.format(default))
 
     group2 = parser.add_argument_group('Parameters for sequencing')
     group2.add_argument('-p', action='store_true',
@@ -51,6 +57,13 @@ def main():
     fragment_file = args.fragment_file
     # haplotype_file = args.haplotype_file
     fragsize = args.fragsize
+
+    if args.random_seed == None:
+        seed = random_int()
+    else:
+        seed = args.random_seed
+    print('Random seed: {}'.format(seed))
+    random.seed(seed)
 
     paired = args.p
     readlength = args.readlength

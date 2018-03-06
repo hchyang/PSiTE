@@ -740,7 +740,7 @@ def usage():
     print('      -m maximum indel size (optional, default=4).')
     print('      -p use only if your data contains paired end reads.')
     print('      -k minimum k-mer frequency in reference. (Default=0)')
-    print('      -e comma separated list of reference positions to exclude e.g. 293, 342\n\n')
+    print('      -e a file containing a comma separated list of reference positions to exclude e.g. 293, 342\n\n')
 
 
 def main(argv):
@@ -751,7 +751,7 @@ def main(argv):
     name = ''
     skip = 0
     maxIndel = 4
-    excl = ''
+    fexcl = ''
     paired = False
     circular = False
     minK = 0
@@ -781,7 +781,8 @@ def main(argv):
         elif opt == '-p':
             paired = True
         elif opt == '-e':
-            excl = arg.split(',')
+            # excl = arg.split(',')
+            fexcl = str(arg)
         elif opt == '-k':
             minK = int(arg)
     if readLen == '' or fasta == '' or samfile == '' or name == '':
@@ -796,6 +797,13 @@ def main(argv):
         errlog.info('Treating reference genome as circular.')
     else:
         errlog.info('Treating reference genome as linear.')
+
+    excl = []
+    if fexcl !='':
+        with open(fexcl,'r') as fin:
+            for line in fin:
+                excl.append(line.strip())
+
     if paired:
         errlog.info('Treating reads as paired.')
         mkMxPaired(readLen, reference, samfile, name,
