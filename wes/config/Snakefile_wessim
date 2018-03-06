@@ -66,6 +66,7 @@ rule run_wessim:
         fmodel = config['error_model'],
     params:
         readnum=lambda wildcards: config['samples'][wildcards.sample]['readnum'],
+        seed=lambda wildcards: config['samples'][wildcards.sample]['seed'],
         sprefix = "wessim_reads/{gid}/{sample}",
     output:
         expand("wessim_reads/{{gid}}/{{sample}}_{index}.fastq.gz", index=range(1, 3))
@@ -73,7 +74,7 @@ rule run_wessim:
         "log/run_wessim.log"
     shell:
         '''
-        Wessim2.py -R {input.genome} -P {input.probe} -B {input.psl}  -n {params.readnum}  -l {config[rlen]} -M {input.fmodel} -pz -o {params.sprefix}
+        Wessim2.py -R {input.genome} -P {input.probe} -B {input.psl}  -n {params.readnum}  -l {config[rlen]} -M {input.fmodel} -pz -o {params.sprefix} -s {params.seed} 
         '''
 
 rule mark_done:

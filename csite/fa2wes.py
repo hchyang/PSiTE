@@ -14,35 +14,37 @@ import numpy
 import logging
 import pyfaidx
 import subprocess
-# from csite.phylovar import check_seed, random_int
 import shutil
 import glob
 import multiprocessing
-
+from csite.phylovar import check_purity
+from csite.fa2wgs import check_folder, check_file, check_depth
 # handle the error below
 # python | head == IOError: [Errno 32] Broken pipe
 from signal import signal, SIGPIPE, SIG_DFL
 signal(SIGPIPE, SIG_DFL)
 
 
-# MAX_INT = 1e8   # CapSim cannot accept a seed that is too large
-
 # MAX_READNUM specifies the maximum number of short reads for a single run of simulation. If a large number of reads are simulated, this allows simulation in several batches, with each batch generating a smaller number of reads. Different batches can run at the same time. In the end, the output files from different batches are merged.
 MAX_READNUM = 1e6
+MAX_INT = 1e8   # CapSim cannot accept a seed that is too large
 
+def random_int():
+    return numpy.random.randint(MAX_INT)
+
+def check_seed(value=None):
+    ivalue = int(value)
+    if not 0 <= ivalue <= MAX_INT:
+        raise argparse.ArgumentTypeError("{} is an invalid value for --random_seed. ".format(value) +
+                                         "It should be an integer between 0 and {}.".format(largest))
+    return ivalue
 
 def check_input(args):
     # there must be two haplotype fasta in the normal dir
-    assert os.path.isdir(
-        args.normal), "'{}' dosen't exist or isn't a folder.".format(args.normal)
     for parental in 0, 1:
         assert os.path.isfile('{}/normal.parental_{}.fa'.format(args.normal, parental)),\
             'Can not find normal.parental_{}.fa under the normal directory: {}'.format(
                 parental, args.normal)
-
-    # tumor directory and map file must exist.
-    assert os.path.isfile(args.map),"'{}' doesn't exist or isn't a file.".format(args.map)
-    assert os.path.isdir(args.tumor), "'{}' doesn't exist or isn't a folder.".format(args.tumor)
 
     if args.simulator in ["wessim","capgem"]:
         assert os.path.isfile(args.error_model),"'{}' doesn't exist or isn't a file.".format(args.error_model)
@@ -76,7 +78,7 @@ def genomesize(fasta=None):
 
 def compute_target_size(fprobe):
     '''
-    Comute target size from provided bed files
+    Comute target size from the provided file
     '''
     return genomesize(fprobe)
 
@@ -219,15 +221,15 @@ def clean_output(level, outdir):
     '''
     Remove intermediate output of WES simulators according to the specified levels.
     Level 0: keep all the files.
-    Level 1: remove "stdout", ".snakemake".
-    Level 2: keep "config", "genome_index", "mapping", "frags"(output from capgem), "merged", and "separate".
+    Level 1: remove ".snakemake".
+    Level 2: keep "config", "genome_index", "mapping", "frags", "merged", and "separate".
     Level 3: keep only "merged" and "separate".
     '''
     if level == 0:
         return
     elif level == 1:
         # Remove tracking files while running snakemake
-        dirs_del = ["stdout", ".snakemake"]
+        dirs_del = [".snakemake"]
         for entry in os.scandir(outdir):
             if entry.is_dir():
                 if entry.name in dirs_del or "reads" in entry.name:
@@ -273,9 +275,8 @@ def prepare_sample_normal(sample_file, args, normal_gsize, target_size):
             if args.normal_depth > 0:
                 readnum = int((proportion * args.normal_depth *
                            target_size) / args.read_length)
-                # readnum = int(readnum / args.capture_efficiency)
             else:
-                readnum = int(proportion * args.normal_depth)
+                readnum = int(proportion * args.normal_rnum)
 
             if readnum > MAX_READNUM:
                 num_splits = int(numpy.ceil(readnum / MAX_READNUM))
@@ -287,12 +288,16 @@ def prepare_sample_normal(sample_file, args, normal_gsize, target_size):
                     fout.write('    split: {}\n'.format(str(split)))
                     split_readnum = int(numpy.ceil(readnum/num_splits))
                     fout.write('    readnum: {}\n'.format(str(split_readnum)))
+                    seed = random_int()
+                    fout.write('    seed: {}\n'.format(str(seed)))
             else:
                 total_num_splits += 1
                 fout.write("  normal.parental_{}:\n".format(parental))
                 fout.write('    gid: normal.parental_{}\n'.format(parental))
                 fout.write('    proportion: {}\n'.format(str(proportion)))
                 fout.write('    readnum: {}\n'.format(str(readnum)))
+                seed = random_int()
+                fout.write('    seed: {}\n'.format(str(seed)))
 
     return total_num_splits
 
@@ -347,6 +352,8 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                         fout.write('    split: {}\n'.format(str(split)))
                         split_readnum = int(numpy.ceil(readnum/num_splits))
                         fout.write('    readnum: {}\n'.format(str(split_readnum)))
+                        seed = random_int()
+                        fout.write('    seed: {}\n'.format(str(seed)))
                 else:
                     total_num_splits += 1
                     fout.write("  normal.parental_{}:\n".format(parental))
@@ -354,6 +361,8 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                     fout.write('    cell_proportion: {}\n'.format(str(cell_proportion)))
                     fout.write('    proportion: {}\n'.format(str(proportion)))
                     fout.write('    readnum: {}\n'.format(str(readnum)))
+                    seed = random_int()
+                    fout.write('    seed: {}\n'.format(str(seed)))
 
         # tumor cells haplotypes
         for tip_node in sorted(tip_node_leaves.keys()):
@@ -383,6 +392,8 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                         fout.write('    split: {}\n'.format(str(split)))
                         split_readnum = int(numpy.ceil(readnum/num_splits))
                         fout.write('    readnum: {}\n'.format(str(split_readnum)))
+                        seed = random_int()
+                        fout.write('    seed: {}\n'.format(str(seed)))
                 else:
                     total_num_splits += 1
                     fout.write("  {}.parental_{}:\n".format(tip_node, parental))
@@ -390,15 +401,14 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                     fout.write('    cell_proportion: {}\n'.format(str(cell_proportion)))
                     fout.write('    proportion: {}\n'.format(str(proportion)))
                     fout.write('    readnum: {}\n'.format(str(readnum)))
+                    seed = random_int()
+                    fout.write('    seed: {}\n'.format(str(seed)))
     return total_num_splits
 
 
 
 def run_snakemake(outdir, args, jobs, sample_file, snake_file):
-    stddir = os.path.join(outdir, 'stdout')
-    if not os.path.exists(stddir):
-        os.makedirs(stddir)
-
+    # Copy sample Snakefile to the output directory
     if args.simulator == "capsim":
         snake_file_copy = os.path.join(outdir, 'config/Snakefile_capsim')
     elif args.simulator == "wessim":
@@ -409,23 +419,10 @@ def run_snakemake(outdir, args, jobs, sample_file, snake_file):
     shutil.copyfile(snake_file, snake_file_copy)
 
     orig_params = args.snakemake.split()
-    config = ''
-    if '--config' in orig_params:
-        cfg_index = orig_params.index('--config')
-        config += orig_params[cfg_index+1]
-        del orig_params[cfg_index]
-        del orig_params[cfg_index]
-    config += ' rlen=' + str(args.read_length)
-     # + ' seed=' + str(numpy.random.randint(MAX_INT))
-    if args.use_cluster:
-        cluster_file = os.path.join(os.path.dirname(sys.argv[0]), 'wes/config/cluster.yaml')
-        assert os.path.isfile(cluster_file), 'Cannot find cluster.yaml under the program directory'
-        cluster_file_copy = os.path.join(outdir, 'config/cluster.yaml')
-        shutil.copyfile(cluster_file, cluster_file_copy)
-        cluster = '\"qsub -V -l mem_free={cluster.mem},h_rt={cluster.time} -pe OpenMP {cluster.n} -o ' + os.path.abspath(stddir) + ' -e '  + os.path.abspath(stddir) +'\"'
-        final_cmd_params =  orig_params + ['-s', os.path.abspath(snake_file_copy), '-d', os.path.abspath(outdir), '--cluster-config', cluster_file_copy,  '--cluster', cluster, '--configfile', os.path.abspath(sample_file), '--jobs', str(jobs),  '--config', config]
-    else:
-        final_cmd_params =  orig_params + ['-s', os.path.abspath(snake_file_copy), '-d', os.path.abspath(outdir), '--configfile', os.path.abspath(sample_file), '--jobs', str(jobs),  '--config', config]
+    config = ' rlen=' + str(args.read_length)
+
+    final_cmd_params =  orig_params + ['-s', os.path.abspath(snake_file_copy), '-d', os.path.abspath(outdir), '--configfile', os.path.abspath(sample_file), '--jobs', str(jobs),  '--config', config]
+
     logging.info(' Command: %s', ' '.join(final_cmd_params))
 
     os.system(' '.join(final_cmd_params))
@@ -437,60 +434,56 @@ def main(progname=None):
         prog=progname if progname else sys.argv[0])
 
     group1 = parser.add_argument_group('Input options')
-    group1.add_argument('-n', '--normal', metavar='DIR', type=str, required=True,
+    group1.add_argument('-n', '--normal', metavar='DIR', type=check_folder, required=True,
                        help='The directory of the fasta files of normal genomes')
-    group1.add_argument('-t', '--tumor', metavar='DIR', type=str, required=True,
+    group1.add_argument('-t', '--tumor', metavar='DIR', type=check_folder, required=True,
                        help='The directory of the fasta files of tumor genomes')
-    group1.add_argument('-m','--map', metavar='FILE', type=str, required=True,
+    group1.add_argument('-m','--map', metavar='FILE', type=check_file, required=True,
                        help='The map file containing the relationship between tip nodes and samples')
-    group1.add_argument( '--probe', metavar='FILE', type=str, required=True,
+    group1.add_argument( '--probe', metavar='FILE', type=check_file, required=True,
                        help='The file containing the probe sequences (FASTA format)')
     # group1.add_argument('--target', metavar='FILE', type=str, required=True, default=default,
     #                    help='The size containing the sequences of target region (BED format)')
 
     group2 = parser.add_argument_group('Parameters for sequencing')
     group = group2.add_mutually_exclusive_group()
-    default = 100
+    default = 0
     group.add_argument('-d', '--depth', metavar='FLOAT', type=float, default=default,
                        help='The mean depth of tumor sample for simulating short reads [{}]'.format(default))
-    default = 60000000
+    default = 0
     group.add_argument('-r', '--rnum', metavar='INT', type=int, default=default,
                        help='The number of short reads simulated for tumor sample [{}]'.format(default))
     group = group2.add_mutually_exclusive_group()
-    default = 100
+    default = 0
     group.add_argument('-D', '--normal_depth', metavar='FLOAT', type=float, default=default,
                        help='The mean depth of normal sample for simulating short reads [{}]'.format(default))
-    default = 60000000
+    default = 0
     group.add_argument('-R', '--normal_rnum', metavar='INT', type=int, default=default,
                        help='The number of short reads simulated for normal sample [{}]'.format(default))
     default = 0.5
-    group2.add_argument('-p', '--purity', metavar='FLOAT', type=float, default=default,
+    group2.add_argument('-p', '--purity', metavar='FLOAT', type=check_purity, default=default,
                        help='The proportion of tumor cells in simulated sample [{}]'.format(default))
     default = 100
     group2.add_argument('--read_length', metavar='INT', type=int, default=default,
                        help='Illumina: read length [{}]'.format(default))
-    # TODO: Comute target size from provided bed files
     # default = 0.5
     # group2.add_argument('--capture_efficiency', metavar='FLOAT', type=float, default=default,
     #                    help='The capture efficiency of the capture kit [{}]'.format(default))
-    # default = None
-    # group2.add_argument('-s', '--random_seed', type=check_seed,
-    #                    help='The seed for random number generator [{}]'.format(default))
+    default = None
+    group2.add_argument('-s', '--random_seed', type=check_seed,
+                       help='The seed for random number generator [{}]'.format(default))
     default = 'capgem'
     group2.add_argument('--simulator', default=default, choices=['capgem', 'wessim', 'capsim'],
                        help='The whole-exome sequencing simulator used for simulating short reads [{}]'.format(default))
     default = ''
-    group2.add_argument('--error_model', metavar='FILE', type=str,
+    group2.add_argument('--error_model', metavar='FILE', type=check_file,
                        help='The file containing the empirical error model for NGS reads generated by GemErr (It must be provided when capgem or wessim is used for simulation)[{}]'.format(default))
     default = False
     group2.add_argument('--single', action="store_true",
-        help='single cell mode [{}]. After this setting, the value of --depth/--rnum is the depth of each tumor cell (not the total depth of tumor sample anymore)'.format(default))
-    default = 'snakemake --rerun-incomplete -k --latency-wait 120 --config fmedian=500'
+        help='single cell mode [{}]. After this setting, the value of --rnum is for each tumor cell (not the whole tumor sample anymore)'.format(default))
+    default = 'snakemake --rerun-incomplete -k --latency-wait 120'
     group2.add_argument('--snakemake', metavar='STR', type=str, default=default,
-                       help='The command used for calling a whole-exome sequencing simulator [{}]'.format(default))
-    default = False
-    group2.add_argument('--use_cluster', action='store_true', default=default,
-                   help='Run simulation on a cluster [{}]'.format(default))
+                       help='The command used for calling a whole-exome sequencing simulator [{}]. The Snakefile for a simulator is under the directory "wes/config" of the source code. Additional parameters for a simulator can be adjusted in the Snakefile'.format(default))
 
     group3 = parser.add_argument_group('Output options')
     default = 'wes_reads'
@@ -500,11 +493,11 @@ def main(progname=None):
     group3.add_argument('-g', '--log', metavar='FILE', type=str, default=default,
                        help='The log file to save the settings of each command [{}]'.format(default))
     default = 1
-    group3.add_argument('--out_level', metavar='INT', type=int, default=default,
+    group3.add_argument('--out_level', choices=['0','1','2','3'], default=default,
                        help='The level used to indicate how many intermediate output files are kept [{}]. \
                        Level 0: keep all the files.\
-                       Level 1: remove "stdout", ".snakemake". \
-                       Level 2: keep "config", "genome_index", "mapping", "frags"(output from capgem), "merged", and "separate".\
+                       Level 1: remove ".snakemake". \
+                       Level 2: keep "config", "genome_index", "mapping", "frags", "merged", and "separate".\
                        Level 3: keep only "merged" and "separate".'.format(default))
     default = False
     group3.add_argument('--separate', action="store_true",
@@ -516,26 +509,42 @@ def main(progname=None):
     logging.basicConfig(filename=args.log,
                         filemode='w', format='[%(asctime)s] %(levelname)s: %(message)s',
                         datefmt='%m-%d %H:%M:%S', level='INFO')
-    logging.info(' Command: %s', ' '.join(sys.argv))
+    argv_copy = sys.argv[:]
+    try:
+        snakemake_index = argv_copy.index('--snakemake')
+        argv_copy[snakemake_index + 1] = "'{}'".format(argv_copy[snakemake_index + 1])
+    except ValueError:
+        pass
+    argv_copy.insert(1, 'fa2wes')
+    logging.info(' Command: %s', ' '.join(argv_copy))
 
-    # if args.random_seed == None:
-    #     seed = random_int()
-    # else:
-    #     seed = args.random_seed
-    # logging.info(' Random seed: %s', seed)
-    # numpy.random.seed(seed)
+    if args.random_seed == None:
+        seed = random_int()
+    else:
+        seed = args.random_seed
+    logging.info(' Random seed: %s', seed)
+    numpy.random.seed(seed)
 
     check_input(args)
+    #create output folders
+    if os.path.exists(args.output):
+        if os.path.isdir(args.output):
+            pass
+        else:
+            raise OutputExistsError("A file in the name of '{}' exists.\nDelete it or try another name as output folder.".format(args.output))
+    else:
+        os.mkdirs(args.output,mode=0o755)
 
-    # Copy Snakefile
+    wes_dir = os.path.join(os.path.dirname(sys.argv[0]), 'wes')
+    # Add path variables
     if args.simulator == "capsim":
-        snake_file = os.path.join(os.path.dirname(sys.argv[0]), 'wes/config/Snakefile_capsim')
+        snake_file = os.path.join(wes_dir, 'config/Snakefile_capsim')
     elif args.simulator == "wessim":
-        snake_file = os.path.join(os.path.dirname(sys.argv[0]), 'wes/config/Snakefile_wessim')
+        snake_file = os.path.join(wes_dir, 'config/Snakefile_wessim')
         wessim_dir = os.path.join(wes_dir, 'wessim')
         os.environ["PATH"] += os.pathsep + wessim_dir
     else: # capgem
-        snake_file = os.path.join(os.path.dirname(sys.argv[0]), 'wes/config/Snakefile_capgem')
+        snake_file = os.path.join(wes_dir, 'config/Snakefile_capgem')
         capgem_dir = os.path.join(wes_dir, 'capgem')
         if os.path.exists(os.path.join(capgem_dir, 'bin')):
             os.environ["PATH"] += os.pathsep + os.path.join(capgem_dir, 'bin')
@@ -544,10 +553,10 @@ def main(progname=None):
 
     normal_gsize = compute_normal_gsize(args.normal)
     target_size = compute_target_size(args.probe)
-    logging.info(' Size of target region: %s', str(target_size))
+    # logging.info(' Size of target region: %s', str(target_size))
 
     # Separate the simulation of tumor and normal samples
-    if args.depth > 0 or args.rnum > 0:
+    if args.rnum > 0:
         outdir = os.path.join(args.output, 'tumor')
         if not os.path.exists(outdir):
             os.makedirs(outdir)
@@ -559,8 +568,8 @@ def main(progname=None):
         if args.single:
             for tip_node in tip_node_leaves:
                 assert tip_node_leaves[tip_node]==1,\
-                    'In single mode, each tip node should represent 1 cell.\n'+\
-                    'But found {} leaves underneath tip node {} in your map file!'.format(tip_node_leaves[tip_node], tip_node)
+                    'In single mode, each tip node should represent only one cell.\n'+\
+                    'But {} leaves are found underneath tip node {} in your map file!'.format(tip_node_leaves[tip_node], tip_node)
 
         tumor_cells = sum(tip_node_leaves.values())
         total_cells = tumor_cells / args.purity
@@ -579,7 +588,7 @@ def main(progname=None):
         merge_tumor_sample(args, tip_node_leaves, outdir)
         clean_output(args.out_level, outdir)
 
-    if args.normal_depth > 0 or args.normal_rnum > 0:
+    if args.normal_rnum > 0:
         outdir = os.path.join(args.output, 'normal')
         if not os.path.exists(outdir):
             os.makedirs(outdir)

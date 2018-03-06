@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import sys
-import random
 import bisect
 import pysam
 import gzip
@@ -11,8 +10,13 @@ import argparse
 from multiprocessing import Process
 import os
 import math
+import random
 
 inds={'A':0,'T':1,'G':2,'C':3,'N':4,'a':0,'t':1,'g':2,'c':3,'n':4}
+
+MAX_INT = 2**16
+def random_int():
+    return random.randint(0, MAX_INT)
 
 def subprogram(command, name):
     os.system(command)
@@ -22,10 +26,12 @@ def main(argv):
     t0 = time()
     arguline = " ".join(argv)
     parser = argparse.ArgumentParser(description='Wessim2: Whole Exome Sequencing SIMulator 2 (Probe-based version)', prog='Wessim2', formatter_class=argparse.RawTextHelpFormatter)
-    group1 = parser.add_argument_group('Mandatory input files')
+    group1 = parser.add_argument_group('Input options')
     group1.add_argument('-R', metavar = 'FILE', dest='reference', required=True, help='faidx-indexed (R)eference genome FASTA file or meta description file (.meta)')
     group1.add_argument('-P', metavar = 'FILE', dest='probe', required=True, help='(P)robe sequence FASTA file')
     group1.add_argument('-B', metavar = 'FILE', dest='probeblat', required=True, help='(B)lat matched probe regions .PSL file')
+    default = 0
+    group1.add_argument('-s', metavar='INT', type=int, dest='random_seed', help='The seed for random number generator [{}]'.format(default))
 
     group2 = parser.add_argument_group('Parameters for exome capture')
     group2.add_argument('-f', metavar = 'INT', type=int, dest='fragsize', required=False, help='mean (f)ragment size. this corresponds to insert size when sequencing in paired-end mode. [200]', default=200)
@@ -51,6 +57,13 @@ def main(argv):
     reffile = args.reference
     probefile = args.probe
     alignfile = args.probeblat
+
+    if args.random_seed == None:
+        seed = random_int()
+    else:
+        seed = args.random_seed
+    print('Random seed for Wessim2: {}'.format(seed))
+    random.seed(seed)
 
     isize = args.fragsize
     isd = args.fragsd
@@ -98,7 +111,10 @@ def main(argv):
         readend = int(float(readnumber) / float(threadnumber) * (t+1))
         script_dir = os.path.dirname(os.path.realpath(__file__))
         script = os.path.join(script_dir , "__sub_wessim2.py")
-        command = "python " + script + " " + arguline + " -1 " + str(readstart) + " -2 " + str(readend) + " -i " + str(t+1)
+        rgid = t + 1
+        # command = "python " + script + " " + arguline + " -1 " + str(readstart) + " -2 " + str(readend) + " -i " + str(t+1)
+        seed = random_int()
+        command = "python {} {} -1 {} -2 {} -i {} -s {}".format(script, arguline, readstart, readend, rgid, seed)
         print(command)
         p = Process(target=subprogram, args=(command, t+1))
         p.start()
