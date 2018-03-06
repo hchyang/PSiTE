@@ -282,21 +282,21 @@ def prepare_sample_normal(sample_file, args, normal_gsize, target_size):
                 num_splits = int(numpy.ceil(readnum / MAX_READNUM))
                 total_num_splits += num_splits
                 for split in range(1, num_splits+1):
-                    seed = random_int()
                     fout.write("  normal.parental_{}_{}:\n".format(parental, str(split)))
                     fout.write('    gid: normal.parental_{}\n'.format(parental))
                     fout.write('    proportion: {}\n'.format(str(proportion/num_splits)))
                     fout.write('    split: {}\n'.format(str(split)))
                     split_readnum = int(numpy.ceil(readnum/num_splits))
                     fout.write('    readnum: {}\n'.format(str(split_readnum)))
+                    seed = random_int()
                     fout.write('    seed: {}\n'.format(str(seed)))
             else:
                 total_num_splits += 1
-                seed = random_int()
                 fout.write("  normal.parental_{}:\n".format(parental))
                 fout.write('    gid: normal.parental_{}\n'.format(parental))
                 fout.write('    proportion: {}\n'.format(str(proportion)))
                 fout.write('    readnum: {}\n'.format(str(readnum)))
+                seed = random_int()
                 fout.write('    seed: {}\n'.format(str(seed)))
 
     return total_num_splits
@@ -375,7 +375,6 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                 else:
                     cell_proportion = tip_node_leaves[tip_node] / total_cells
                 proportion = cell_proportion * tip_node_gsize[tip_node][parental] / tip_node_gsize[tip_node][2]
-                seed = random_int()
                 if args.depth > 0:
                     readnum = int((proportion * args.depth *
                                target_size) / args.read_length)
@@ -393,6 +392,7 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                         fout.write('    split: {}\n'.format(str(split)))
                         split_readnum = int(numpy.ceil(readnum/num_splits))
                         fout.write('    readnum: {}\n'.format(str(split_readnum)))
+                        seed = random_int()
                         fout.write('    seed: {}\n'.format(str(seed)))
                 else:
                     total_num_splits += 1
@@ -401,6 +401,7 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                     fout.write('    cell_proportion: {}\n'.format(str(cell_proportion)))
                     fout.write('    proportion: {}\n'.format(str(proportion)))
                     fout.write('    readnum: {}\n'.format(str(readnum)))
+                    seed = random_int()
                     fout.write('    seed: {}\n'.format(str(seed)))
     return total_num_splits
 
