@@ -17,6 +17,8 @@ import logging
 import pyfaidx
 import subprocess
 import multiprocessing
+import shutil
+import gzip
 from csite.phylovar import check_seed,check_purity,random_int
 
 #handle the error below
@@ -332,10 +334,11 @@ def merge_fq(target=None,source=None):
     I will merge them into one file for each genome.
     '''
     assert not os.path.isfile(target),"'{}' exists already!"
-    with open(target,'a') as output:
+    with open(target,'wb') as outfile:
         for f in source:
-            subprocess.run(args=['cat',f],check=True,stdout=output)
-            subprocess.run(args=['rm',f],check=True)
+            with open(f,'rb') as infile:
+                shutil.copyfileobj(infile, outfile)
+            os.remove(f)
 
 def generate_fq(params=None,compress=False):
     '''
@@ -356,7 +359,10 @@ def compress_fq(prefix=None):
     for suffix in suffixes:
         fq=prefix+suffix
         if os.path.isfile(fq):
-            subprocess.run(args=['gzip',fq],check=True)
+            with open(fq, 'rb') as infile:
+                with gzip.open(fq+'.gz', 'wb') as outfile:
+                    shutil.copyfileobj(infile, outfile)
+            os.remove(fq)
 
 def tip_node_leaves_counting(f=None):
     '''
