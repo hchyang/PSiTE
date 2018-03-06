@@ -4,7 +4,7 @@
 # Author: Hechuan Yang
 # Created Time: 2017-04-04 18:00:34
 # File Name: fa2wgs.py
-# Description: 
+# Description:
 #########################################################################
 
 import sys
@@ -22,23 +22,23 @@ import gzip
 from csite.phylovar import check_seed,check_purity,random_int
 
 #handle the error below
-#python | head == IOError: [Errno 32] Broken pipe 
-from signal import signal, SIGPIPE, SIG_DFL 
-signal(SIGPIPE,SIG_DFL) 
+#python | head == IOError: [Errno 32] Broken pipe
+from signal import signal, SIGPIPE, SIG_DFL
+signal(SIGPIPE,SIG_DFL)
 
 def check_folder(directory=None):
     if not os.path.isdir(directory):
         raise argparse.ArgumentTypeError("'{}' doesn't exist or isn't a folder.".format(directory))
     return directory
-    
+
 def check_file(directory=None):
     if not os.path.isfile(directory):
         raise argparse.ArgumentTypeError("'{}' doesn't exist or isn't a file.".format(directory))
     return directory
-    
+
 def check_depth(value=None):
     fvalue=float(value)
-    if fvalue<0: 
+    if fvalue<0:
         raise argparse.ArgumentTypeError("{} is an invalid value for --depth/--normal_depth. ".format(value)+
             "It should be a non-negative float number.")
     return fvalue
@@ -91,7 +91,7 @@ def main(progname=None):
     args=parser.parse_args()
 
 # logging and random seed setting
-    logging.basicConfig(filename=args.log, 
+    logging.basicConfig(filename=args.log,
         filemode='w',format='[%(asctime)s] %(levelname)s: %(message)s',
         datefmt='%m-%d %H:%M:%S',level='INFO')
     argv_copy=sys.argv[:]
@@ -319,8 +319,8 @@ def main(progname=None):
 
 def build_fai(fasta=None):
     '''
-    In order to handle exceptions in child process--pyfaidx.Faidx, 
-    I must use the mothod result.get(). 
+    In order to handle exceptions in child process--pyfaidx.Faidx,
+    I must use the mothod result.get().
     But just using pyfaidx.Faidx in apply_async will induce error as there is no return value of pyfaidx.Faidx.
     So I just wrapper the function here and add a string as the return value.
     '''
@@ -333,7 +333,7 @@ def merge_fq(target=None,source=None):
     there will be multiple fq files for each genome.
     I will merge them into one file for each genome.
     '''
-    assert not os.path.isfile(target),"'{}' exists already!"
+    assert not os.path.isfile(target),"'{}' exists already!".format(target)
     with open(target,'wb') as outfile:
         for f in source:
             with open(f,'rb') as infile:
@@ -366,7 +366,7 @@ def compress_fq(prefix=None):
 
 def tip_node_leaves_counting(f=None):
     '''
-    Return a dictionay with structure: 
+    Return a dictionay with structure:
     {tip_node1:leaves_count1,tip_node2:leaves_count2,...}
     '''
     tip_node_leaves={}

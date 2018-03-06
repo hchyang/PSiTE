@@ -18,7 +18,7 @@ import shutil
 import glob
 import multiprocessing
 from csite.phylovar import check_purity
-from csite.fa2wgs import check_folder, check_file, check_depth
+from csite.fa2wgs import check_folder, check_file, check_depth, merge_fq
 # handle the error below
 # python | head == IOError: [Errno 32] Broken pipe
 from signal import signal, SIGPIPE, SIG_DFL
@@ -139,16 +139,6 @@ def compute_tumor_dna(tumor_dir, tip_node_leaves):
     return tip_node_gsize, tumor_dna
 
 
-def merge_fq(target=None, source=None):
-    '''
-    Merge multiple fq files into one file for each genome.
-    '''
-    assert not os.path.isfile(target), "'{}' exists already!"
-    with open(target, 'a') as output:
-        for f in source:
-            subprocess.run(args=['cat', f], check=True, stdout=output)
-
-
 def merge_normal_sample(args, outdir):
     suffixes = ['fastq.gz', '1.fastq.gz', '2.fastq.gz']
     sample_fq_files = []
@@ -163,11 +153,14 @@ def merge_normal_sample(args, outdir):
             source.sort()
             sample_fq_files.append([target, source])
 
-    pool = multiprocessing.Pool(processes=2)
+    pool = multiprocessing.Pool(processes=args.cores)
+    results = []
     for x in sample_fq_files:
-        pool.apply_async(merge_fq, args=x)
+        results.append(pool.apply_async(merge_fq, args=x))
     pool.close()
     pool.join()
+    for result in results:
+        result.get()
 
 
 def merge_tumor_sample(args, tip_node_leaves, outdir):
@@ -210,11 +203,15 @@ def merge_tumor_sample(args, tip_node_leaves, outdir):
                 source.sort()
                 sample_fq_files.append([target, source])
 
-    pool = multiprocessing.Pool(processes=2)
+    pool = multiprocessing.Pool(processes=args.cores)
+    results = []
     for x in sample_fq_files:
-        pool.apply_async(merge_fq, args=x)
+        results.append(pool.apply_async(merge_fq, args=x))
     pool.close()
     pool.join()
+    for result in results:
+        result.get()
+
 
 
 def clean_output(level, outdir):
@@ -481,6 +478,9 @@ def main(progname=None):
     default = False
     group2.add_argument('--single', action="store_true",
         help='single cell mode [{}]. After this setting, the value of --rnum is for each tumor cell (not the whole tumor sample anymore)'.format(default))
+    default = 1
+    group2.add_argument('--cores', type=int, default=default, metavar='INT',
+                        help='number of cores used to run the program [{}]'.format(default))
     default = 'snakemake --rerun-incomplete -k --latency-wait 120'
     group2.add_argument('--snakemake', metavar='STR', type=str, default=default,
                        help='The command used for calling a whole-exome sequencing simulator [{}]. The Snakefile for a simulator is under the directory "wes/config" of the source code. Additional parameters for a simulator can be adjusted in the Snakefile'.format(default))
