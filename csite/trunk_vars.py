@@ -80,6 +80,8 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
             else:
                 if end-start!=1:
                     raise TrunkVarError('The coordinant of the SNV below is not correct:\n{}'.format(line))
+                if var not in ('0','1','2'):
+                    raise TrunkVarError('The mutation form of the SNV below is not correct:\n{}'.format(line))
                 form=int(var)
                 if chroms not in snvs:
                     snvs[chroms]={}

@@ -120,18 +120,21 @@ def main(progname=None):
                 'But found {} leaves underneath tip node {} in your map file!'.format(tip_node_leaves[tip_node],tip_node)
 #create index file (.fai) for each fasta
     pool=multiprocessing.Pool(processes=args.cores)
+    results=[]
     for parental in 0,1:
         fasta='{}/normal.parental_{}.fa'.format(args.normal,parental)
         assert os.path.isfile(fasta),\
             "Couldn't find {} under the normal directory: {}".format(fasta,args.normal)
-        pool.apply_async(pyfaidx.Faidx,args=(fasta,))
+        results.append(pool.apply_async(build_fai,args=(fasta,)))
         for tip_node in tip_node_leaves.keys():
             fasta='{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)
             assert os.path.isfile(fasta),\
                 "Couldn't find {} under the tumor directory: {}".format(fasta,args.tumor)
-            pool.apply_async(pyfaidx.Faidx,args=(fasta,))
+            results.append(pool.apply_async(build_fai,args=(fasta,)))
     pool.close()
     pool.join()
+    for result in results:
+        result.get()
 
 #compute coverage and run ART
 #FIXME: cell number: float? int?
@@ -265,10 +268,13 @@ def main(progname=None):
             final_params_matrix[-1]['id']=cfg['id']+'_{:02d}-'.format(i)
             final_params_matrix[-1]['rndSeed']=str(random_int())
     pool=multiprocessing.Pool(processes=args.cores)
+    results=[]
     for x in final_params_matrix:
-        pool.apply_async(generate_fq,args=(x,args.compress))
+        results.append(pool.apply_async(generate_fq,args=(x,args.compress)))
     pool.close()
     pool.join()
+    for result in results:
+        result.get()
 
 #merge small fastq files into one for normal/tumor sample
     sample_fq_files=[]
@@ -301,10 +307,23 @@ def main(progname=None):
                     source.sort()
                     sample_fq_files.append([target,source])
     pool=multiprocessing.Pool(processes=args.cores)
+    results=[]
     for x in sample_fq_files:
-        pool.apply_async(merge_fq,args=x)
+        results.append(pool.apply_async(merge_fq,args=x))
     pool.close()
     pool.join()
+    for result in results:
+        result.get()
+
+def build_fai(fasta=None):
+    '''
+    In order to handle exceptions in child process--pyfaidx.Faidx, 
+    I must use the mothod result.get(). 
+    But just using pyfaidx.Faidx in apply_async will induce error as there is no return value of pyfaidx.Faidx.
+    So I just wrapper the function here and add a string as the return value.
+    '''
+    pyfaidx.Faidx(fasta)
+    return 'Built index for {}'.format(fasta)
 
 def merge_fq(target=None,source=None):
     '''

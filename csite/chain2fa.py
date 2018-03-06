@@ -54,15 +54,22 @@ def main(progname=None):
     args=parser.parse_args()
 
     os.mkdir(args.output,mode=0o755)
+    normal_fa=args.normal.split(',')
+    for fa in normal_fa:
+        pyfaidx.Faidx(fa)
     pool=multiprocessing.Pool(processes=args.cores)
+    results=[]
     for node_chain in glob.glob(args.chain+'/node*.chain'):
-        pool.apply_async(build_fasta,args=(args.output,node_chain,args.normal,args.width))
+        results.append(pool.apply_async(build_fasta,args=(args.output,node_chain,normal_fa,args.width)))
     pool.close()
     pool.join()
+#handle exceptions if any
+    for result in results:
+        result.get()
 
 def build_fasta(output=None,chain=None,normal_fa=None,width=None):
     refs=[]
-    for fa in normal_fa.split(','):
+    for fa in normal_fa:
         refs.append(pyfaidx.Fasta(fa))
     parentalre=re.compile('^parental:[01]$')
     node=os.path.basename(chain)
@@ -87,12 +94,12 @@ def build_fasta(output=None,chain=None,normal_fa=None,width=None):
                     parental=int(parental.split(':')[1])
                     try:
                         reference=refs[parental]
-                    except IndexError:
+                    except IndexError as e:
                         raise FastaMissingError('There is no parental {} avalible,\n'.format(parental)+
-                            'which is required in the record ({}):\n{}\n'.format(chain,line))
+                            'which is required in the record ({}):\n{}\n'.format(chain,line)) from e
                 else:
                     raise ChainFileError('The format of this line below from the chain file '+
-                        '({}) is not correct:\n{}\n'.format(chain,line))
+                        '({}) is not correct:\n{}'.format(chain,line))
                 seq=[]
             else:
                 column=line.split()
@@ -104,9 +111,19 @@ def build_fasta(output=None,chain=None,normal_fa=None,width=None):
                 if seq_type=='REF':
                     segment=reference[chroms][start:end].seq
                 elif seq_type=='SNV':
+                    try:
+                        form=column[4]
+                    except IndexError:
+                        raise ChainFileError('Can not found mutation form in the record below ({}):\n{}'.format(chain,line))
                     ref=reference[chroms][start:end].seq
-                    m=Mutation(ref=ref,form=column[4])
+                    m=Mutation(ref=ref,form=form)
                     segment=m.alternative
+                    if segment==KeyError:
+                        raise FastaFileError("'{}' is not a nucleotide, ".format(ref)+
+                            "but it's found in your normal fasta file ({}[{}:{}]).".format(normal_fa[parental],chroms,end))
+                    elif segment==IndexError:
+                        raise ChainFileError("'{}' is not a valid mutation form of SNV,\n".format(form)+
+                            "but it's found in your chain file ({}):\n{}".format(chain,line))
                 elif seq_type=='DEL':
                     pass
                 else:
@@ -138,11 +155,10 @@ class Mutation:
         self.form=int(form)
         try:
             self.alternative=Mutation._mutation_matrix[self.ref][self.form]
-        except KeyError as e:
-            raise FastaFileError("'{}' is not a nucleotide, but it's found in your normal fasta file.".format(ref)) from e
-        except IndexError as e:
-            raise ChainFileError("'{}' is not a valid mutation form, but it's found in your chain file.".format(form)+
-                '\nOnly 0 (transition), 1 and 2 (transversion) are acceptable.') from e
+        except KeyError:
+            self.alternative=KeyError
+        except IndexError:
+            self.alternative=IndexError
 
 class ChainFileError(Exception):
     pass
