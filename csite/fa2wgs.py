@@ -47,14 +47,14 @@ def main(progname=None):
     parser=argparse.ArgumentParser(
         description='A wrapper of simulating WGS reads from normal and tumor genome fasta',
         prog=progname if progname else sys.argv[0])
-    group1 = parser.add_argument_group('Input options')
+    group1 = parser.add_argument_group('Input arguments')
     group1.add_argument('-n','--normal',type=check_folder,required=True,metavar='DIR',
         help='the directory of the normal fasta')
     group1.add_argument('-t','--tumor',type=check_folder,required=True,metavar='DIR',
         help='the directory of the tumor fasta')
     group1.add_argument('-m','--map',type=check_file,required=True,metavar='FILE',
         help='the map file containing the relationship between tip nodes and samples')
-    group2 = parser.add_argument_group('Parameters for simulation')
+    group2 = parser.add_argument_group('Arguments for simulation')
     default=50
     group2.add_argument('-d','--depth',type=check_depth,default=default,metavar='FLOAT',
         help='the mean depth of tumor sample for ART to simulate NGS reads [{}]'.format(default))
@@ -81,7 +81,7 @@ def main(progname=None):
         help="single cell mode. "+\
         "After this setting, the value of --depth is the depth of each tumor cell "+\
         "(not the total depth of tumor sample anymore).")
-    group3 = parser.add_argument_group('Output options')
+    group3 = parser.add_argument_group('Output arguments')
     default='art_reads'
     group3.add_argument('-o','--output',type=str,default=default,metavar='DIR',
         help='output directory [{}]'.format(default))

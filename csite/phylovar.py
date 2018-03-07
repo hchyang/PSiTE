@@ -214,7 +214,7 @@ def main(progname=None):
     parser=argparse.ArgumentParser(
         description='Simulate SNVs/CNVs on a coalescent tree in newick format',
         prog=progname if progname else sys.argv[0])
-    group1=parser.add_argument_group('Input Files')#, 'input files')
+    group1=parser.add_argument_group('Input arguments')
     group1.add_argument('-t','--tree',required=True,metavar='FILE',
         help='a file containing ONE tree in newick format')
     default=None
@@ -224,7 +224,7 @@ def main(progname=None):
     group1.add_argument('--config',type=str,default=default,metavar='FILE',
         help='a YAML file which contains the configuration of somatic variant simulation. '+
             '-n/-r/-R/-d/-l/-L/-c/-C/-p/--tstv/--length will be ignored. [{}]'.format(default))
-    group2=parser.add_argument_group('Simulation Parameters (can be set in config YAML)')
+    group2=parser.add_argument_group('Simulation arguments (can be set in config YAML)')
     default='1'
     group2.add_argument('-n','--name',type=str,default=default,metavar='STR',
         help='the name of the sequence to be simulated [{}]'.format(default))
@@ -259,7 +259,7 @@ def main(progname=None):
     default=100000000
     group2.add_argument('--length',type=int,default=default,metavar='INT',
         help='the length of the sequence to simulate [{}]'.format(default))
-    group3=parser.add_argument_group('Other Simulation Parameters (can NOT be set in config YAML)')
+    group3=parser.add_argument_group('Other simulation arguments (can NOT be set in config YAML)')
     default=0
     group3.add_argument('-x','--prune',type=check_prune,default=default,metavar='INT',
         help='trim all the children of the nodes with equal or less than this number of leaves [{}]'.format(default))
@@ -278,7 +278,7 @@ def main(progname=None):
     default=None
     group3.add_argument('--sex_chr',type=check_sex,default=default,metavar='STR',
         help='sex chromosomes of the genome (separated by comma) [{}]'.format(default))
-    group4=parser.add_argument_group('Output Related Parameters')
+    group4=parser.add_argument_group('Output arguments')
     default='phylovar.snvs'
     group4.add_argument('-S','--snv',type=str,default=default,metavar='FILE',
         help='the output file to save SNVs [{}]'.format(default))
