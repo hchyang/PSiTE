@@ -67,7 +67,10 @@ def main(progname=None):
     default=None
     group2.add_argument('-s','--random_seed',type=check_seed,metavar='INT',
         help='the seed for random number generator [{}]'.format(default))
-    default='art_illumina --noALN --quiet --paired --len 100 --mflen 500 --sdev 20'
+    default=100
+    group2.add_argument('--rlen',type=int,default=default,metavar='INT',
+        help="the length of reads to simulate [{}]".format(default))
+    default='art_illumina --noALN --quiet --paired --mflen 500 --sdev 20'
     group2.add_argument('--art',type=str,default=default,metavar='STR',
         help="the parameters for ART program ['{}']".format(default))
     default=1
@@ -193,6 +196,7 @@ def main(progname=None):
             sim_cfg={
                 'gsize':normal_gsize/2,
                 'base_cmd':art_params,
+                'rlen':args.rlen,
                 'fcov':fcov,
                 'in':ref,
                 'out':prefix,
@@ -218,6 +222,7 @@ def main(progname=None):
             sim_cfg={
                 'gsize':normal_gsize/2,
                 'base_cmd':art_params,
+                'rlen':args.rlen,
                 'fcov':fcov,
                 'in':ref,
                 'out':prefix,
@@ -239,6 +244,7 @@ def main(progname=None):
                 sim_cfg={
                     'gsize':tip_node_gsize[tip_node][parental],
                     'base_cmd':art_params,
+                    'rlen':args.rlen,
                     'fcov':fcov,
                     'in':ref,
                     'out':prefix,
@@ -344,7 +350,8 @@ def generate_fq(params=None,compress=False):
     '''
     run art command to generate the fastq file, and call compress_fq if required.
     '''
-    cmd_params=params['base_cmd'].split()+['--fcov',str(params['fcov']),
+    cmd_params=params['base_cmd'].split()+['--len',str(params['rlen']), 
+                                           '--fcov',str(params['fcov']),
                                            '--in',params['in'],
                                            '--id',params['id'],
                                            '--out',params['out'],

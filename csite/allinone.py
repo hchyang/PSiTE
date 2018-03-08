@@ -85,7 +85,7 @@ def main(progname=None):
     default=0.8
     group3.add_argument('-p','--purity',type=check_purity,default=default,metavar='FLOAT',
         help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
-    default='art_illumina --noALN --quiet --paired --len 100 --mflen 500 --sdev 20'
+    default='art_illumina --noALN --quiet --paired --mflen 500 --sdev 20'
     group3.add_argument('--art',type=str,default=default,metavar='STR',
         help="the parameters for ART program ['{}']".format(default))
     group3.add_argument('--compress',action="store_true",
@@ -106,9 +106,6 @@ def main(progname=None):
     default=0
     group4.add_argument('--normal_rnum',metavar='INT',type=int,default=default,
         help='The number of short reads simulated for normal sample [{}]'.format(default))
-    default=100
-    group4.add_argument('--read_length',metavar='INT',type=int,default=default,
-        help='Illumina: read length [{}]'.format(default))
     default='capgem'
     group4.add_argument('--simulator',default=default,choices=['capgem','wessim','capsim'],
         help='The whole-exome sequencing simulator used for simulating short reads [{}]'.format(default))
@@ -126,6 +123,9 @@ def main(progname=None):
         Level 2: keep 'config', 'genome_index', 'mapping', 'frags', 'merged', and 'separate'.\
         Level 3: keep only 'merged' and 'separate' [{}]".format(default))
     group5=parser.add_argument_group('Arguments for module fa2wgs/fa2wes')
+    default=100
+    group5.add_argument('--rlen',type=int,default=default,metavar='INT',
+        help="the length of reads to simulate [{}]".format(default))
     group5.add_argument('--separate',action="store_true",
         help="keep each tip node's NGS reads file separately")
     group5.add_argument('--single',action="store_true",
@@ -265,6 +265,7 @@ def main(progname=None):
                     '--output',reads_dir,
                     '--random_seed',str(random_n),
                     '--cores',str(args.cores),
+                    '--rlen',str(args.rlen),
                     '--art','{}'.format(args.art)]
         if args.compress:
             cmd_params.extend(['--compress'])
@@ -287,6 +288,7 @@ def main(progname=None):
                     '--tumor',tumor_fa,
                     '--map',map_file,
                     '--probe',args.probe,
+                    '--rlen',str(args.rlen),
                     '--purity',str(args.purity),
                     '--output',reads_dir,
                     '--random_seed',str(random_n),
@@ -301,8 +303,8 @@ def main(progname=None):
             cmd_params.extend(['--normal_rdepth',args.normal_rdepth])
         elif args.normal_rnum:
             cmd_params.extend(['--normal_rnum',args.normal_rnum])
-        if args.compress:
-            cmd_params.extend(['--compress'])
+        if args.separate:
+            cmd_params.extend(['--separate'])
         if args.single:
             cmd_params.extend(['--single'])
         cmd_params_copy=cmd_params[:]

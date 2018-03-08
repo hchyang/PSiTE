@@ -271,7 +271,7 @@ def prepare_sample_normal(sample_file, args, normal_gsize, target_size):
             proportion = genomesize(fasta=ref) / normal_gsize
             if args.normal_depth > 0:
                 readnum = int((proportion * args.normal_depth *
-                           target_size) / args.read_length)
+                           target_size) / args.rlen)
             else:
                 readnum = int(proportion * args.normal_rnum)
 
@@ -333,7 +333,7 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                 proportion = cell_proportion * genomesize(fasta=ref) / normal_gsize
                 if args.depth > 0:
                     readnum = int((proportion * args.depth *
-                               target_size) / args.read_length)
+                               target_size) / args.rlen)
                 else:
                     readnum = int(proportion * args.rnum)
                 # readnum = int(readnum / args.capture_efficiency)
@@ -374,7 +374,7 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                 proportion = cell_proportion * tip_node_gsize[tip_node][parental] / tip_node_gsize[tip_node][2]
                 if args.depth > 0:
                     readnum = int((proportion * args.depth *
-                               target_size) / args.read_length)
+                               target_size) / args.rlen)
                 # readnum = int(readnum / args.capture_efficiency)
                 else:
                     readnum = int(proportion * args.rnum)
@@ -416,7 +416,7 @@ def run_snakemake(outdir, args, jobs, sample_file, snake_file):
     shutil.copyfile(snake_file, snake_file_copy)
 
     orig_params = args.snakemake.split()
-    config = ' rlen=' + str(args.read_length)
+    config = ' rlen=' + str(args.rlen)
 
     final_cmd_params =  orig_params + ['-s', os.path.abspath(snake_file_copy), '-d', os.path.abspath(outdir), '--configfile', os.path.abspath(sample_file), '--jobs', str(jobs),  '--config', config]
 
@@ -461,7 +461,7 @@ def main(progname=None):
     group2.add_argument('-p', '--purity', metavar='FLOAT', type=check_purity, default=default,
                        help='The proportion of tumor cells in simulated sample [{}]'.format(default))
     default = 100
-    group2.add_argument('--read_length', metavar='INT', type=int, default=default,
+    group2.add_argument('--rlen', metavar='INT', type=int, default=default,
                        help='Illumina: read length [{}]'.format(default))
     # default = 0.5
     # group2.add_argument('--capture_efficiency', metavar='FLOAT', type=float, default=default,
