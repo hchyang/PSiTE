@@ -31,7 +31,7 @@ signal(SIGPIPE,SIG_DFL)
 
 #I defined those two parameters as global variables. As they will be used in function
 #random_int and check_config_file, which are also used in allinone.py.
-LARGEST=2**31-1
+LARGEST=2**31
 cfg_params={'snv_rate':float,
             'cnv_rate':float,
             'del_prob':float,
@@ -49,15 +49,15 @@ def random_int():
     The random seed for numpy must be convertible to 32 bit unsigned integers.
     Let's use this to generate a integers can be used.
     '''
-    return numpy.random.randint(LARGEST+1) 
+    return numpy.random.randint(LARGEST) 
 
 def check_seed(value=None):
     ivalue=int(value)
 #2**32: Must be convertible to 32 bit unsigned integers.
 #in jave the range is (-2**31,2**31-1)
-    if not 0<=ivalue<=LARGEST: 
+    if not 0<=ivalue<LARGEST: 
         raise argparse.ArgumentTypeError("{} is an invalid value for --random_seed. ".format(value)+
-            "It should be an integer between 0 and {}.".format(LARGEST))
+            "It should be an integer between 0 and {}.".format(LARGEST-1))
     return ivalue
 
 def check_prune(value=None):
