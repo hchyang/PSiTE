@@ -37,7 +37,7 @@ def main(progname=None):
         help='sequencing type to simulate [{}]'.format(default))
     default=None
     group0.add_argument('--random_seed',type=check_seed,default=default,metavar='INT',
-        help='the seed for random number generator [{}]'.format(default))
+        help='the seed for random number generator (an integer between 0 and 2**31-1) [{}]'.format(default))
     default='allinone.log'
     group0.add_argument('--log',type=str,default=default,metavar='FILE',
         help='the log file to save the settings of each command [{}]'.format(default))
@@ -118,7 +118,7 @@ def main(progname=None):
     group4.add_argument('--snakemake',metavar='STR',type=str,default=default,
         help="The command used for calling a whole-exome sequencing simulator. The Snakefile for a simulator is under the directory 'wes/config' of the source code. Additional parameters for a simulator can be adjusted in the Snakefile ['{}']".format(default))
     default=1
-    group4.add_argument('--out_level',choices=[0,1,2,3],default=default,
+    group4.add_argument('--out_level',type=int,choices=[0,1,2,3],default=default,
         help="The level used to indicate how many intermediate output files are kept. \
         Level 0: keep all the files.\
         Level 1: remove '.snakemake'. \
@@ -247,6 +247,7 @@ def main(progname=None):
         subprocess.run(args=cmd_params,check=True)
 
 #fa2wgs
+    random_n=random_int()
     if args.type in ['WGS','BOTH']:
         reads_dir='wgs_reads'
         if os.path.isdir(reads_dir):
@@ -261,7 +262,7 @@ def main(progname=None):
                     '--normal_depth',str(args.normal_depth),
                     '--purity',str(args.purity),
                     '--output',reads_dir,
-                    '--random_seed',str(random_int()),
+                    '--random_seed',str(random_n),
                     '--cores',str(args.cores),
                     '--art','{}'.format(args.art)]
         if args.compress:
@@ -273,6 +274,7 @@ def main(progname=None):
         cmd_params_copy[art_index+1]="'{}'".format(cmd_params_copy[art_index+1])
         logging.info(' Command: %s',' '.join(cmd_params_copy))
         subprocess.run(args=cmd_params,check=True)
+    random_n=random_int()
     if args.type in ['WES','BOTH']:
         reads_dir='wes_reads'
         if os.path.isdir(reads_dir):
@@ -286,7 +288,7 @@ def main(progname=None):
                     '--probe',args.probe,
                     '--purity',str(args.purity),
                     '--output',reads_dir,
-                    '--random_seed',str(random_int()),
+                    '--random_seed',str(random_n),
                     '--cores',str(args.cores),
                     '--out_level',str(args.out_level),
                     '--snakemake','{}'.format(args.snakemake)]

@@ -31,7 +31,7 @@ signal(SIGPIPE,SIG_DFL)
 
 #I defined those two parameters as global variables. As they will be used in function
 #random_int and check_config_file, which are also used in allinone.py.
-largest=2**32
+LARGEST=2**31-1
 cfg_params={'snv_rate':float,
             'cnv_rate':float,
             'del_prob':float,
@@ -49,14 +49,15 @@ def random_int():
     The random seed for numpy must be convertible to 32 bit unsigned integers.
     Let's use this to generate a integers can be used.
     '''
-    return numpy.random.randint(largest) 
+    return numpy.random.randint(LARGEST+1) 
 
 def check_seed(value=None):
     ivalue=int(value)
 #2**32: Must be convertible to 32 bit unsigned integers.
-    if not 0<=ivalue<=largest: 
+#in jave the range is (-2**31,2**31-1)
+    if not 0<=ivalue<=LARGEST: 
         raise argparse.ArgumentTypeError("{} is an invalid value for --random_seed. ".format(value)+
-            "It should be an integer between 0 and {}.".format(largest))
+            "It should be an integer between 0 and {}.".format(LARGEST))
     return ivalue
 
 def check_prune(value=None):
@@ -268,7 +269,7 @@ def main(progname=None):
         help='trim all the children of the nodes with equal or less than this proportion of total leaves [{}]'.format(default))
     default=None
     group3.add_argument('-s','--random_seed',type=check_seed,metavar='INT',
-        help='the seed for random number generator [{}]'.format(default))
+        help='the seed for random number generator (an integer between 0 and 2**31-1) [{}]'.format(default))
     default=0
     group3.add_argument('--trunk_length',type=float,default=default,metavar='FLOAT',
         help='the length of the trunk [{}]'.format(default))
