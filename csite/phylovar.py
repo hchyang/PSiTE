@@ -47,7 +47,8 @@ cfg_params={'snv_rate':float,
 def random_int():
     '''
     The random seed for numpy must be convertible to 32 bit unsigned integers.
-    Let's use this to generate a integers can be used.
+    But in jave (used in fa2wes) the range is (-2**31,2**31-1).
+    Let's use this to generate a integers can be used by both.
     '''
     return numpy.random.randint(LARGEST) 
 
@@ -261,11 +262,12 @@ def main(progname=None):
     group2.add_argument('--length',type=int,default=default,metavar='INT',
         help='the length of the sequence to simulate [{}]'.format(default))
     group3=parser.add_argument_group('Other simulation arguments (can NOT be set in config YAML)')
+    group3sub=group3.add_mutually_exclusive_group()
     default=0
-    group3.add_argument('-x','--prune',type=check_prune,default=default,metavar='INT',
+    group3sub.add_argument('-x','--prune',type=check_prune,default=default,metavar='INT',
         help='trim all the children of the nodes with equal or less than this number of leaves [{}]'.format(default))
     default=0.0
-    group3.add_argument('-X','--prune_proportion',type=check_proportion,default=default,metavar='FLOAT',
+    group3sub.add_argument('-X','--prune_proportion',type=check_proportion,default=default,metavar='FLOAT',
         help='trim all the children of the nodes with equal or less than this proportion of total leaves [{}]'.format(default))
     default=None
     group3.add_argument('-s','--random_seed',type=check_seed,metavar='INT',

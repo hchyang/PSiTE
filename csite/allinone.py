@@ -30,11 +30,24 @@ def main(progname=None):
         description='an all-in-one wrapper for NGS reads simulation for tumor samples',
         prog=progname if progname else sys.argv[0])
     group0=parser.add_argument_group('Global arguments')
+    group1=parser.add_argument_group('Module vcf2fa arguments')
+    group2=parser.add_argument_group('Module phylovar arguments')
     group0.add_argument('-o','--output',type=str,required=True,metavar='DIR',
         help='output directory')
+    group1.add_argument('-v','--vcf',type=check_vcf,required=True,metavar='FILE',
+        help='a vcf file contains germline variants')
+    group1.add_argument('-r','--reference',type=check_file,required=True,metavar='FILE',
+        help='a fasta file of the reference genome')
+    group2.add_argument('-c','--config',type=check_file,required=True,metavar='FILE',
+        help='a YAML file which contains the configuration of somatic variant simulation')
+    group1.add_argument('-a','--autosomes',type=check_autosomes,required=True,metavar='STR',
+        help='autosomes of the genome (e.g. 1,2,3,4,5 or 1..4,5)')
     default='WGS'
     group0.add_argument('--type',type=str,default=default,choices=['WGS','WES','BOTH'],
         help='sequencing type to simulate [{}]'.format(default))
+    default=1
+    group0.add_argument('--cores',type=int,default=default,metavar='INT',
+        help='number of cores used to run the program [{}]'.format(default))
     default=None
     group0.add_argument('--random_seed',type=check_seed,default=default,metavar='INT',
         help='the seed for random number generator (an integer between 0 and 2**31-1) [{}]'.format(default))
@@ -44,29 +57,17 @@ def main(progname=None):
     default=1
     group0.add_argument('--start',type=int,default=default,choices=[1,2,3,4],
         help='the serial number of the module from which to start [{}]'.format(default))
-    default=1
-    group0.add_argument('--cores',type=int,default=default,metavar='INT',
-        help='number of cores used to run the program [{}]'.format(default))
-    group1=parser.add_argument_group('Module vcf2fa arguments')
-    group1.add_argument('-v','--vcf',type=check_vcf,required=True,metavar='FILE',
-        help='a vcf file contains germline variants')
-    group1.add_argument('-r','--reference',type=check_file,required=True,metavar='FILE',
-        help='a fasta file of the reference genome')
-    group1.add_argument('-a','--autosomes',type=check_autosomes,required=True,metavar='STR',
-        help='autosomes of the genome (e.g. 1,2,3,4,5 or 1..4,5)')
     default=None
     group1.add_argument('-s','--sex_chr',type=check_sex,default=default,metavar='STR',
         help='sex chromosomes of the genome (separated by comma) [{}]'.format(default))
-    group2=parser.add_argument_group('Module phylovar arguments')
     group2.add_argument('-t','--tree',type=check_file,required=True,metavar='FILE',
         help='a newick file contains ONE tree')
-    group2.add_argument('-c','--config',type=check_file,required=True,metavar='FILE',
-        help='a YAML file which contains the configuration of somatic variant simulation')
+    group2sub=group2.add_mutually_exclusive_group()
     default=0
-    group2.add_argument('-x','--prune',type=check_prune,default=default,metavar='INT',
+    group2sub.add_argument('-x','--prune',type=check_prune,default=default,metavar='INT',
         help='trim all the children of the nodes with equal or less than this number of leaves [{}]'.format(default))
     default=0.0
-    group2.add_argument('-X','--prune_proportion',type=check_proportion,default=default,metavar='FLOAT',
+    group2sub.add_argument('-X','--prune_proportion',type=check_proportion,default=default,metavar='FLOAT',
         help='trim all the children of the nodes with equal or less than this proportion of total leaves [{}]'.format(default))
     default=None
     group2.add_argument('--trunk_vars',type=str,default=default,metavar='FILE',
