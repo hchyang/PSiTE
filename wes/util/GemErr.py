@@ -642,6 +642,8 @@ def mkMxPaired(readLen, ref, samFile, name, skip, circular, maxIndel, excl, minK
                 qual = parts[10]
                 cigar = parts[5]
                 chr = parts[2][:50] # Used to retrieve the reference sequence
+                if chr not in ref.keys():
+                    continue
                 reflen = lenD[chr]
                 cigList = parseMD(cigar)
                 # update read length dictionary

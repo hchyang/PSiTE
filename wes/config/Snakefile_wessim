@@ -74,7 +74,7 @@ rule run_wessim:
         "log/run_wessim.log"
     shell:
         '''
-        Wessim2.py -R {input.genome} -P {input.probe} -B {input.psl}  -n {params.readnum}  -l {config[rlen]} -M {input.fmodel} -pz -o {params.sprefix} -s {params.seed} 
+        Wessim2.py -R {input.genome} -P {input.probe} -B {input.psl}  -n {params.readnum}  -l {config[rlen]} -M {input.fmodel}  -o {params.sprefix} -s {params.seed} -p -z
         '''
 
 rule mark_done:

@@ -69,7 +69,7 @@ rule run_capsim:
         "log/run_capsim.log"
     shell:
         '''
-        jsa.sim.capsim --reference {input.genome} --probe {input.bam} --ID {wildcards.sample} --miseq {params.sprefix} --fmedian 500 --illen {config[rlen]} --num {params.readnum} --seed {params.seed}
+        jsa.sim.capsim --reference {input.genome} --probe {input.bam} --ID {wildcards.sample} --miseq {params.sprefix} --illen {config[rlen]} --num {params.readnum} --seed {params.seed} --fmedian 500
         '''
 
 

@@ -85,7 +85,7 @@ rule simulate_reads:
         "log/simulate_reads.log"
     shell:
         '''
-        frag2read.py -f {input.frag} -M {input.fmodel} -p -l {config[rlen]}  -o {params.sprefix} -z -s {params.seed}
+        frag2read.py -f {input.frag} -M {input.fmodel} -l {config[rlen]} -o {params.sprefix} -s {params.seed} -p -z
         '''
 
 
