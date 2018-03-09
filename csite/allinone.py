@@ -38,6 +38,8 @@ def main(progname=None):
         help='a vcf file contains germline variants')
     group1.add_argument('-r','--reference',type=check_file,required=True,metavar='FILE',
         help='a fasta file of the reference genome')
+    group2.add_argument('-t','--tree',type=check_file,required=True,metavar='FILE',
+        help='a newick file contains ONE tree')
     group2.add_argument('-c','--config',type=check_file,required=True,metavar='FILE',
         help='a YAML file which contains the configuration of somatic variant simulation')
     group1.add_argument('-a','--autosomes',type=check_autosomes,required=True,metavar='STR',
@@ -60,8 +62,6 @@ def main(progname=None):
     default=None
     group1.add_argument('-s','--sex_chr',type=check_sex,default=default,metavar='STR',
         help='sex chromosomes of the genome (separated by comma) [{}]'.format(default))
-    group2.add_argument('-t','--tree',type=check_file,required=True,metavar='FILE',
-        help='a newick file contains ONE tree')
     group2sub=group2.add_mutually_exclusive_group()
     default=0
     group2sub.add_argument('-x','--prune',type=check_prune,default=default,metavar='INT',
@@ -75,63 +75,65 @@ def main(progname=None):
     default=0
     group2.add_argument('--trunk_length',type=float,default=default,metavar='FLOAT',
         help='the length of the trunk [{}]'.format(default))
-    group3=parser.add_argument_group('Module fa2wgs arguments')
-    default=50
-    group3.add_argument('-d','--depth',type=check_depth,default=default,metavar='FLOAT',
-        help='the mean depth of tumor sample for fa2wgs to simulate NGS reads [{}]'.format(default))
-    default=0
-    group3.add_argument('-D','--normal_depth',type=check_depth,default=default,metavar='FLOAT',
-        help='the mean depth of normal sample for fa2wgs to simulate NGS reads [{}]'.format(default))
+    group3=parser.add_argument_group('Arguments for module fa2wgs/fa2wes')
     default=0.8
     group3.add_argument('-p','--purity',type=check_purity,default=default,metavar='FLOAT',
         help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
+    default=100
+    group3.add_argument('--rlen',type=int,default=default,metavar='INT',
+        help="the length of reads to simulate [{}]".format(default))
+    group3.add_argument('--separate',action="store_true",
+        help="keep each tip node's NGS reads file separately")
+    group3.add_argument('--single',action="store_true",
+        help="single cell mode. "+\
+        "After this setting, the value of --depth/--rdepth is the depth of each tumor cell "+\
+        "(not the total depth of tumor sample anymore)")
+    group4=parser.add_argument_group('Module fa2wgs arguments')
+    default=50
+    group4.add_argument('-d','--depth',type=check_depth,default=default,metavar='FLOAT',
+        help='the mean depth of tumor sample for fa2wgs to simulate NGS reads [{}]'.format(default))
+    default=0
+    group4.add_argument('-D','--normal_depth',type=check_depth,default=default,metavar='FLOAT',
+        help='the mean depth of normal sample for fa2wgs to simulate NGS reads [{}]'.format(default))
     default='art_illumina --noALN --quiet --paired --mflen 500 --sdev 20'
-    group3.add_argument('--art',type=str,default=default,metavar='STR',
+    group4.add_argument('--art',type=str,default=default,metavar='STR',
         help="the parameters for ART program ['{}']".format(default))
-    group3.add_argument('--compress',action="store_true",
+    group4.add_argument('--compress',action="store_true",
         help='compress the generated fastq files using gzip')
-    group4=parser.add_argument_group('Module fa2wes arguments')
+    group5=parser.add_argument_group('Module fa2wes arguments')
     default=None
-    group4.add_argument('--probe',metavar='FILE',type=check_file,default=default,
+    group5.add_argument('--probe',metavar='FILE',type=check_file,default=default,
         help='The file containing the probe sequences (FASTA format) [{}]'.format(default))
     default=50
-    group4.add_argument('--rdepth',type=check_depth,default=default,metavar='FLOAT',
+    group5sub1=group5.add_mutually_exclusive_group()
+    group5sub2=group5.add_mutually_exclusive_group()
+    group5sub1.add_argument('--rdepth',type=check_depth,default=default,metavar='FLOAT',
         help='the mean depth of tumor sample for fa2wes to simulate NGS reads [{}]'.format(default))
     default=0
-    group4.add_argument('--normal_rdepth',type=check_depth,default=default,metavar='FLOAT',
-        help='the mean depth of normal sample for fa2wes to simulate NGS reads [{}]'.format(default))
-    default=0
-    group4.add_argument('--rnum',metavar='INT',type=int,default=default,
+    group5sub1.add_argument('--rnum',metavar='INT',type=int,default=default,
         help='The number of short reads simulated for tumor sample [{}]'.format(default))
     default=0
-    group4.add_argument('--normal_rnum',metavar='INT',type=int,default=default,
+    group5sub2.add_argument('--normal_rdepth',type=check_depth,default=default,metavar='FLOAT',
+        help='the mean depth of normal sample for fa2wes to simulate NGS reads [{}]'.format(default))
+    default=0
+    group5sub2.add_argument('--normal_rnum',metavar='INT',type=int,default=default,
         help='The number of short reads simulated for normal sample [{}]'.format(default))
     default='capgem'
-    group4.add_argument('--simulator',default=default,choices=['capgem','wessim','capsim'],
+    group5.add_argument('--simulator',default=default,choices=['capgem','wessim','capsim'],
         help='The whole-exome sequencing simulator used for simulating short reads [{}]'.format(default))
     default=None
-    group4.add_argument('--error_model',metavar='FILE',type=check_file, default=default,
+    group5.add_argument('--error_model',metavar='FILE',type=check_file, default=default,
         help='The file containing the empirical error model for NGS reads generated by GemErr (It must be provided when capgem or wessim is used for simulation) [{}]'.format(default))
     default='snakemake --rerun-incomplete -k --latency-wait 120'
-    group4.add_argument('--snakemake',metavar='STR',type=str,default=default,
+    group5.add_argument('--snakemake',metavar='STR',type=str,default=default,
         help="The command used for calling a whole-exome sequencing simulator. The Snakefile for a simulator is under the directory 'wes/config' of the source code. Additional parameters for a simulator can be adjusted in the Snakefile ['{}']".format(default))
     default=1
-    group4.add_argument('--out_level',type=int,choices=[0,1,2,3],default=default,
+    group5.add_argument('--out_level',type=int,choices=[0,1,2,3],default=default,
         help="The level used to indicate how many intermediate output files are kept. \
         Level 0: keep all the files.\
         Level 1: remove '.snakemake'. \
         Level 2: keep 'config', 'genome_index', 'mapping', 'frags', 'merged', and 'separate'.\
         Level 3: keep only 'merged' and 'separate' [{}]".format(default))
-    group5=parser.add_argument_group('Arguments for module fa2wgs/fa2wes')
-    default=100
-    group5.add_argument('--rlen',type=int,default=default,metavar='INT',
-        help="the length of reads to simulate [{}]".format(default))
-    group5.add_argument('--separate',action="store_true",
-        help="keep each tip node's NGS reads file separately")
-    group5.add_argument('--single',action="store_true",
-        help="single cell mode. "+\
-        "After this setting, the value of --depth is the depth of each tumor cell "+\
-        "(not the total depth of tumor sample anymore)")
 
     args=parser.parse_args()
     if (args.prune or args.prune_proportion) and args.single:

@@ -39,7 +39,7 @@ def check_file(directory=None):
 def check_depth(value=None):
     fvalue=float(value)
     if fvalue<0:
-        raise argparse.ArgumentTypeError("{} is an invalid value for --depth/--normal_depth. ".format(value)+
+        raise argparse.ArgumentTypeError("{} is an invalid value for read depth.".format(value)+
             "It should be a non-negative float number.")
     return fvalue
 

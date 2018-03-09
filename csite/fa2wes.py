@@ -269,8 +269,8 @@ def prepare_sample_normal(sample_file, args, normal_gsize, target_size):
         for parental in 0, 1:
             ref = '{}/normal.parental_{}.fa'.format(args.normal, parental)
             proportion = genomesize(fasta=ref) / normal_gsize
-            if args.normal_depth > 0:
-                readnum = int((proportion * args.normal_depth *
+            if args.normal_rdepth > 0:
+                readnum = int((proportion * args.normal_rdepth *
                            target_size) / args.rlen)
             else:
                 readnum = int(proportion * args.normal_rnum)
@@ -331,8 +331,8 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                 fullname = os.path.abspath(ref)
                 cell_proportion = normal_cells / total_cells
                 proportion = cell_proportion * genomesize(fasta=ref) / normal_gsize
-                if args.depth > 0:
-                    readnum = int((proportion * args.depth *
+                if args.rdepth > 0:
+                    readnum = int((proportion * args.rdepth *
                                target_size) / args.rlen)
                 else:
                     readnum = int(proportion * args.rnum)
@@ -372,8 +372,8 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                 else:
                     cell_proportion = tip_node_leaves[tip_node] / total_cells
                 proportion = cell_proportion * tip_node_gsize[tip_node][parental] / tip_node_gsize[tip_node][2]
-                if args.depth > 0:
-                    readnum = int((proportion * args.depth *
+                if args.rdepth > 0:
+                    readnum = int((proportion * args.rdepth *
                                target_size) / args.rlen)
                 # readnum = int(readnum / args.capture_efficiency)
                 else:
@@ -445,19 +445,19 @@ def main(progname=None):
     group2 = parser.add_argument_group('Parameters for sequencing')
     group = group2.add_mutually_exclusive_group()
     default = 0
-    group.add_argument('-d', '--depth', metavar='FLOAT', type=float, default=default,
+    group.add_argument('-d', '--rdepth', metavar='FLOAT', type=float, default=default,
                        help='The mean depth of tumor sample for simulating short reads [{}]'.format(default))
     default = 0
     group.add_argument('-r', '--rnum', metavar='INT', type=int, default=default,
                        help='The number of short reads simulated for tumor sample [{}]'.format(default))
     group = group2.add_mutually_exclusive_group()
     default = 0
-    group.add_argument('-D', '--normal_depth', metavar='FLOAT', type=float, default=default,
+    group.add_argument('-D', '--normal_rdepth', metavar='FLOAT', type=float, default=default,
                        help='The mean depth of normal sample for simulating short reads [{}]'.format(default))
     default = 0
     group.add_argument('-R', '--normal_rnum', metavar='INT', type=int, default=default,
                        help='The number of short reads simulated for normal sample [{}]'.format(default))
-    default = 0.5
+    default = 0.8
     group2.add_argument('-p', '--purity', metavar='FLOAT', type=check_purity, default=default,
                        help='The proportion of tumor cells in simulated sample [{}]'.format(default))
     default = 100
