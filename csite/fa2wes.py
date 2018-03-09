@@ -422,6 +422,7 @@ def main(progname=None):
 
     group2 = parser.add_argument_group('Arguments for simulation')
     group = group2.add_mutually_exclusive_group()
+
     default = 0.0
     group.add_argument('-d', '--rdepth', metavar='FLOAT', type=float, default=default,
                        help='The mean rdepth of tumor sample for simulating short reads [{}]'.format(default))
