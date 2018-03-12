@@ -1,12 +1,12 @@
 #a male human genome (GRCh37), with anouploidy on chromsome 3 (00), 9 (011) and 15 (1).
 genome:
-    snv_rate: 300.0
-    cnv_rate: 3.0
+    snv_rate: 3000.0
+    cnv_rate: 30.0
     del_prob: 0.5
     cnv_length_beta: 2000000
     cnv_length_max: 4000000
     copy_parameter: 0.5
-    copy_max: 5
+    copy_max: 3
     parental: '01'
     tstv: 2.0
     length: 3095677412
