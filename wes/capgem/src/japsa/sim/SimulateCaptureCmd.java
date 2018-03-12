@@ -96,7 +96,7 @@ public class SimulateCaptureCmd extends CommandLine{
 
 		addInt("num", 1000000, "Number of fragments ");
 
-		addInt("illen", 250, "Illumina: read length");
+		// addInt("illen", 250, "Illumina: read length");
 		addString("ilmode", "pe", "Illumina: Sequencing mode: pe = paired-end, mp=mate-paired and se=singled-end");
 
 		addInt("seed", 0, "Random seed, 0 for a random seed");
@@ -126,13 +126,13 @@ public class SimulateCaptureCmd extends CommandLine{
 		int seed =  cmdLine.getIntVal("seed");
 		int num =   cmdLine.getIntVal("num");
 
-		int illen = cmdLine.getIntVal("illen");
-		if(illen>300) {
-			int mllen = 300;
-			Logging.warn("Illumina read length specified is greater than "+mllen+". "
-					+ "Use "+mllen+" instead.");
-			illen = mllen;
-		}
+		// int illen = cmdLine.getIntVal("illen");
+		// if(illen>300) {
+		// 	int mllen = 300;
+		// 	Logging.warn("Illumina read length specified is greater than "+mllen+". "
+		// 			+ "Use "+mllen+" instead.");
+		// 	illen = mllen;
+		// }
 
 		String miseq       =  cmdLine.getStringVal("miseq");
 
@@ -226,7 +226,9 @@ public class SimulateCaptureCmd extends CommandLine{
 					continue;
 
 				int refIndex = sam.getReferenceIndex();
-				//TODO: this part can be improved
+				//TODO: this part can be improved (Sometimes java.lang.OutOfMemoryError (: Java heap space at ...) may occur)
+				// Logging.info("Max memory available: " + Runtime.getRuntime().maxMemory());
+				// Logging.info("refIndex: " + refIndex + " Start: " + start + " flank: " + flank + " End: " + end);
 				bitSets[refIndex].set(Math.max(start - flank,0), end);
 			}
 			samIter.close();
@@ -256,7 +258,7 @@ public class SimulateCaptureCmd extends CommandLine{
 			Logging.info("Acc 0 " + accLen[0]);
 			for (int i = 1; i < accLen.length;i++){
 				accLen[i] = accLen[i-1] + chrList.get(i).length();
-				Logging.info("Acc " +i + " " +  accLen[i]);
+				Logging.info("Acc " + i + " " + accLen[i]);
 			}
 
 		}

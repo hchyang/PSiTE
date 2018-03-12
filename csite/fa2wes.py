@@ -390,11 +390,18 @@ def run_snakemake(outdir, args, sample_file, snake_file):
     # Copy Snakefile to the output folder
     shutil.copyfile(snake_file, snake_file_copy)
 
+    if '--cluster' in args.snakemake:
+        cluster_file = os.path.join(os.path.dirname(sys.argv[0]), 'wes/config/cluster.yaml')
+        assert os.path.isfile(cluster_file), 'Cannot find cluster.yaml under the program directory'
+        cluster_file_copy = os.path.join(outdir, 'config/cluster.yaml')
+        shutil.copyfile(cluster_file, cluster_file_copy)
+
     orig_params = args.snakemake.split()
     config = ' rlen=' + str(args.rlen)
     if not ('--cores' in args.snakemake or '--jobs' in args.snakemake or '-j' in args.snakemake):
         # Use the number of cores specified here
         orig_params += ['-j', str(args.cores)]
+
 
     final_cmd_params =  orig_params + ['-s', os.path.abspath(snake_file_copy), '-d', os.path.abspath(outdir), '--configfile', os.path.abspath(sample_file), '--config', config]
 
