@@ -298,13 +298,13 @@ def main(progname=None):
                     '--out_level',str(args.out_level),
                     '--snakemake','{}'.format(args.snakemake)]
         if args.rdepth:
-            cmd_params.extend(['--rdepth',args.rdepth])
+            cmd_params.extend(['--rdepth',str(args.rdepth)])
         elif args.rnum:
-            cmd_params.extend(['--rnum',args.rnum])
+            cmd_params.extend(['--rnum',str(args.rnum)])
         if args.normal_rdepth:
-            cmd_params.extend(['--normal_rdepth',args.normal_rdepth])
+            cmd_params.extend(['--normal_rdepth',str(args.normal_rdepth)])
         elif args.normal_rnum:
-            cmd_params.extend(['--normal_rnum',args.normal_rnum])
+            cmd_params.extend(['--normal_rnum',str(args.normal_rnum)])
         if args.separate:
             cmd_params.extend(['--separate'])
         if args.single:
