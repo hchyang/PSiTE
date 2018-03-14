@@ -518,7 +518,7 @@ def main(progname=None):
         else:
             raise OutputExistsError("A file in the name of '{}' exists.\nDelete it or try another name as output folder.".format(args.output))
     else:
-        os.mkdirs(args.output,mode=0o755)
+        os.mkdir(args.output,mode=0o755)
 
     wes_dir = os.path.join(os.path.dirname(sys.argv[0]), 'wes')
     # Add path variables
