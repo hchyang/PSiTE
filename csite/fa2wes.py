@@ -391,8 +391,8 @@ def run_snakemake(outdir, args, sample_file, snake_file):
     shutil.copyfile(snake_file, snake_file_copy)
 
     if '--cluster' in args.snakemake:
-        cluster_file = os.path.join(os.path.dirname(sys.argv[0]), 'wes/config/cluster.yaml')
-        assert os.path.isfile(cluster_file), 'Cannot find cluster.yaml under the program directory'
+        cluster_file = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'wes/config/cluster.yaml')
+        assert os.path.isfile(cluster_file), 'Cannot find cluster.yaml below under the program directory:{}'.format(cluster_file)
         cluster_file_copy = os.path.join(outdir, 'config/cluster.yaml')
         shutil.copyfile(cluster_file, cluster_file_copy)
 
@@ -520,7 +520,7 @@ def main(progname=None):
     else:
         os.mkdir(args.output,mode=0o755)
 
-    wes_dir = os.path.join(os.path.dirname(sys.argv[0]), 'wes')
+    wes_dir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'wes')
     # Add path variables
     if args.simulator == 'capsim':
         snake_file = os.path.join(wes_dir, 'config/Snakefile_capsim')
@@ -534,7 +534,7 @@ def main(progname=None):
         if os.path.exists(os.path.join(capgem_dir, 'bin')):
             os.environ['PATH'] += os.pathsep + os.path.join(capgem_dir, 'bin')
         os.environ['PATH'] += os.pathsep + os.path.join(capgem_dir, 'src')
-    assert os.path.isfile(snake_file), 'Cannot find Snakefile under the program directory'
+    assert os.path.isfile(snake_file), 'Cannot find Snakefile below under the program directory:\n{}'.format(snake_file)
 
     normal_gsize = compute_normal_gsize(args.normal)
     target_size = compute_target_size(args.probe)
