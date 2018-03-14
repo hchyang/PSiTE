@@ -306,7 +306,7 @@ def main(progname=None):
         elif args.normal_rnum:
             cmd_params.extend(['--normal_rnum',str(args.normal_rnum)])
         if args.error_model:
-            cmd_params.extend(['--error_model',args.error_model)])
+            cmd_params.extend(['--error_model',args.error_model])
         if args.separate:
             cmd_params.extend(['--separate'])
         if args.single:
