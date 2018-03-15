@@ -334,6 +334,8 @@ def main(argv):
             inter = isize
             read1, pos1, dir1, quals1, read2, pos2, dir2, quals2 = readGenp(
                 ref, refLen, ln1, ln2, gens(), mx1, insDict1, delDict1, gQList, bQList, iQList, qualbase)
+            if read1 == None or quals1 == None or read2 == None or quals2 == None:
+                continue
             p1 = fragment_chrom + "_" + \
                 str(fragment_start + pos1 + 1) + "_" + dirtag[dir1]
             p2 = fragment_chrom + "_" + \
@@ -779,7 +781,10 @@ def genRef(ref):
 
 
 def mkErrors(read, readLen, mx, insD, delD, gQ, bQ, iQ, qual):
-    """Adds random errors to read."""
+    """
+    Adds random errors to read.
+    Return a read with simulated errors, or None if something is wrong.
+    """
     pos = 0
     quals = ''
     qualslist = []
@@ -788,7 +793,6 @@ def mkErrors(read, readLen, mx, insD, delD, gQ, bQ, iQ, qual):
         insert = insD[index]()
         read = 'NNNN' + insert + read
         for i in insert:
-            #                       quals+=iQ[0]()
             qualslist.append(iQ[0]())
             pos += 1
     else:

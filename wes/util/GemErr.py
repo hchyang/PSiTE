@@ -77,9 +77,10 @@ def getRef(refFile):
         sys.exit('Cannot find reference file ' +
                  refFile + '. Please check pathname.')
     i = f.readline()
+    # Sample header: >1 dna:chromosome chromosome:GRCh37:1:1:249250621:1
     # head = i[1:51].rstrip()
     head = i.split()[0][1:51].rstrip()
-    i = f.readline().rstrip()
+    i = f.readline()
     while i:
         if i[0] != '>':
             ref += i.rstrip()
@@ -93,7 +94,8 @@ def getRef(refFile):
                 ref = ref.replace(l, 'N')
             refDict[head] = ref
             hdList.append(head)
-            head = i[1:51].rstrip()     # Get the first 50 characters
+            # head = i[1:51].rstrip()     # Get the first 50 characters
+            head = i.split()[0][1:51].rstrip()
             i = f.readline()
             ref = ''
     ref = ref.upper()
@@ -101,6 +103,7 @@ def getRef(refFile):
         ref = ref.replace(l, 'N')
     refDict[head] = ref
     errlog.debug('Reference file successfully parsed.')
+    errlog.debug('Reference keys {}'.format(refDict.keys()))
 
     return refDict
 
@@ -545,7 +548,7 @@ def mkMxSingle(readLen, ref, samFile, name, skip, circular, maxIndel, excl, minK
             parts = line.split('\t')
             flag = int(parts[1])
             if (flag & 0x04) == 0:  # make sure read is aligned
-                    # parse sam format
+                # parse sam format
                 pos = int(parts[3])
                 seq = parts[9]
                 qual = parts[10]
@@ -561,10 +564,10 @@ def mkMxSingle(readLen, ref, samFile, name, skip, circular, maxIndel, excl, minK
                 if flag & 0x10:
                     # reverse complement
                     updateM(ref[chr], pos, seq, qual, cigList,
-                            circular, 0, maxIndel, 'r', readLen, excl)
+                            circular, 0, maxIndel, 'r', readLen, excl[chr])
                 else:
                     updateM(ref[chr], pos, seq, qual, cigList,
-                            circular, 0, maxIndel, 'f', readLen, excl)
+                            circular, 0, maxIndel, 'f', readLen, excl[chr])
                 if readCount % 5000 == 0:
                     errlog.info('...parsed ' + str(readCount) + ' reads.')
                 readCount += 1
@@ -627,12 +630,13 @@ def mkMxPaired(readLen, ref, samFile, name, skip, circular, maxIndel, excl, minK
     lenD = {}
     for i in ref.keys():
         lenD[i] = len(ref[i])
+
     while line[0] == '@':
         line = f.readline()
     while line:
         lineCount += 1
         if skip == 0 or lineCount % skip == 0:  # remove headers
-            parts = line.split('\t')
+            parts = line.strip().split('\t')
             flag = int(parts[1])
             if (flag & 0x04) == 0:  # make sure read is aligned
                 # parse sam format
@@ -642,9 +646,16 @@ def mkMxPaired(readLen, ref, samFile, name, skip, circular, maxIndel, excl, minK
                 qual = parts[10]
                 cigar = parts[5]
                 chr = parts[2][:50] # Used to retrieve the reference sequence
+                # Remving starting characters ("chr" or "ch")
+                if chr.startswith('chr'):
+                    chr = chr[3:]
+                if chr.startswith('ch'):
+                    chr = chr[2:]
                 if chr not in ref.keys():
+                    # errlog.info('{} not in {}'.format(chr, ref.keys()))
                     continue
                 reflen = lenD[chr]
+                errlog.info('The number of positions to exclude: {}.'.format(len(excl[chr])))
                 cigList = parseMD(cigar)
                 # update read length dictionary
                 if (readCount) % 5000 == 0:
@@ -667,10 +678,10 @@ def mkMxPaired(readLen, ref, samFile, name, skip, circular, maxIndel, excl, minK
                 if (flag & 0x40):  # reads unpaired or first in pair
                     if flag & 0x10:
                         updateM(ref[chr], pos, seq, qual, cigList,
-                                circular, 1, maxIndel, 'r', readLen, excl)
+                                circular, 1, maxIndel, 'r', readLen, excl[chr])
                     else:
                         updateM(ref[chr], pos, seq, qual, cigList,
-                                circular, 1, maxIndel, 'f', readLen, excl)
+                                circular, 1, maxIndel, 'f', readLen, excl[chr])
                     readCount += 1
                     rds[0] += 1
                     if (flag & 0x08):
@@ -679,10 +690,10 @@ def mkMxPaired(readLen, ref, samFile, name, skip, circular, maxIndel, excl, minK
                 if (flag & 0x80):  # matrices for 2nd read in pair
                     if flag & 0x10:
                         updateM(ref[chr], pos, seq, qual, cigList,
-                                circular, 2, maxIndel, 'r', readLen, excl)
+                                circular, 2, maxIndel, 'r', readLen, excl[chr])
                     else:
                         updateM(ref[chr], pos, seq, qual, cigList,
-                                circular, 2, maxIndel, 'f', readLen, excl)
+                                circular, 2, maxIndel, 'f', readLen, excl[chr])
                     readCount += 1
                     rds[1] += 1
                     if (flag & 0x08):
@@ -800,11 +811,18 @@ def main(argv):
     else:
         errlog.info('Treating reference genome as linear.')
 
-    excl = []
+    # Read SNP positions
+    excl = {}
     if fexcl !='':
         with open(fexcl,'r') as fin:
             for line in fin:
-                excl.append(line.strip())
+                fields = line.strip().split("\t")
+                chrom = fields[0]
+                pos = fields[1]
+                if chrom not in excl:
+                    excl[chrom] = [pos]
+                else:
+                    excl.setdefault(chrom, []).append(pos)
 
     if paired:
         errlog.info('Treating reads as paired.')

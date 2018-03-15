@@ -1,9 +1,7 @@
 # This file specifies the parameter settings for running snakemake on a cluster
-{
-    "__default__" :
-    {
-      "time" : "48:00:00",
-      "mem" : 8G,
-      "n" : 4
-    }
-}
+"__default__" :
+  "time" : "48:00:00"
+  "mem" : 8G
+  "n" : 1
+"align_probe" :
+  "n" : 8
