@@ -23,5 +23,5 @@ This model is called CapGem, because it combines the function of both CapSim and
 ### Install:
 To install CapSim, one can go to the folder containing the source code (CSiTE/wes/capgem) and then run make.
 A sample command:
-make install INSTALL_DIR=./ MXMEM=8000m SERVER=true
+`make install INSTALL_DIR=./ MXMEM=8000m SERVER=true`
 If INSTALL_DIR is specified to be a directory other than ‘./’, this directory should be added to environment variable PATH .
