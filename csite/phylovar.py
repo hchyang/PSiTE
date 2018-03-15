@@ -18,16 +18,12 @@ import yaml
 import csite.trunk_vars
 import csite.tree
 from csite.vcf2fa import check_sex
-#import pickle
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe 
 from signal import signal, SIGPIPE, SIG_DFL 
 signal(SIGPIPE,SIG_DFL) 
 
-#TODO: check whether parental is parental. sometimes it's mean haplotype...
-#TODO: SNV true_freq
-#TODO: rewrite the description of the output of SNVs 
 
 #I defined those two parameters as global variables. As they will be used in function
 #random_int and check_config_file, which are also used in allinone.py.
@@ -301,6 +297,9 @@ def main(progname=None):
     group4.add_argument('--NHX',type=str,default=default,metavar='FILE',
         help='the output file in NHX format to save the original tree with all variants [{}]'.format(default))
     default=None
+    group4.add_argument('--nodes_vars',type=str,default=default,metavar='FILE',
+        help='the output file to save SNVs/CNVs on each node [{}]'.format(default))
+    default=None
     group4.add_argument('--cnv_profile',type=str,default=default,metavar='FILE',
         help='the file to save CNVs profile [{}]'.format(default))
     group4.add_argument('--snv_genotype',type=str,metavar='FILE',
@@ -557,16 +556,23 @@ def main(progname=None):
 #        expands_snps_file.close()
 #        expands_segs_file.close()
 
-#TODO: Should we change pickle to json or yaml?
-#http://stackoverflow.com/questions/4677012/python-cant-pickle-type-x-attribute-lookup-failed
 #FIXME: right now, it does not consider the deletion effect on pre_snvs.
-#FIXME: output in .nhx format
-    if args.nhx!=None:
+    if args.nhx:
         mytree.attach_info(attr='vars',info=all_nodes_vars)
         with open(args.nhx,'w') as tree_data_file:
             tree_data_file.write('{};\n'.format(mytree.tree2nhx(with_lens=True,attrs=['nodeid','vars'])))
 
-    if args.NHX!=None:
+    if args.NHX:
         original_tree.attach_info(attr='vars',info=all_nodes_vars)
         with open(args.NHX,'w') as tree_data_file:
             tree_data_file.write('{};\n'.format(original_tree.tree2nhx(with_lens=True,attrs=['nodeid','vars'])))
+
+#output SNVs/CNVs on each node
+    if args.nodes_vars:
+        with open(args.nodes_vars,'w') as nodes_vars_file:
+            nodes_vars_file.write('#node\tchr\tstart\tend\tvar\n')
+            for node in sorted(all_nodes_vars.keys(),key=lambda x: int(x[4:])):
+                vars_list=[x.split('#') for x in all_nodes_vars[node]]
+                vars_list=sorted(vars_list,key=lambda x:(x[0],int(x[1]),int(x[2])))
+                for var in vars_list:
+                    nodes_vars_file.write('{}\t{}\n'.format(node,'\t'.join(var)))
