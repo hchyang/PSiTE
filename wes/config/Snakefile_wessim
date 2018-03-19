@@ -45,7 +45,7 @@ rule build_blat_index:
         faToTwoBit {input.genome} {params.prefix}.2bit
         '''
 
-rule align_probe:
+rule align_probe_blat:
     input:
         f2bit = rules.build_blat_index.output,
         probe = config['probe']

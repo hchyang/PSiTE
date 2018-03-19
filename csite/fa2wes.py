@@ -439,10 +439,10 @@ def main(progname=None):
     group = group2.add_mutually_exclusive_group()
     default = 0.0
     group.add_argument('-D', '--normal_rdepth', metavar='FLOAT', type=float, default=default,
-                       help='The mean rdepth of normal sample for simulating short reads [{}]'.format(default))
+                       help='The mean rdepth of normal sample for simulating short reads. In principle, one can specify the mean depth for tumor and normal samples in a single command. To save time, one can simulate tumor and normal samples in parallel by running two fa2wes commands at the same time, with one command specifying the depth of tumor (normal) sample to be 0 when simulating normal (tumor) sample [{}]'.format(default))
     default = 0
     group.add_argument('-R', '--normal_rnum', metavar='INT', type=int, default=default,
-                       help='The number of short reads simulated for normal sample [{}]'.format(default))
+                       help='The number of short reads simulated for normal sample. In principle, one can specify the read number for tumor and normal samples in a single command. To save time, one can simulate tumor and normal samples in parallel by running two fa2wes commands at the same time, with one command specifying the read number of tumor (normal) sample to be 0 while simulating normal (tumor) sample [{}]'.format(default))
     default = 0.8
     group2.add_argument('-p', '--purity', metavar='FLOAT', type=check_purity, default=default,
                        help='The proportion of tumor cells in simulated sample [{}]'.format(default))
@@ -518,7 +518,7 @@ def main(progname=None):
         else:
             raise OutputExistsError("A file in the name of '{}' exists.\nDelete it or try another name as output folder.".format(args.output))
     else:
-        os.mkdir(args.output,mode=0o755)
+        os.makedirs(args.output,mode=0o755)
 
     wes_dir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'wes')
     # Add path variables

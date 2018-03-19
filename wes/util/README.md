@@ -1,12 +1,12 @@
 This folder contains several scripts for common use.
 
-### probe2fa.py:
+### probe2fa.py
 To convert probe sequences (TXT format) to FASTA format
 
-### GemErr.py:
+### GemErr.py
 To create an error model for a particular sequencing run
 
-### GemStats.py:
+### GemStats.py
 To generate statistics on error model files produced by GemErr.py,
 
 
