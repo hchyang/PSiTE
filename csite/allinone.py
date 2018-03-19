@@ -290,6 +290,7 @@ def main(progname=None):
                     '--tumor',tumor_fa,
                     '--map',map_file,
                     '--probe',args.probe,
+                    '--simulator',args.simulator,
                     '--rlen',str(args.rlen),
                     '--purity',str(args.purity),
                     '--output',reads_dir,
