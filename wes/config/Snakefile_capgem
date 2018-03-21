@@ -35,7 +35,7 @@ rule build_index:
         '''
 
 
-rule align_probe:
+rule align_probe_bowtie:
     input:
         rules.build_index.output,
         probe = config['probe']
@@ -49,7 +49,6 @@ rule align_probe:
         "log/align_probe.log"
     shell:
         '''
-        # bowtie2 --local --very-sensitive-local -p 8 --mp 8 --rdg 10,8 --rfg 10,8 -k 10000 -f -x {params.rprefix} -U {input.probe} | samtools view -bSu - | samtools sort - {params.bprefix}
         bowtie2 --local --very-sensitive-local -p 8 --mp 8 --rdg 10,8 --rfg 10,8 -k 10000 -f -x {params.rprefix} -U {input.probe} | samtools view -bSu - | samtools sort -o {output.bam} -
         samtools index {output.bam}
         '''

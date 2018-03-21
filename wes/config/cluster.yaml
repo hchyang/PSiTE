@@ -3,5 +3,5 @@
   "time" : "48:00:00"
   "mem" : 8G
   "n" : 1
-"align_probe" :
+"align_probe_bowtie" :
   "n" : 8
