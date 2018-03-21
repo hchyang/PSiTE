@@ -235,7 +235,7 @@ def main(progname=None):
         for tip_node in sorted(tip_node_leaves.keys()):
             fcov=None
             if args.single:
-                fcov=args.depth
+                fcov=tumor_seq_bases/tip_node_gsize[tip_node][2]
             else:
                 fcov=tip_node_leaves[tip_node]*tumor_seq_per_base
             for parental in 0,1:
