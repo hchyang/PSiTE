@@ -12,12 +12,18 @@ import copy as cp
 
 def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
     '''
-    There should be 4 columns for each varians in the input file,
-    chr:      the chromosome of the var
-    hap:      which halotype of the chr the var locates in (0 based)
-    start:    the start of the var
-    end:      the end of the var
-    var:      an string. 0/1/2: SNV, -1: deletion, +int: amplification
+    There should be at least 5 columns for each varians in the input file,
+    The 6th column is optional.
+    chr:      the chromosome of the variants
+    hap:      which halotype of the chromosome the variant locates in (0 based).
+              It depends on the parental of the chromosome. If the parental is '011',
+              then there are 3 haplotypes: 0,1,2
+    start:    the start of the variant
+    end:      the end of the variant
+    var:      an integer. 0/1/2: SNV, -1: deletion, +int: amplification
+    bearer:   optional. an integer of some integers separeted by comma (only for SNV). 
+              0 (or without this column): the SNV is on the original copy
+              N: the SNV is on the copy N of this segment
     P.S. start and end are 0 based. And the region of each var is like in bed: [start,end).
     '''
     snvs={}
@@ -30,7 +36,19 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
         for line in f:
             if line.startswith('#'):
                 continue
-            chroms,hap,start,end,var=line.split()
+            cols=line.split()
+            if len(cols)==5:
+                chroms,hap,start,end,var=cols
+                bearer=0
+            elif len(cols)==6:
+                chroms,hap,start,end,var,bearer=cols
+                if var not in ('0','1','2'):
+                    raise TrunkVarError('Only the record of SNV can have the bearer (6th) column.'+
+                        'Check the record below:\n{}'.format(line))
+            else:
+                raise TrunkVarError('There should be 5 or 6 columns in your --trunk_vars file.\n'+
+                    'Check the record below:\n{}'.format(line))
+
             hap=int(hap)
             start=int(start)
             end=int(end)
@@ -38,8 +56,10 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
                 raise TrunkVarError('The chr of the variant below is not in the genome:\n{}'.format(line))
             if not 0<=hap<len(chroms_cfg[chroms]['parental']):
                 raise TrunkVarError('The haplotype of the variant below is out of range:\n{}'.format(line))
-            if not 0<=start<chroms_cfg[chroms]['length'] or not 0<=end<chroms_cfg[chroms]['length']: 
+            if not (0<=start<chroms_cfg[chroms]['length'] and 0<=end<chroms_cfg[chroms]['length']): 
                 raise TrunkVarError('The coordinant of the variant below is out of range:\n{}'.format(line))
+            if not start<end: 
+                raise TrunkVarError('The start of the variant should be less than its end :\n{}'.format(line))
 
             if var.startswith('+') or var.startswith('-'):
                 copy=int(var)
@@ -91,6 +111,7 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
                                          'start':start,
                                          'end':end,
                                          'mutation':form,
+                                         'bearer':bearer
                                         })
 
     check_vars(snvs,amps,dels)
@@ -111,17 +132,27 @@ def check_vars(snvs,amps,dels):
         for hap in sorted(dels[chroms].keys()):
             snvs_chrom_hap=snvs_chroms.get(hap,[])
             amps_chrom_hap=amps_chroms.get(hap,[])
-            for deletion in dels[chroms][hap]:
+            for i in range(len(dels[chroms][hap])):
+#on each haplotype, there shouldn't be SNV/AMP overlap with DEL
+#on each haplotype, there shouldn't be AMP overlap with AMP
+#on each haplotype, there shouldn't be DEL overlap with DEL
+                deletion=dels[chroms][hap][i]
                 for snv in snvs_chrom_hap:
                     if deletion[0]<=snv['start']<deletion[1]:
-                        raise TrunkVarError('Those variants below are conflict:\n'+
+                        raise TrunkVarError('These variants below are in conflict with each other:\n'+
                             '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,snv['start'],snv['end'],snv['mutation']]]))+
                             '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,deletion[0],deletion[1],'-1']])))
                 for amp in amps_chrom_hap:
                     if deletion[0]<=amp[0]<deletion[1] or deletion[0]<amp[1]<=deletion[1]:
-                        raise TrunkVarError('Those variants below are conflict:\n'+
+                        raise TrunkVarError('These variants below are in conflict with each other:\n'+
                             '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,amp[0],amp[1],'+'+str(amp[2])]]))+
                             '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,deletion[0],deletion[1],'-1']])))
+                if i<len(dels[chroms][hap])-1:
+                    for deletion2 in dels[chroms][hap][i+1:]:
+                        if deletion[0]<=deletion2[0]<deletion[1] or deletion[0]<deletion2[1]<=deletion[1]:
+                            raise TrunkVarError('These variants below are in conflict with each other:\n'+
+                                '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,deletion2[0],deletion2[1],'-1']]))+
+                                '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,deletion[0],deletion[1],'-1']])))
 
 class TrunkVarError(Exception):
     pass
