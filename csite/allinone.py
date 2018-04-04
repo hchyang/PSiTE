@@ -4,7 +4,7 @@
 # Author: Hechuan Yang
 # Created Time: 2017-04-04 18:00:34
 # File Name: allinone.py
-# Description: 
+# Description:
 #########################################################################
 
 import sys
@@ -21,9 +21,9 @@ from csite.phylovar import check_prune,check_proportion,check_seed,check_purity,
 from csite.fa2wgs import check_depth,check_file
 
 #handle the error below
-#python | head == IOError: [Errno 32] Broken pipe 
-from signal import signal, SIGPIPE, SIG_DFL 
-signal(SIGPIPE,SIG_DFL) 
+#python | head == IOError: [Errno 32] Broken pipe
+from signal import signal, SIGPIPE, SIG_DFL
+signal(SIGPIPE,SIG_DFL)
 
 def main(progname=None):
     parser=argparse.ArgumentParser(
@@ -127,13 +127,12 @@ def main(progname=None):
     default='snakemake --rerun-incomplete -k --latency-wait 120'
     group5.add_argument('--snakemake',metavar='STR',type=str,default=default,
         help="The command used for calling a whole-exome sequencing simulator. The Snakefile for a simulator is under the directory 'wes/config' of the source code. Additional parameters for a simulator can be adjusted in the Snakefile ['{}']".format(default))
-    default=1
-    group5.add_argument('--out_level',type=int,choices=[0,1,2,3],default=default,
-        help="The level used to indicate how many intermediate output files are kept. \
-        Level 0: keep all the files.\
-        Level 1: remove '.snakemake'. \
-        Level 2: keep 'config', 'genome_index', 'mapping', 'frags', 'merged', and 'separate'.\
-        Level 3: keep only 'merged' and 'separate' [{}]".format(default))
+    default = 2
+    group5.add_argument('--out_level', type=int, choices=[0, 1, 2], default=default,
+                       help="The level used to indicate how many intermediate output files are kept. \
+                       Level 0: keep all the files.\
+                       Level 1: keep files that are necessary for rerunning simulation ('config', 'genome_index', 'mapping', 'merged', and 'separate'). \
+                       Level 2: keep only final results ('merged' and 'separate') [{}]".format(default))
 
     args=parser.parse_args()
     if (args.prune or args.prune_proportion) and args.single:
@@ -168,7 +167,7 @@ def main(progname=None):
     os.chdir(outdir)
 
 ###### logging and random seed setting
-    logging.basicConfig(filename=args.log if args.start==1 else args.log+'.start'+str(args.start), 
+    logging.basicConfig(filename=args.log if args.start==1 else args.log+'.start'+str(args.start),
         filemode='w',format='[%(asctime)s] %(levelname)s: %(message)s',
         datefmt='%m-%d %H:%M:%S',level='INFO')
     argv_copy=sys.argv[:]

@@ -184,27 +184,19 @@ def clean_output(level, outdir):
     '''
     Remove intermediate output of WES simulators according to the specified levels.
     Level 0: keep all the files.
-    Level 1: remove '.snakemake'.
-    Level 2: keep 'config', 'genome_index', 'mapping', 'frags', 'merged', and 'separate'.
-    Level 3: keep only 'merged' and 'separate'.
+    Level 1: keep files that are necessary for rerunning simulation ('config', 'genome_index', 'mapping', 'merged', and 'separate').
+    Level 2: keep only final results ('merged' and 'separate').
     '''
     if level == 0:
         return
     elif level == 1:
-        # Remove tracking files while running snakemake
-        dirs_del = ['.snakemake']
-        for entry in os.scandir(outdir):
-            if entry.is_dir():
-                if entry.name in dirs_del or 'reads' in entry.name:
-                    shutil.rmtree(entry.path)
-    elif level == 2:
         # Used to rerun based on previous mapping results
-        dirs_keep = ['config', 'genome_index', 'mapping', 'frags', 'merged', 'separate']
+        dirs_keep = ['config', 'genome_index', 'mapping', 'merged', 'separate']
         for entry in os.scandir(outdir):
             if entry.is_dir():
                 if entry.name not in dirs_keep:
                     shutil.rmtree(entry.path)
-    elif level == 3:
+    elif level == 2:
         # Only keep the final reads
         dirs_keep = ['merged', 'separate']
         for entry in os.scandir(outdir):
@@ -390,17 +382,18 @@ def run_snakemake(outdir, args, sample_file, snake_file):
     # Copy Snakefile to the output folder
     shutil.copyfile(snake_file, snake_file_copy)
 
-    if '--cluster' in args.snakemake:
-        cluster_file = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'wes/config/cluster.yaml')
-        assert os.path.isfile(cluster_file), 'Cannot find cluster.yaml below under the program directory:{}'.format(cluster_file)
-        cluster_file_copy = os.path.join(outdir, 'config/cluster.yaml')
-        shutil.copyfile(cluster_file, cluster_file_copy)
-
     orig_params = args.snakemake.split()
     config = ' rlen=' + str(args.rlen)
     if not ('--cores' in args.snakemake or '--jobs' in args.snakemake or '-j' in args.snakemake):
         # Use the number of cores specified here
         orig_params += ['-j', str(args.cores)]
+
+    if '--cluster' in args.snakemake and '--cluster-config' not in args.snakemake:
+        cluster_file = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'wes/config/cluster.yaml')
+        assert os.path.isfile(cluster_file), 'Cannot find cluster.yaml below under the program directory:{}'.format(cluster_file)
+        cluster_file_copy = os.path.join(outdir, 'config/cluster.yaml')
+        shutil.copyfile(cluster_file, cluster_file_copy)
+        orig_params += ['--cluster-config', cluster_file_copy]
 
 
     final_cmd_params =  orig_params + ['-s', os.path.abspath(snake_file_copy), '-d', os.path.abspath(outdir), '--configfile', os.path.abspath(sample_file), '--config', config]
@@ -455,7 +448,7 @@ def main(progname=None):
     default = None
     group2.add_argument('-s', '--random_seed', type=check_seed,
                        help='The seed for random number generator [{}]'.format(default))
-    default = 'capgem'
+    default = 'wessim'
     group2.add_argument('--simulator', default=default, choices=['capgem', 'wessim', 'capsim'],
                        help='The whole-exome sequencing simulator used for simulating short reads [{}]'.format(default))
     default = None
@@ -478,13 +471,12 @@ def main(progname=None):
     default = 'fa2wes.log'
     group3.add_argument('-g', '--log', metavar='FILE', type=str, default=default,
                        help='The log file to save the settings of each command [{}]'.format(default))
-    default = 1
-    group3.add_argument('--out_level', type=int, choices=[0, 1, 2, 3], default=default,
+    default = 2
+    group3.add_argument('--out_level', type=int, choices=[0, 1, 2], default=default,
                        help="The level used to indicate how many intermediate output files are kept. \
                        Level 0: keep all the files.\
-                       Level 1: remove '.snakemake'. \
-                       Level 2: keep 'config', 'genome_index', 'mapping', 'frags', 'merged', and 'separate'.\
-                       Level 3: keep only 'merged' and 'separate' [{}]".format(default))
+                       Level 1: keep files that are necessary for rerunning simulation ('config', 'genome_index', 'mapping', 'merged', and 'separate'). \
+                       Level 2: keep only final results ('merged' and 'separate') [{}]".format(default))
     group3.add_argument('--separate', action='store_true',
                         help='Output the reads of each genome separately')
 
