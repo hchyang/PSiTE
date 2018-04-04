@@ -19,7 +19,7 @@ rule all:
         done_list,
 
 
-rule build_index:
+rule build_bowtie_index:
     input:
         genome=lambda wildcards: config['genomes'][wildcards.gid],
     params:
@@ -35,7 +35,7 @@ rule build_index:
         '''
 
 
-rule align_probe:
+rule align_probe_bowtie:
     input:
         rules.build_index.output,
         probe = config['probe']
