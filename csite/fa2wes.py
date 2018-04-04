@@ -436,7 +436,7 @@ def main(progname=None):
     default = 0
     group.add_argument('-R', '--normal_rnum', metavar='INT', type=int, default=default,
                        help='The number of short reads simulated for normal sample. In principle, one can specify the read number for tumor and normal samples in a single command. To save time, one can simulate tumor and normal samples in parallel by running two fa2wes commands at the same time, with one command specifying the read number of tumor (normal) sample to be 0 while simulating normal (tumor) sample [{}]'.format(default))
-    default = 0.8
+    default = 0.6
     group2.add_argument('-p', '--purity', metavar='FLOAT', type=check_purity, default=default,
                        help='The proportion of tumor cells in simulated sample [{}]'.format(default))
     default = 100

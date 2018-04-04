@@ -271,7 +271,7 @@ def main(progname=None):
     default=0
     group3.add_argument('--trunk_length',type=float,default=default,metavar='FLOAT',
         help='the length of the trunk [{}]'.format(default))
-    default=0.8
+    default=0.6
     group3.add_argument('--purity',type=check_purity,default=default,metavar='FLOAT',
         help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
     default=None
