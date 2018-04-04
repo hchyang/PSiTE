@@ -66,12 +66,9 @@ class Tree:
         self.accumulated_cnvs=[]
         if self.top == None: 
 #root node, may have inherent_snvs
-#FIXME: inherent_snvs/truncal_snvs should also be changed to a list of dictionaries. 
             self.snvs=inherent_snvs[:]
             self.cnvs=inherent_cnvs[:]
             self.accumulated_snvs=inherent_snvs[:]
-#check inherent_dels
-#            self.accumulated_dels=inherent_dels[:]
             self.accumulated_cnvs=inherent_cnvs[:]
         else:
 #non-root node inherits snvs/cnvs from its top nodes 
@@ -131,10 +128,10 @@ class Tree:
                     logging.debug('New CNV: %s',str(new_cnvs))
                     logging.debug('Previous deletions: %s',str([[cnv['start'],cnv['end']] for cnv in self.accumulated_cnvs if cnv['type']=='DEL']))
 #TODO: check here very carefully.
-#We need to modify new_cnvs in place. Let's sort accumulated_dels first.
-#After the sorting, all deletions in accumulated_dels should be ordered and without overlapping regions.
+#We need to modify new_cnvs in place. Let's sort cnvs in accumulated_cnvs first.
+#After the sorting, all deletions in accumulated_cnvs should be ordered and without overlapping regions.
 #Without this, there will be problems.
-                    self.accumulated_cnvs.sort(key=lambda cnv: cnv['start'])
+                    self.accumulated_cnvs.sort(key=lambda cnv: (cnv['start'],cnv['end']))
                     for cnv in new_cnvs: 
                         for del_start,del_end in [[cnv['start'],cnv['end']] for cnv in self.accumulated_cnvs if cnv['type']=='DEL']:
                             if cnv[0]<del_start:
@@ -182,7 +179,7 @@ class Tree:
                                  'end':del_end,
                                  'copy':-1,
                                  'leaves_count':leaves_count,
-                                 'pre_snvs':pre_snvs,
+                                 'pre_snvs':{0:pre_snvs},
                                  'new_copies':[]}
                             self.cnvs.append(cnv)
                             self.accumulated_cnvs.append(cnv)
@@ -214,17 +211,19 @@ class Tree:
                                  'end':amp_end,
                                  'copy':cnv_copy,
                                  'leaves_count':leaves_count,
-                                 'pre_snvs':pre_snvs,
+                                 'pre_snvs':{},
                                  'new_copies':new_copies}
+                            for i in range(cnv_copy): cnv['pre_snvs'][i+1]=pre_snvs
                             self.cnvs.append(cnv)
                             self.accumulated_cnvs.append(cnv)
         for cnv in self.cnvs:
             if cnv['copy']>0: 
                 scale=(cnv['end']-cnv['start'])/(end-start)
-                for segment in cnv['new_copies']:
+                for i in range(len(cnv['new_copies'])):
+                    segment=cnv['new_copies'][i]
 #For each new copy of amplification, the current node is the root node. It inherent all the snvs in pre_snvs.
 #But we have compared all new cnvs with accumulated_cnvs, so no pre_cnvs will affect our new copies.
-                    segment.add_snv_cnv(start=cnv['start'],end=cnv['end'],inherent_snvs=cnv['pre_snvs'],
+                    segment.add_snv_cnv(start=cnv['start'],end=cnv['end'],inherent_snvs=cnv['pre_snvs'][i+1],
                                         snv_rate=snv_rate*scale,cnv_rate=cnv_rate*scale,del_prob=del_prob,
                                         cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
                                         cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg)
@@ -279,7 +278,7 @@ class Tree:
                         all_alt_count=merge_two_all_alt_count(all_alt_count,cp.all_snvs_summary())
                 else:  #deletion
                     pre_snvs_dict={}
-                    for snv in cnv['pre_snvs']:
+                    for snv in cnv['pre_snvs'][0]:
                         pre_snvs_dict[snv['start']]={'mutation':snv['mutation'],'alt_count':-self.leaves_counting()}
                     all_alt_count=merge_two_all_alt_count(all_alt_count,pre_snvs_dict)
         if self.left!=None:
@@ -308,15 +307,16 @@ class Tree:
                     var+='#'+str(cnv['copy'])
                 nodes_vars[self.nodeid].add(var)
                 if cnv['copy']>0: #amplification
-                    for cp in cnv['new_copies']:
+                    for i in range(len(cnv['new_copies'])):
+                        cp=cnv['new_copies'][i]
                         tmp=cp.nodes_vars_collect(chroms=chroms)
 #For each new copy of amplification, its self.snvs contains previous snvs.
 #Those snvs do not locate on the current node, let's remove them.
 #FIXME: Acutually, this is not true. If in one branch, SNV, amplificatoin and deletion occure sequentially,
 #and they overlap each other, the new SNV will not captured by the current node on main tree, but
 #still captured by current node on the new copy, and will be eliminated as it's in the set pre_snvs.
-                        if tmp.get(self.nodeid) and cnv['pre_snvs']:
-                            for snv in cnv['pre_snvs']:
+                        if tmp.get(self.nodeid) and cnv['pre_snvs'][i+1]:
+                            for snv in cnv['pre_snvs'][i+1]:
                                 var='#'.join([str(x) for x in [chroms,snv['start'],snv['end'],snv['mutation']]])
                                 tmp[self.nodeid].discard(var)
                         nodes_vars=merge_two_dict_set(nodes_vars,tmp)
@@ -341,7 +341,6 @@ class Tree:
                     self.leaves_count+=self.right.leaves_counting()
         return self.leaves_count
 
-#FIXME: Should we store all the leaves' names in each node?
     def leaves_naming(self):
         '''
         After this method, ALL nodes will have the attribute leaves_names.
@@ -449,7 +448,7 @@ class Tree:
                     for cp in cnv['new_copies']:
                         cp.genotyping(genotypes)
                 else:  #deletion
-                    for pos in [snv['start'] for snv in cnv['pre_snvs']]:
+                    for pos in [snv['start'] for snv in cnv['pre_snvs'][0]]:
                         for tipnode in self.collect_tipnodes():
                             genotypes[tipnode][pos]-=1
         if self.left!=None:

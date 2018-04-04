@@ -22,13 +22,12 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
     end:      the end of the variant
     var:      an integer. 0/1/2: SNV, -1: deletion, +int: amplification
     bearer:   optional. an integer of some integers separeted by comma (only for SNV). 
-              0 (or without this column): the SNV is on the original copy
+              0: the SNV is on the original copy
               N: the SNV is on the copy N of this segment
+              Without this column: the SNV is on the original copy and all duplicated copy
     P.S. start and end are 0 based. And the region of each var is like in bed: [start,end).
     '''
     snvs={}
-    amps={}
-    dels={}
     cnvs={}
 
 #classify vars into different categories
@@ -39,11 +38,12 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
             cols=line.split()
             if len(cols)==5:
                 chroms,hap,start,end,var=cols
-                bearer=0
+                bearer=None
             elif len(cols)==6:
                 chroms,hap,start,end,var,bearer=cols
+                bearer=[int(x) for x in bearer.split(',')]
                 if var not in ('0','1','2'):
-                    raise TrunkVarError('Only the record of SNV can have the bearer (6th) column.'+
+                    raise TrunkVarError('Only SNVs can have the bearer (6th) column.'+
                         'Check the record below:\n{}'.format(line))
             else:
                 raise TrunkVarError('There should be 5 or 6 columns in your --trunk_vars file.\n'+
@@ -59,9 +59,9 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
             if not (0<=start<chroms_cfg[chroms]['length'] and 0<=end<chroms_cfg[chroms]['length']): 
                 raise TrunkVarError('The coordinant of the variant below is out of range:\n{}'.format(line))
             if not start<end: 
-                raise TrunkVarError('The start of the variant should be less than its end :\n{}'.format(line))
+                raise TrunkVarError('The start of the variant should be less than its end:\n{}'.format(line))
 
-            if var.startswith('+') or var.startswith('-'):
+            if var.startswith(('+','-')):
                 copy=int(var)
                 if chroms not in cnvs:
                     cnvs[chroms]={}
@@ -73,27 +73,19 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
                                          'end': end,
                                          'copy': copy,
                                          'leaves_count': leaves_number,
-                                         'pre_snvs': [],
+                                         'pre_snvs': {},
                                          'new_copies': [],
                                         })
 
                 if copy==-1:
                     cnvs[chroms][hap][-1]['type']='DEL'
-                    if chroms not in dels:
-                        dels[chroms]={}
-                    if hap not in dels[chroms]:
-                        dels[chroms][hap]=[]
-                    dels[chroms][hap].append([start,end,copy])
+                    cnvs[chroms][hap][-1]['pre_snvs']={0:[]}
                 elif copy>0:
                     cnvs[chroms][hap][-1]['type']='AMP'
-                    if chroms not in amps:
-                        amps[chroms]={}
-                    if hap not in amps[chroms]:
-                        amps[chroms][hap]=[]
-                    amps[chroms][hap].append([start,end,copy])
-                    for i in range(copy):
+                    for i in range(copy): 
                         segment=cp.deepcopy(tree)
                         cnvs[chroms][hap][-1]['new_copies'].append(segment)
+                        cnvs[chroms][hap][-1]['pre_snvs']={i+1:[]}
                 else:
 #right now, copy must be -1 or a positive integer
                     raise TrunkVarError('The fourth column of the variant below is invalid:\n{}'.format(line))
@@ -114,45 +106,78 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
                                          'bearer':bearer
                                         })
 
-    check_vars(snvs,amps,dels)
-    
+    snvs,cnvs=check_overlap(snvs,cnvs)
     logging.debug('trunk SNVs:%s',snvs)
-    logging.debug('trunk AMPs:%s',amps)
-    logging.debug('trunk DELs:%s',dels)
     logging.debug('trunk CNVs:%s',cnvs)
     return snvs,cnvs
 
-def check_vars(snvs,amps,dels):
+def check_overlap(snvs,cnvs):
     '''
-    Check: whether any snv/amp overlap with deletion.
+    Check: 1) whether any CNV overlaps with another CNV (Error)
+           2) SNV overlap a deletion (Error)
+           3) SNV overlap an amplification (add it to the list of pre_snvs of that amplification)
     '''
-    for chroms in sorted(dels.keys()):
+#check the CNVs and the SNVs in CNVs
+    for chroms in sorted(cnvs.keys()):
         snvs_chroms=snvs.get(chroms,{})
-        amps_chroms=amps.get(chroms,{})
-        for hap in sorted(dels[chroms].keys()):
+        cnvs_chroms=cnvs.get(chroms,{})
+        for hap in sorted(cnvs[chroms].keys()):
             snvs_chrom_hap=snvs_chroms.get(hap,[])
-            amps_chrom_hap=amps_chroms.get(hap,[])
-            for i in range(len(dels[chroms][hap])):
-#on each haplotype, there shouldn't be SNV/AMP overlap with DEL
-#on each haplotype, there shouldn't be AMP overlap with AMP
-#on each haplotype, there shouldn't be DEL overlap with DEL
-                deletion=dels[chroms][hap][i]
-                for snv in snvs_chrom_hap:
-                    if deletion[0]<=snv['start']<deletion[1]:
-                        raise TrunkVarError('These variants below are in conflict with each other:\n'+
-                            '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,snv['start'],snv['end'],snv['mutation']]]))+
-                            '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,deletion[0],deletion[1],'-1']])))
-                for amp in amps_chrom_hap:
-                    if deletion[0]<=amp[0]<deletion[1] or deletion[0]<amp[1]<=deletion[1]:
-                        raise TrunkVarError('These variants below are in conflict with each other:\n'+
-                            '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,amp[0],amp[1],'+'+str(amp[2])]]))+
-                            '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,deletion[0],deletion[1],'-1']])))
-                if i<len(dels[chroms][hap])-1:
-                    for deletion2 in dels[chroms][hap][i+1:]:
-                        if deletion[0]<=deletion2[0]<deletion[1] or deletion[0]<deletion2[1]<=deletion[1]:
+            cnvs_chrom_hap=cnvs_chroms.get(hap,[])
+            snvs_chrom_hap_cp=snvs_chrom_hap[:]
+            for i in range(len(cnvs[chroms][hap])):
+                cnv1=cnvs[chroms][hap][i]
+#compare a CNV with other CNVs
+                if i<len(cnvs[chroms][hap])-1:
+                    for cnv2 in cnvs[chroms][hap][i+1:]:
+                        if cnv1['start']<=cnv2['start']<cnv1['end'] or cnv1['start']<cnv2['end']<=cnv1['end']:
                             raise TrunkVarError('These variants below are in conflict with each other:\n'+
-                                '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,deletion2[0],deletion2[1],'-1']]))+
-                                '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,deletion[0],deletion[1],'-1']])))
+                                '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,cnv1['start'],cnv1['end'],str(cnv1['copy'])]]))+
+                                '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,cnv2['start'],cnv2['end'],str(cnv2['copy'])]])))
+#compare a CNV with SNVs
+                for snv in snvs_chrom_hap_cp:
+                    if cnv1['start']<=snv['start']<cnv1['end']:
+                        if cnv1['copy']==-1: #deletion
+                            raise TrunkVarError('These variants below are in conflict with each other:\n'+
+                                '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,snv['start'],snv['end'],snv['mutation']]]))+
+                                '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,cnv1['start'],cnv1['end'],'-1']])))
+                        else: #amplification
+                            if snv['bearer']!=None:
+                                if 0 in snv['bearer']:
+                                    if snv['bearer']==[0]:
+                                        del(snv['bearer'])
+                                        continue
+                                    else:
+                                        for j in [x for x in snv['bearer'] if x!=0]:
+                                            if j not in cnv1['pre_snvs']:
+                                                cnv1['pre_snvs'][j]=[]
+                                            cnv1['pre_snvs'][j].append(snv)
+                                else:
+                                    for j in snv['bearer']:
+                                        if j not in cnv1['pre_snvs']:
+                                            cnv1['pre_snvs'][j]=[]
+                                        cnv1['pre_snvs'][j].append(snv)
+                                    snvs_chrom_hap.remove(snv)
+                            else:
+                                for j in range(1,cnv1['copy']+1):
+                                    if j not in cnv1['pre_snvs']:
+                                        cnv1['pre_snvs'][j]=[]
+                                    cnv1['pre_snvs'][j].append(snv)
+                            del(snv['bearer'])
+                snvs[chroms][hap]=snvs_chrom_hap
+#check other SNVs
+#check whether there are any snv with bearer information
+#but without overlapping with any cnv
+    for chroms in sorted(snvs.keys()):
+        for hap in sorted(snvs[chroms].keys()):
+            for snv in snvs[chroms][hap]:
+                if 'bearer' in snv:
+                    if snv['bearer']==None or snv['bearer']==[0]:
+                        del(snv['bearer'])
+                    else:
+                        raise TrunkVarError('The SNV below is not covered by any CNV:\n'+
+                            '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,snv['start'],snv['end'],snv['mutation'],snv['bearer']]])))
+    return snvs,cnvs
 
 class TrunkVarError(Exception):
     pass
