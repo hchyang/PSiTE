@@ -445,7 +445,7 @@ def main(progname=None):
 
     if args.snv_genotype!=None:
         genotype_file=open(args.snv_genotype,'w')
-        genotype_file.write('#chr\tpos\t{}\n'.format('\t'.join(leaves_names)))
+        genotype_file.write('#chr\tstart\tend\tform\t{}\n'.format('\t'.join(leaves_names)))
     
     if args.ind_cnvs!=None:
         ind_cnvs_file=open(args.ind_cnvs,'w')
@@ -496,12 +496,11 @@ def main(progname=None):
                 chain=args.chain,
                 chroms=chroms,
             )
-        all_snvs_pos=sorted(x[0] for x in snvs_freq)
         all_nodes_vars=csite.tree.merge_two_dict_set(dict1=all_nodes_vars,dict2=nodes_vars)
 
         if args.snv_genotype!=None:
-            for pos in all_snvs_pos:
-                genotype_file.write('{}\t{}\t{}\n'.format(chroms,pos,
+            for pos,mutation,freq in snvs_freq:
+                genotype_file.write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,pos,pos+1,mutation,
                     '\t'.join([str(tipnode_snv_alts[leaf_tipnode[leaf]][pos])+':'+str(tipnode_snv_refs[leaf_tipnode[leaf]][pos]) for leaf in leaves_names])))
 
         if args.ind_cnvs!=None:
