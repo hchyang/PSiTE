@@ -5,3 +5,9 @@
   "n" : 1
 "align_probe_bowtie" :
   "n" : 8
+"simulate_reads" :
+  "mem" : 1G
+"build_blat_index" :
+  "mem" : 4G
+"run_wessim" :
+  "mem" : 1G

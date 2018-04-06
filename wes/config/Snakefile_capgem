@@ -19,7 +19,7 @@ rule all:
         done_list,
 
 
-rule build_index:
+rule build_bowtie_index:
     input:
         genome=lambda wildcards: config['genomes'][wildcards.gid],
     params:
