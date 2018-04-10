@@ -52,7 +52,7 @@ rule align_probe_blat:
     output:
         psl = "mapping/{gid}.psl",
     log:
-        "log/align_probe.log"
+        "log/align_probe_blat.log"
     shell:
         '''
         blat {input.f2bit} {input.probe} -minIdentity=90 -minScore=100 {output.psl}

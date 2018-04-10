@@ -39,9 +39,10 @@ def check_input(args):
 
     if args.simulator in ['wessim','capgem']:
         assert os.path.isfile(args.error_model),"{} doesn't exist or isn't a file.".format(args.error_model)
+    if args.single_end:
+        assert args.simulator in ['wessim','capgem']
 
 
-# TODO: Extract the size of exome
 def compute_target_size(ftarget):
     '''
     Comute target size from the provided file
@@ -57,8 +58,6 @@ def compute_target_size(ftarget):
                 end = int(fields[2])
                 size += end - start
     return size
-
-
 
 
 def compute_normal_gsize(normal_dir):
@@ -121,7 +120,7 @@ def merge_normal_sample(args, outdir):
     suffixes = ['fastq.gz', '1.fastq.gz', '2.fastq.gz']
     sample_fq_files = []
     for suffix in suffixes:
-        prefix = '{}/{}_reads/normal_normal.parental_[01]/normal_normal.parental_[01]*_'.format(outdir, args.simulator)
+        prefix = '{}/{}_reads/normal.parental_[01]/normal_normal.parental_[01]*_'.format(outdir, args.simulator)
         source = glob.glob(prefix + suffix)
         if len(source):
             target_dir = os.path.join(outdir, 'merged')
@@ -147,8 +146,8 @@ def merge_tumor_sample(args, tip_node_leaves, outdir):
     sample_fq_files = []
     for suffix in suffixes:
         if args.separate:
-            for tip_node in sorted(tip_node_leaves.keys()) + ['tumor_normal']:
-                prefix = '{}/{}_reads/{}.parental_[01]/{}.parental_[01]*_'.format(
+            for tip_node in sorted(tip_node_leaves.keys()) + ['normal']:
+                prefix = '{}/{}_reads/{}.parental_[01]/tumor_{}.parental_[01]*_'.format(
                     outdir, args.simulator, tip_node, tip_node)
                 source = glob.glob(prefix + suffix)
                 if len(source):
@@ -160,7 +159,7 @@ def merge_tumor_sample(args, tip_node_leaves, outdir):
                     sample_fq_files.append([target, source])
         elif args.single:
             for tip_node in sorted(tip_node_leaves.keys()):
-                prefix = '{}/{}_reads/{}.parental_[01]/{}.parental_[01]*_'.format(
+                prefix = '{}/{}_reads/{}.parental_[01]/tumor_{}.parental_[01]*_'.format(
                     outdir, args.simulator, tip_node, tip_node)
                 source = glob.glob(prefix + suffix)
                 if len(source):
@@ -171,7 +170,7 @@ def merge_tumor_sample(args, tip_node_leaves, outdir):
                     source.sort()
                     sample_fq_files.append([target, source])
         else:
-            prefix = '{}/{}_reads/tumor_*.parental_[01]/tumor_*.parental_[01]*_'.format(outdir, args.simulator)
+            prefix = '{}/{}_reads/*.parental_[01]/tumor_*.parental_[01]*_'.format(outdir, args.simulator)
             source = glob.glob(prefix + suffix)
             if len(source):
                 target_dir = os.path.join(outdir, 'merged')
@@ -256,7 +255,7 @@ def prepare_sample_normal(sample_file, args, normal_gsize, target_size):
                 total_num_splits += num_splits
                 for split in range(1, num_splits+1):
                     fout.write('  normal_normal.parental_{}_{}:\n'.format(parental, str(split)))
-                    fout.write('    gid: normal_normal.parental_{}\n'.format(parental))
+                    fout.write('    gid: normal.parental_{}\n'.format(parental))
                     fout.write('    proportion: {}\n'.format(str(proportion/num_splits)))
                     fout.write('    split: {}\n'.format(str(split)))
                     split_readnum = int(numpy.ceil(readnum/num_splits))
@@ -266,7 +265,7 @@ def prepare_sample_normal(sample_file, args, normal_gsize, target_size):
             else:
                 total_num_splits += 1
                 fout.write('  normal_normal.parental_{}:\n'.format(parental))
-                fout.write('    gid: normal_normal.parental_{}\n'.format(parental))
+                fout.write('    gid: normal.parental_{}\n'.format(parental))
                 fout.write('    proportion: {}\n'.format(str(proportion)))
                 fout.write('    readnum: {}\n'.format(str(readnum)))
                 seed = random_int()
@@ -324,7 +323,7 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                     total_num_splits += num_splits
                     for split in range(1, num_splits+1):
                         fout.write('  tumor_normal.parental_{}_{}:\n'.format(parental, str(split)))
-                        fout.write('    gid: tumor_normal.parental_{}\n'.format(parental))
+                        fout.write('    gid: normal.parental_{}\n'.format(parental))
                         fout.write('    cell_proportion: {}\n'.format(str(cell_proportion)))
                         fout.write('    proportion: {}\n'.format(str(proportion/num_splits)))
                         fout.write('    split: {}\n'.format(str(split)))
@@ -335,7 +334,7 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                 else:
                     total_num_splits += 1
                     fout.write('  tumor_normal.parental_{}:\n'.format(parental))
-                    fout.write('    gid: tumor_normal.parental_{}\n'.format(parental))
+                    fout.write('    gid: normal.parental_{}\n'.format(parental))
                     fout.write('    cell_proportion: {}\n'.format(str(cell_proportion)))
                     fout.write('    proportion: {}\n'.format(str(proportion)))
                     fout.write('    readnum: {}\n'.format(str(readnum)))
@@ -359,7 +358,7 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                     total_num_splits += num_splits
                     for split in range(1, num_splits+1):
                         fout.write('  tumor_{}.parental_{}_{}:\n'.format(tip_node, parental, str(split)))
-                        fout.write('    gid: tumor_{}.parental_{}\n'.format(tip_node, parental))
+                        fout.write('    gid: {}.parental_{}\n'.format(tip_node, parental))
                         fout.write('    proportion: {}\n'.format(str(proportion/num_splits)))
                         fout.write('    split: {}\n'.format(str(split)))
                         split_readnum = int(numpy.ceil(readnum/num_splits))
@@ -369,7 +368,7 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                 else:
                     total_num_splits += 1
                     fout.write('  tumor_{}.parental_{}:\n'.format(tip_node, parental))
-                    fout.write('    gid: tumor_{}.parental_{}\n'.format(tip_node, parental))
+                    fout.write('    gid: {}.parental_{}\n'.format(tip_node, parental))
                     fout.write('    cell_proportion: {}\n'.format(str(cell_proportion)))
                     fout.write('    proportion: {}\n'.format(str(proportion)))
                     fout.write('    readnum: {}\n'.format(str(readnum)))
@@ -431,7 +430,7 @@ def prepare_sample_all(sample_file, args, total_cells, normal_cells, normal_gsiz
                 total_num_splits += num_splits
                 for split in range(1, num_splits+1):
                     fout.write('  normal_normal.parental_{}_{}:\n'.format(parental, str(split)))
-                    fout.write('    gid: normal_normal.parental_{}\n'.format(parental))
+                    fout.write('    gid: normal.parental_{}\n'.format(parental))
                     fout.write('    proportion: {}\n'.format(str(proportion/num_splits)))
                     fout.write('    split: {}\n'.format(str(split)))
                     split_readnum = int(numpy.ceil(readnum/num_splits))
@@ -441,7 +440,7 @@ def prepare_sample_all(sample_file, args, total_cells, normal_cells, normal_gsiz
             else:
                 total_num_splits += 1
                 fout.write('  normal_normal.parental_{}:\n'.format(parental))
-                fout.write('    gid: normal_normal.parental_{}\n'.format(parental))
+                fout.write('    gid: normal.parental_{}\n'.format(parental))
                 fout.write('    proportion: {}\n'.format(str(proportion)))
                 fout.write('    readnum: {}\n'.format(str(readnum)))
                 seed = random_int()
@@ -460,7 +459,7 @@ def prepare_sample_all(sample_file, args, total_cells, normal_cells, normal_gsiz
                     total_num_splits += num_splits
                     for split in range(1, num_splits+1):
                         fout.write('  tumor_normal.parental_{}_{}:\n'.format(parental, str(split)))
-                        fout.write('    gid: tumor_normal.parental_{}\n'.format(parental))
+                        fout.write('    gid: normal.parental_{}\n'.format(parental))
                         fout.write('    cell_proportion: {}\n'.format(str(cell_proportion)))
                         fout.write('    proportion: {}\n'.format(str(proportion/num_splits)))
                         fout.write('    split: {}\n'.format(str(split)))
@@ -471,7 +470,7 @@ def prepare_sample_all(sample_file, args, total_cells, normal_cells, normal_gsiz
                 else:
                     total_num_splits += 1
                     fout.write('  tumor_normal.parental_{}:\n'.format(parental))
-                    fout.write('    gid: tumor_normal.parental_{}\n'.format(parental))
+                    fout.write('    gid: normal.parental_{}\n'.format(parental))
                     fout.write('    cell_proportion: {}\n'.format(str(cell_proportion)))
                     fout.write('    proportion: {}\n'.format(str(proportion)))
                     fout.write('    readnum: {}\n'.format(str(readnum)))
@@ -495,7 +494,7 @@ def prepare_sample_all(sample_file, args, total_cells, normal_cells, normal_gsiz
                     total_num_splits += num_splits
                     for split in range(1, num_splits+1):
                         fout.write('  tumor_{}.parental_{}_{}:\n'.format(tip_node, parental, str(split)))
-                        fout.write('    gid: tumor_{}.parental_{}\n'.format(tip_node, parental))
+                        fout.write('    gid: {}.parental_{}\n'.format(tip_node, parental))
                         fout.write('    proportion: {}\n'.format(str(proportion/num_splits)))
                         fout.write('    split: {}\n'.format(str(split)))
                         split_readnum = int(numpy.ceil(readnum/num_splits))
@@ -505,7 +504,7 @@ def prepare_sample_all(sample_file, args, total_cells, normal_cells, normal_gsiz
                 else:
                     total_num_splits += 1
                     fout.write('  tumor_{}.parental_{}:\n'.format(tip_node, parental))
-                    fout.write('    gid: tumor_{}.parental_{}\n'.format(tip_node, parental))
+                    fout.write('    gid: {}.parental_{}\n'.format(tip_node, parental))
                     fout.write('    cell_proportion: {}\n'.format(str(cell_proportion)))
                     fout.write('    proportion: {}\n'.format(str(proportion)))
                     fout.write('    readnum: {}\n'.format(str(readnum)))
@@ -519,12 +518,37 @@ def run_snakemake(outdir, args, sample_file, snake_file):
     # Copy sample Snakefile to the output directory
     if args.simulator == 'capsim':
         snake_file_copy = os.path.join(outdir, 'config/Snakefile_capsim')
+        shutil.copyfile(snake_file, snake_file_copy)
     elif args.simulator == 'wessim':
         snake_file_copy = os.path.join(outdir, 'config/Snakefile_wessim')
+        shutil.copyfile(snake_file, snake_file_copy)
+        tmp = os.path.join(outdir, 'config/tmp')
+        if args.single_end:
+            # remove option -p
+            with open(snake_file_copy,'r') as fin, open(tmp,'w') as fout:
+                for line in fin:
+                    if 'Wessim2' in line:
+                        nline=line.replace("-p","")
+                        fout.write(nline)
+                    else:
+                        fout.write(line)
+            os.remove(snake_file_copy)
+            shutil.move(tmp, snake_file_copy)
     else:
         snake_file_copy = os.path.join(outdir, 'config/Snakefile_capgem')
-    # Copy Snakefile to the output folder
-    shutil.copyfile(snake_file, snake_file_copy)
+        shutil.copyfile(snake_file, snake_file_copy)
+        tmp = os.path.join(outdir, 'config/tmp')
+        if args.single_end:
+            # remove option -p
+            with open(snake_file_copy,'r') as fin, open(tmp,'w') as fout:
+                for line in fin:
+                    if 'frag2read' in line:
+                        nline=line.replace("-p","")
+                        fout.write(nline)
+                    else:
+                        fout.write(line)
+            os.remove(snake_file_copy)
+            shutil.move(tmp, snake_file_copy)
 
     orig_params = args.snakemake.split()
     config = ' rlen=' + str(args.rlen)
@@ -561,7 +585,7 @@ def main(progname=None):
                        help='The map file containing the relationship between tip nodes and samples')
     group1.add_argument( '--probe', metavar='FILE', type=check_file, required=True,
                        help='The Probe file containing the probe sequences (FASTA format)')
-    group1.add_argument('--target', metavar='FILE', type=str, required=True, default=default,
+    group1.add_argument('--target', metavar='FILE', type=str, required=True,
                        help='The Target file containing the target regions (BED format)')
 
     group2 = parser.add_argument_group('Arguments for simulation')
@@ -705,7 +729,7 @@ def main(progname=None):
 
         run_snakemake(outdir, args, sample_file, snake_file)
         merge_normal_sample(args, outdir)
-        merge_tumor_sample(args, outdir)
+        merge_tumor_sample(args, tip_node_leaves, outdir)
         clean_output(args.out_level, outdir)
 
     # Separate the simulation of tumor and normal samples
