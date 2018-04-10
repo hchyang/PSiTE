@@ -98,8 +98,6 @@ def main(progname=None):
     default='art_illumina --noALN --quiet --paired --mflen 500 --sdev 20'
     group4.add_argument('--art',type=str,default=default,metavar='STR',
         help="the parameters for ART program ['{}']".format(default))
-    group4.add_argument('--compress',action="store_true",
-        help='compress the generated fastq files using gzip')
     group5=parser.add_argument_group('Module fa2wes arguments')
     default=None
     group5.add_argument('--probe',metavar='FILE',type=check_file,default=default,
@@ -268,8 +266,6 @@ def main(progname=None):
                     '--cores',str(args.cores),
                     '--rlen',str(args.rlen),
                     '--art','{}'.format(args.art)]
-        if args.compress:
-            cmd_params.extend(['--compress'])
         if args.single:
             cmd_params.extend(['--single'])
         cmd_params_copy=cmd_params[:]
