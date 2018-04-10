@@ -126,16 +126,7 @@ public class SimulateCaptureCmd extends CommandLine{
 		int seed =  cmdLine.getIntVal("seed");
 		int num =   cmdLine.getIntVal("num");
 
-		// int illen = cmdLine.getIntVal("illen");
-		// if(illen>300) {
-		// 	int mllen = 300;
-		// 	Logging.warn("Illumina read length specified is greater than "+mllen+". "
-		// 			+ "Use "+mllen+" instead.");
-		// 	illen = mllen;
-		// }
-
 		String miseq       =  cmdLine.getStringVal("miseq");
-
 		if (miseq == null){
 			System.err.println("miseq must be set\n" + cmdLine.usageString());
 			System.exit(-1);
@@ -172,12 +163,9 @@ public class SimulateCaptureCmd extends CommandLine{
 		//	dist2[i] = dist2[i] / max;
 		//}
 
-		// SequenceOutputStream miSeq1Fq = null, miSeq2Fq = null;
 		SequenceOutputStream miFrag = null;
 
 		if (miseq != null){
-			// miSeq1Fq = SequenceOutputStream.makeOutputStream(miseq + "_1.fastq.gz");
-			// miSeq2Fq = SequenceOutputStream.makeOutputStream(miseq + "_2.fastq.gz");
 			miFrag = SequenceOutputStream.makeOutputStream(miseq + "_frag.txt");
 		}
 
@@ -262,9 +250,6 @@ public class SimulateCaptureCmd extends CommandLine{
 			}
 
 		}
-
-		//if (fragment != null)
-		//	sos = SequenceOutputStream.makeOutputStream(fragment);
 
 		long numFragment = 0;
 		//actual number of fragments generated, including the non probed
@@ -446,10 +431,6 @@ public class SimulateCaptureCmd extends CommandLine{
 			//now that the fragment is to be sequenced
 			Sequence seq = chrList.get(chrIndex).subSequence(chrPos, chrPos + fragLength);
 			seq.setName(ID + "_" + chrList.get(chrIndex).getName() + "_" + (chrPos + 1) + "_" +(chrPos + fragLength));
-
-			//if (sos != null)
-			//	seq.writeFasta(sos);
-
 			if (miFrag != null){
 				// IlluminaSequencing.simulatePaired(seq, illen, miSeq1Fq, miSeq2Fq, rnd);
 				// Output the selected fragments into a file for read simulation later
@@ -476,15 +457,6 @@ public class SimulateCaptureCmd extends CommandLine{
 				+ "; reject2 = " + fragmentRej2
 				+ "; reject3 = " + fragmentRej3
 				+ "; reject4 = " + fragmentRej4);
-
-		//if (sos != null)
-		//	sos.close();
-
-		// if (miSeq1Fq != null)
-		// 	miSeq1Fq.close();
-    //
-		// if (miSeq2Fq != null)
-		// 	miSeq2Fq.close();
 
 		if (miFrag != null)
 			miFrag.close();
