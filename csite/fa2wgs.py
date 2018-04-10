@@ -76,8 +76,6 @@ def main(progname=None):
     default=1
     group2.add_argument('--cores',type=int,default=default,metavar='INT',
         help='number of cores used to run the program [{}]'.format(default))
-    group2.add_argument('--compress',action="store_true",
-        help='compress the generated fastq files using gzip')
     group2.add_argument('--separate',action="store_true",
         help="keep each tip node's NGS reads file separately")
     group2.add_argument('--single',action="store_true",
@@ -93,6 +91,8 @@ def main(progname=None):
         help='the log file to save the settings of each command [{}]'.format(default))
     args=parser.parse_args()
 
+#always compress the simulated fastq files
+    compress=True
 # logging and random seed setting
     logging.basicConfig(filename=args.log,
         filemode='w',format='[%(asctime)s] %(levelname)s: %(message)s',
@@ -278,7 +278,7 @@ def main(progname=None):
     pool=multiprocessing.Pool(processes=args.cores)
     results=[]
     for x in final_params_matrix:
-        results.append(pool.apply_async(generate_fq,args=(x,args.compress)))
+        results.append(pool.apply_async(generate_fq,args=(x,compress)))
     pool.close()
     pool.join()
     for result in results:
@@ -287,7 +287,7 @@ def main(progname=None):
 #merge small fastq files into one for normal/tumor sample
     sample_fq_files=[]
     suffixes=['fq','1.fq','2.fq']
-    if args.compress:
+    if compress:
         suffixes=[x+'.gz' for x in suffixes]
     if args.normal_depth>0:
         for suffix in suffixes:
