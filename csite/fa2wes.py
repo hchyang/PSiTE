@@ -42,11 +42,23 @@ def check_input(args):
 
 
 # TODO: Extract the size of exome
-def compute_target_size(fprobe):
+def compute_target_size(ftarget):
     '''
     Comute target size from the provided file
     '''
-    return genomesize(fprobe)
+    size = 0
+    with open(ftarget,'r') as fin:
+        for line in fin:
+            if line.startswith("#"):
+                pass
+            else:
+                fields = line.split("\t")
+                start = int(fields[1])
+                end = int(fields[2])
+                size += end - start
+    return size
+
+
 
 
 def compute_normal_gsize(normal_dir):
@@ -109,7 +121,7 @@ def merge_normal_sample(args, outdir):
     suffixes = ['fastq.gz', '1.fastq.gz', '2.fastq.gz']
     sample_fq_files = []
     for suffix in suffixes:
-        prefix = '{}/{}_reads/normal.parental_[01]/normal.parental_[01]*_'.format(outdir, args.simulator)
+        prefix = '{}/{}_reads/normal_normal.parental_[01]/normal_normal.parental_[01]*_'.format(outdir, args.simulator)
         source = glob.glob(prefix + suffix)
         if len(source):
             target_dir = os.path.join(outdir, 'merged')
@@ -135,7 +147,7 @@ def merge_tumor_sample(args, tip_node_leaves, outdir):
     sample_fq_files = []
     for suffix in suffixes:
         if args.separate:
-            for tip_node in ['normal'] + sorted(tip_node_leaves.keys()):
+            for tip_node in sorted(tip_node_leaves.keys()) + ['tumor_normal']:
                 prefix = '{}/{}_reads/{}.parental_[01]/{}.parental_[01]*_'.format(
                     outdir, args.simulator, tip_node, tip_node)
                 source = glob.glob(prefix + suffix)
@@ -159,7 +171,7 @@ def merge_tumor_sample(args, tip_node_leaves, outdir):
                     source.sort()
                     sample_fq_files.append([target, source])
         else:
-            prefix = '{}/{}_reads/*.parental_[01]/*.parental_[01]*_'.format(outdir, args.simulator)
+            prefix = '{}/{}_reads/tumor_*.parental_[01]/tumor_*.parental_[01]*_'.format(outdir, args.simulator)
             source = glob.glob(prefix + suffix)
             if len(source):
                 target_dir = os.path.join(outdir, 'merged')
@@ -207,12 +219,19 @@ def clean_output(level, outdir):
 
 def prepare_sample_normal(sample_file, args, normal_gsize, target_size):
     '''
-    Create a configuration file for running snakemake
+    Create a configuration file for simulating normal samples with snakemake
     '''
-    if args.normal_rdepth > 0:
-        MAX_READNUM = int((args.normal_rdepth * target_size * MAX_READFRAC) / args.rlen)
+    if args.single_end:
+        rlen = args.rlen
     else:
-        MAX_READNUM = int(args.normal_rnum * MAX_READFRAC)
+        rlen = args.rlen * 2
+    if args.normal_rdepth > 0:
+        total_rnum = int((args.normal_rdepth * target_size) / (rlen * args.target_ratio))
+    else:
+        total_rnum = args.normal_rnum
+    logging.info(' Total read number: %d', total_rnum)
+    MAX_READNUM = int(total_rnum * MAX_READFRAC)
+
     with open(sample_file, 'w') as fout:
         fout.write('probe: {}\n'.format(args.probe))
         fout.write('error_model: {}\n'.format(args.error_model))
@@ -231,18 +250,13 @@ def prepare_sample_normal(sample_file, args, normal_gsize, target_size):
         for parental in 0, 1:
             ref = '{}/normal.parental_{}.fa'.format(args.normal, parental)
             proportion = genomesize(fasta=ref) / normal_gsize
-            if args.normal_rdepth > 0:
-                readnum = int((proportion * args.normal_rdepth *
-                           target_size) / args.rlen)
-            else:
-                readnum = int(proportion * args.normal_rnum)
-
+            readnum = int(proportion * total_rnum)
             if readnum > MAX_READNUM:
                 num_splits = int(numpy.ceil(readnum / MAX_READNUM))
                 total_num_splits += num_splits
                 for split in range(1, num_splits+1):
-                    fout.write('  normal.parental_{}_{}:\n'.format(parental, str(split)))
-                    fout.write('    gid: normal.parental_{}\n'.format(parental))
+                    fout.write('  normal_normal.parental_{}_{}:\n'.format(parental, str(split)))
+                    fout.write('    gid: normal_normal.parental_{}\n'.format(parental))
                     fout.write('    proportion: {}\n'.format(str(proportion/num_splits)))
                     fout.write('    split: {}\n'.format(str(split)))
                     split_readnum = int(numpy.ceil(readnum/num_splits))
@@ -251,8 +265,8 @@ def prepare_sample_normal(sample_file, args, normal_gsize, target_size):
                     fout.write('    seed: {}\n'.format(str(seed)))
             else:
                 total_num_splits += 1
-                fout.write('  normal.parental_{}:\n'.format(parental))
-                fout.write('    gid: normal.parental_{}\n'.format(parental))
+                fout.write('  normal_normal.parental_{}:\n'.format(parental))
+                fout.write('    gid: normal_normal.parental_{}\n'.format(parental))
                 fout.write('    proportion: {}\n'.format(str(proportion)))
                 fout.write('    readnum: {}\n'.format(str(readnum)))
                 seed = random_int()
@@ -263,12 +277,18 @@ def prepare_sample_normal(sample_file, args, normal_gsize, target_size):
 
 def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gsize, tip_node_leaves, tip_node_gsize, target_size):
     '''
-    Create a configuration file for running snakemake
+    Create a configuration file for simulating tumor samples with snakemake
     '''
-    if args.rdepth > 0:
-        MAX_READNUM = int((args.rdepth * target_size * MAX_READFRAC) / args.rlen)
+    if args.single_end:
+        rlen = args.rlen
     else:
-        MAX_READNUM = int(args.rnum * MAX_READFRAC)
+        rlen = args.rlen * 2
+    if args.rdepth > 0:
+        total_rnum = int((args.rdepth * target_size) / (rlen * args.target_ratio))
+    else:
+        total_rnum = args.rnum
+    logging.info(' Total read number: %d', total_rnum)
+    MAX_READNUM = int(total_rnum * MAX_READFRAC)
 
     with open(sample_file, 'w') as fout:
         fout.write('probe: {}\n'.format(args.probe))
@@ -298,19 +318,13 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                 fullname = os.path.abspath(ref)
                 cell_proportion = normal_cells / total_cells
                 proportion = cell_proportion * genomesize(fasta=ref) / normal_gsize
-                if args.rdepth > 0:
-                    readnum = int((proportion * args.rdepth *
-                               target_size) / args.rlen)
-                else:
-                    readnum = int(proportion * args.rnum)
-                # readnum = int(readnum / args.capture_efficiency)
-
+                readnum = int(proportion * total_rnum)
                 if readnum > MAX_READNUM:
                     num_splits = int(numpy.ceil(readnum / MAX_READNUM))
                     total_num_splits += num_splits
                     for split in range(1, num_splits+1):
-                        fout.write('  normal.parental_{}_{}:\n'.format(parental, str(split)))
-                        fout.write('    gid: normal.parental_{}\n'.format(parental))
+                        fout.write('  tumor_normal.parental_{}_{}:\n'.format(parental, str(split)))
+                        fout.write('    gid: tumor_normal.parental_{}\n'.format(parental))
                         fout.write('    cell_proportion: {}\n'.format(str(cell_proportion)))
                         fout.write('    proportion: {}\n'.format(str(proportion/num_splits)))
                         fout.write('    split: {}\n'.format(str(split)))
@@ -320,8 +334,8 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                         fout.write('    seed: {}\n'.format(str(seed)))
                 else:
                     total_num_splits += 1
-                    fout.write('  normal.parental_{}:\n'.format(parental))
-                    fout.write('    gid: normal.parental_{}\n'.format(parental))
+                    fout.write('  tumor_normal.parental_{}:\n'.format(parental))
+                    fout.write('    gid: tumor_normal.parental_{}\n'.format(parental))
                     fout.write('    cell_proportion: {}\n'.format(str(cell_proportion)))
                     fout.write('    proportion: {}\n'.format(str(proportion)))
                     fout.write('    readnum: {}\n'.format(str(readnum)))
@@ -339,19 +353,13 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                 else:
                     cell_proportion = tip_node_leaves[tip_node] / total_cells
                 proportion = cell_proportion * tip_node_gsize[tip_node][parental] / tip_node_gsize[tip_node][2]
-                if args.rdepth > 0:
-                    readnum = int((proportion * args.rdepth *
-                               target_size) / args.rlen)
-                # readnum = int(readnum / args.capture_efficiency)
-                else:
-                    readnum = int(proportion * args.rnum)
-
+                readnum = int(proportion * total_rnum)
                 if readnum > MAX_READNUM:
                     num_splits = int(numpy.ceil(readnum / MAX_READNUM))
                     total_num_splits += num_splits
                     for split in range(1, num_splits+1):
-                        fout.write('  {}.parental_{}_{}:\n'.format(tip_node, parental, str(split)))
-                        fout.write('    gid: {}.parental_{}\n'.format(tip_node, parental))
+                        fout.write('  tumor_{}.parental_{}_{}:\n'.format(tip_node, parental, str(split)))
+                        fout.write('    gid: tumor_{}.parental_{}\n'.format(tip_node, parental))
                         fout.write('    proportion: {}\n'.format(str(proportion/num_splits)))
                         fout.write('    split: {}\n'.format(str(split)))
                         split_readnum = int(numpy.ceil(readnum/num_splits))
@@ -360,8 +368,144 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
                         fout.write('    seed: {}\n'.format(str(seed)))
                 else:
                     total_num_splits += 1
-                    fout.write('  {}.parental_{}:\n'.format(tip_node, parental))
-                    fout.write('    gid: {}.parental_{}\n'.format(tip_node, parental))
+                    fout.write('  tumor_{}.parental_{}:\n'.format(tip_node, parental))
+                    fout.write('    gid: tumor_{}.parental_{}\n'.format(tip_node, parental))
+                    fout.write('    cell_proportion: {}\n'.format(str(cell_proportion)))
+                    fout.write('    proportion: {}\n'.format(str(proportion)))
+                    fout.write('    readnum: {}\n'.format(str(readnum)))
+                    seed = random_int()
+                    fout.write('    seed: {}\n'.format(str(seed)))
+    return total_num_splits
+
+
+def prepare_sample_all(sample_file, args, total_cells, normal_cells, normal_gsize, tip_node_leaves, tip_node_gsize, target_size):
+    '''
+    Create a configuration file for simulating both tumor and normal samples with snakemake
+    '''
+    if args.single_end:
+        rlen = args.rlen
+    else:
+        rlen = args.rlen * 2
+    if args.normal_rdepth > 0:
+        total_rnum_normal = int((args.normal_rdepth * target_size) / (rlen * args.target_ratio))
+    else:
+        total_rnum_normal = args.normal_rnum
+    logging.info(' Total read number for normal sample: %d', total_rnum_normal)
+    MAX_READNUM_NORMAL = int(total_rnum_normal * MAX_READFRAC)
+    if args.rdepth > 0:
+        total_rnum = int((args.rdepth * target_size) / (rlen * args.target_ratio))
+    else:
+        total_rnum = args.rnum
+    logging.info(' Total read number for tumor sample: %d', total_rnum)
+    MAX_READNUM = int(total_rnum * MAX_READFRAC)
+
+    with open(sample_file, 'w') as fout:
+        fout.write('probe: {}\n'.format(args.probe))
+        fout.write('error_model: {}\n'.format(args.error_model))
+        fout.write('genomes:\n')
+        # two normal cell haplotypes
+        if not args.single:
+            for parental in 0, 1:
+                ref = '{}/normal.parental_{}.fa'.format(args.normal, parental)
+                fullname = os.path.abspath(ref)
+                fout.write('  normal.parental_{}: {}\n'.format(parental, fullname))
+        # tumor cells haplotypes
+        for tip_node in sorted(tip_node_leaves.keys()):
+            for parental in 0, 1:
+                ref = '{}/{}.parental_{}.fa'.format(
+                    args.tumor, tip_node, parental)
+                fullname = os.path.abspath(ref)
+                fout.write('  {}.parental_{}: {}\n'.format(tip_node, parental, fullname))
+
+        fout.write('samples:\n')
+        # Use gid to distinguish normal genomes in normal sample and tumor sample
+        total_num_splits = 0
+
+        # two normal cell haplotypes for normal samples
+        for parental in 0, 1:
+            ref = '{}/normal.parental_{}.fa'.format(args.normal, parental)
+            proportion = genomesize(fasta=ref) / normal_gsize
+            readnum = int(proportion * total_rnum_normal)
+            if readnum > MAX_READNUM_NORMAL:
+                num_splits = int(numpy.ceil(readnum / MAX_READNUM_NORMAL))
+                total_num_splits += num_splits
+                for split in range(1, num_splits+1):
+                    fout.write('  normal_normal.parental_{}_{}:\n'.format(parental, str(split)))
+                    fout.write('    gid: normal_normal.parental_{}\n'.format(parental))
+                    fout.write('    proportion: {}\n'.format(str(proportion/num_splits)))
+                    fout.write('    split: {}\n'.format(str(split)))
+                    split_readnum = int(numpy.ceil(readnum/num_splits))
+                    fout.write('    readnum: {}\n'.format(str(split_readnum)))
+                    seed = random_int()
+                    fout.write('    seed: {}\n'.format(str(seed)))
+            else:
+                total_num_splits += 1
+                fout.write('  normal_normal.parental_{}:\n'.format(parental))
+                fout.write('    gid: normal_normal.parental_{}\n'.format(parental))
+                fout.write('    proportion: {}\n'.format(str(proportion)))
+                fout.write('    readnum: {}\n'.format(str(readnum)))
+                seed = random_int()
+                fout.write('    seed: {}\n'.format(str(seed)))
+
+        # two normal cell haplotypes for tumor sample, only generated under non-single mode
+        if not args.single:
+            for parental in 0, 1:
+                ref = '{}/normal.parental_{}.fa'.format(args.normal, parental)
+                fullname = os.path.abspath(ref)
+                cell_proportion = normal_cells / total_cells
+                proportion = cell_proportion * genomesize(fasta=ref) / normal_gsize
+                readnum = int(proportion * total_rnum)
+                if readnum > MAX_READNUM:
+                    num_splits = int(numpy.ceil(readnum / MAX_READNUM))
+                    total_num_splits += num_splits
+                    for split in range(1, num_splits+1):
+                        fout.write('  tumor_normal.parental_{}_{}:\n'.format(parental, str(split)))
+                        fout.write('    gid: tumor_normal.parental_{}\n'.format(parental))
+                        fout.write('    cell_proportion: {}\n'.format(str(cell_proportion)))
+                        fout.write('    proportion: {}\n'.format(str(proportion/num_splits)))
+                        fout.write('    split: {}\n'.format(str(split)))
+                        split_readnum = int(numpy.ceil(readnum/num_splits))
+                        fout.write('    readnum: {}\n'.format(str(split_readnum)))
+                        seed = random_int()
+                        fout.write('    seed: {}\n'.format(str(seed)))
+                else:
+                    total_num_splits += 1
+                    fout.write('  tumor_normal.parental_{}:\n'.format(parental))
+                    fout.write('    gid: tumor_normal.parental_{}\n'.format(parental))
+                    fout.write('    cell_proportion: {}\n'.format(str(cell_proportion)))
+                    fout.write('    proportion: {}\n'.format(str(proportion)))
+                    fout.write('    readnum: {}\n'.format(str(readnum)))
+                    seed = random_int()
+                    fout.write('    seed: {}\n'.format(str(seed)))
+
+        # tumor cells haplotypes
+        for tip_node in sorted(tip_node_leaves.keys()):
+            for parental in 0, 1:
+                ref = '{}/{}.parental_{}.fa'.format(
+                    args.tumor, tip_node, parental)
+                fullname = os.path.abspath(ref)
+                if args.single:
+                    cell_proportion = 1
+                else:
+                    cell_proportion = tip_node_leaves[tip_node] / total_cells
+                proportion = cell_proportion * tip_node_gsize[tip_node][parental] / tip_node_gsize[tip_node][2]
+                readnum = int(proportion * total_rnum)
+                if readnum > MAX_READNUM:
+                    num_splits = int(numpy.ceil(readnum / MAX_READNUM))
+                    total_num_splits += num_splits
+                    for split in range(1, num_splits+1):
+                        fout.write('  tumor_{}.parental_{}_{}:\n'.format(tip_node, parental, str(split)))
+                        fout.write('    gid: tumor_{}.parental_{}\n'.format(tip_node, parental))
+                        fout.write('    proportion: {}\n'.format(str(proportion/num_splits)))
+                        fout.write('    split: {}\n'.format(str(split)))
+                        split_readnum = int(numpy.ceil(readnum/num_splits))
+                        fout.write('    readnum: {}\n'.format(str(split_readnum)))
+                        seed = random_int()
+                        fout.write('    seed: {}\n'.format(str(seed)))
+                else:
+                    total_num_splits += 1
+                    fout.write('  tumor_{}.parental_{}:\n'.format(tip_node, parental))
+                    fout.write('    gid: tumor_{}.parental_{}\n'.format(tip_node, parental))
                     fout.write('    cell_proportion: {}\n'.format(str(cell_proportion)))
                     fout.write('    proportion: {}\n'.format(str(proportion)))
                     fout.write('    readnum: {}\n'.format(str(readnum)))
@@ -416,13 +560,23 @@ def main(progname=None):
     group1.add_argument('-m','--map', metavar='FILE', type=check_file, required=True,
                        help='The map file containing the relationship between tip nodes and samples')
     group1.add_argument( '--probe', metavar='FILE', type=check_file, required=True,
-                       help='The file containing the probe sequences (FASTA format)')
-    # group1.add_argument('--target', metavar='FILE', type=str, required=True, default=default,
-    #                    help='The size containing the sequences of target region (BED format)')
+                       help='The Probe file containing the probe sequences (FASTA format)')
+    group1.add_argument('--target', metavar='FILE', type=str, required=True, default=default,
+                       help='The Target file containing the target regions (BED format)')
 
     group2 = parser.add_argument_group('Arguments for simulation')
+    default = 0.6
+    group2.add_argument('-p', '--purity', metavar='FLOAT', type=check_purity, default=default,
+                       help='The proportion of tumor cells in simulated sample [{}]'.format(default))
+    default = 0.5
+    group2.add_argument('--target_ratio', metavar='FLOAT', type=float, default=default,
+                       help='The percentage that simulated reads are expected to be from the target regions [{}]'.format(default))
+    default = 100
+    group2.add_argument('--rlen', metavar='INT', type=int, default=default,
+                       help='Illumina: read length [{}]'.format(default))
+    group2.add_argument('--single_end', action='store_true',
+        help='Simulating single-end reads (Only simulators wessim and capgem support this mode)')
     group = group2.add_mutually_exclusive_group()
-
     default = 0.0
     group.add_argument('-d', '--rdepth', metavar='FLOAT', type=float, default=default,
                        help='The mean rdepth of tumor sample for simulating short reads [{}]'.format(default))
@@ -436,15 +590,6 @@ def main(progname=None):
     default = 0
     group.add_argument('-R', '--normal_rnum', metavar='INT', type=int, default=default,
                        help='The number of short reads simulated for normal sample. In principle, one can specify the read number for tumor and normal samples in a single command. To save time, one can simulate tumor and normal samples in parallel by running two fa2wes commands at the same time, with one command specifying the read number of tumor (normal) sample to be 0 while simulating normal (tumor) sample [{}]'.format(default))
-    default = 0.6
-    group2.add_argument('-p', '--purity', metavar='FLOAT', type=check_purity, default=default,
-                       help='The proportion of tumor cells in simulated sample [{}]'.format(default))
-    default = 100
-    group2.add_argument('--rlen', metavar='INT', type=int, default=default,
-                       help='Illumina: read length [{}]'.format(default))
-    # default = 0.5
-    # group2.add_argument('--capture_efficiency', metavar='FLOAT', type=float, default=default,
-    #                    help='The capture efficiency of the capture kit [{}]'.format(default))
     default = None
     group2.add_argument('-s', '--random_seed', type=check_seed,
                        help='The seed for random number generator [{}]'.format(default))
@@ -454,7 +599,6 @@ def main(progname=None):
     default = None
     group2.add_argument('--error_model', metavar='FILE', type=check_file,
                        help='The file containing the empirical error model for NGS reads generated by GemErr (It must be provided when capgem or wessim is used for simulation) [{}]'.format(default))
-    default = False
     group2.add_argument('--single', action='store_true',
         help='single cell mode. After this setting, the value of --rnum is for each tumor cell (not the whole tumor sample anymore)')
     default = "'snakemake --rerun-incomplete -k --latency-wait 120'"
@@ -529,11 +673,43 @@ def main(progname=None):
     assert os.path.isfile(snake_file), 'Cannot find Snakefile below under the program directory:\n{}'.format(snake_file)
 
     normal_gsize = compute_normal_gsize(args.normal)
-    target_size = compute_target_size(args.probe)
+    target_size = compute_target_size(args.target)
     # logging.info(' Size of target region: %s', str(target_size))
 
+    # Simulate normal and tumor sample at the same time
+    if (args.rdepth > 0 or args.rnum > 0) and (args.normal_rdepth > 0 or args.normal_rnum > 0):
+        outdir = args.output
+        configdir = os.path.join(outdir, 'config')
+        if not os.path.exists(configdir):
+            os.makedirs(configdir)
+
+        tip_node_leaves = tip_node_leaves_counting(f=args.map)
+        if args.single:
+            for tip_node in tip_node_leaves:
+                assert tip_node_leaves[tip_node]==1,\
+                    'In single mode, each tip node should represent only one cell.\n'+\
+                    'But {} leaves are found underneath tip node {} in your map file!'.format(tip_node_leaves[tip_node], tip_node)
+
+        tumor_cells = sum(tip_node_leaves.values())
+        total_cells = tumor_cells / args.purity
+        logging.info(' Number of total cells: %d', total_cells)
+        normal_cells = total_cells - tumor_cells
+        logging.info(' Number of normal cells: %d', normal_cells)
+        normal_dna = normal_gsize * normal_cells
+        tip_node_gsize, tumor_dna= compute_tumor_dna(args.tumor, tip_node_leaves)
+        total_dna = (normal_dna + tumor_dna)
+
+        sample_file = os.path.join(outdir, 'config/sample.yaml')
+        total_num_splits = prepare_sample_all(sample_file, args, total_cells, normal_cells, normal_gsize, tip_node_leaves, tip_node_gsize, target_size)
+        logging.info(' Number of splits in simulation: %d', total_num_splits)
+
+        run_snakemake(outdir, args, sample_file, snake_file)
+        merge_normal_sample(args, outdir)
+        merge_tumor_sample(args, outdir)
+        clean_output(args.out_level, outdir)
+
     # Separate the simulation of tumor and normal samples
-    if args.rdepth > 0 or args.rnum > 0:
+    elif args.rdepth > 0 or args.rnum > 0:
         outdir = os.path.join(args.output, 'tumor')
         if not os.path.exists(outdir):
             os.makedirs(outdir)
@@ -565,7 +741,7 @@ def main(progname=None):
         merge_tumor_sample(args, tip_node_leaves, outdir)
         clean_output(args.out_level, outdir)
 
-    if args.normal_rdepth > 0 or args.normal_rnum > 0:
+    elif args.normal_rdepth > 0 or args.normal_rnum > 0:
         outdir = os.path.join(args.output, 'normal')
         if not os.path.exists(outdir):
             os.makedirs(outdir)
@@ -580,3 +756,5 @@ def main(progname=None):
         run_snakemake(outdir, args, sample_file, snake_file)
         merge_normal_sample(args, outdir)
         clean_output(args.out_level, outdir)
+    else:
+        logging.info('Please specify sequening depth!')
