@@ -28,6 +28,8 @@ signal(SIGPIPE, SIG_DFL)
 
 # MAX_READFRAC specifies the maximum fraction of simulated total short reads for a single run of simulation. If a large number of reads are simulated, this allows simulation in several batches, with each batch generating a smaller number of reads. Different batches can run at the same time. In the end, the output files from different batches are merged.
 MAX_READFRAC = 0.02
+RATIO_WESSIM = 0.85
+RATIO_CAPGEM = 0.39
 
 
 def check_input(args):
@@ -38,7 +40,7 @@ def check_input(args):
                 parental, args.normal)
 
     if args.simulator in ['wessim','capgem']:
-        assert os.path.isfile(args.error_model),"{} doesn't exist or isn't a file.".format(args.error_model)
+        assert os.path.isfile(os.path.abspath(args.error_model)),"{} doesn't exist or isn't a file.".format(os.path.abspath(args.error_model))
     if args.single_end:
         assert args.simulator in ['wessim','capgem']
 
@@ -225,15 +227,15 @@ def prepare_sample_normal(sample_file, args, normal_gsize, target_size):
     else:
         rlen = args.rlen * 2
     if args.normal_rdepth > 0:
-        total_rnum = int((args.normal_rdepth * target_size) / (rlen * args.target_ratio))
+        total_rnum = int((args.normal_rdepth * target_size) / (rlen * args.ontarget_ratio))
     else:
         total_rnum = args.normal_rnum
-    logging.info(' Total read number: %d', total_rnum)
+    logging.info(' Total number of reads to simulate for normal sample: %d', total_rnum)
     MAX_READNUM = int(total_rnum * MAX_READFRAC)
 
     with open(sample_file, 'w') as fout:
-        fout.write('probe: {}\n'.format(args.probe))
-        fout.write('error_model: {}\n'.format(args.error_model))
+        fout.write('probe: {}\n'.format(os.path.abspath(args.probe)))
+        fout.write('error_model: {}\n'.format(os.path.abspath(args.error_model)))
         fout.write('directory: normal\n')
 
         fout.write('genomes:\n')
@@ -283,15 +285,15 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
     else:
         rlen = args.rlen * 2
     if args.rdepth > 0:
-        total_rnum = int((args.rdepth * target_size) / (rlen * args.target_ratio))
+        total_rnum = int((args.rdepth * target_size) / (rlen * args.ontarget_ratio))
     else:
         total_rnum = args.rnum
-    logging.info(' Total read number: %d', total_rnum)
+    logging.info(' Total number of reads to simulate for tumor sample: %d', total_rnum)
     MAX_READNUM = int(total_rnum * MAX_READFRAC)
 
     with open(sample_file, 'w') as fout:
-        fout.write('probe: {}\n'.format(args.probe))
-        fout.write('error_model: {}\n'.format(args.error_model))
+        fout.write('probe: {}\n'.format(os.path.abspath(args.probe)))
+        fout.write('error_model: {}\n'.format(os.path.abspath(args.error_model)))
         fout.write('directory: tumor\n')
         fout.write('genomes:\n')
         # two normal cell haplotypes
@@ -386,21 +388,21 @@ def prepare_sample_all(sample_file, args, total_cells, normal_cells, normal_gsiz
     else:
         rlen = args.rlen * 2
     if args.normal_rdepth > 0:
-        total_rnum_normal = int((args.normal_rdepth * target_size) / (rlen * args.target_ratio))
+        total_rnum_normal = int((args.normal_rdepth * target_size) / (rlen * args.ontarget_ratio))
     else:
         total_rnum_normal = args.normal_rnum
-    logging.info(' Total read number for normal sample: %d', total_rnum_normal)
+    logging.info(' Total number of reads to simulate for normal sample: %d', total_rnum_normal)
     MAX_READNUM_NORMAL = int(total_rnum_normal * MAX_READFRAC)
     if args.rdepth > 0:
-        total_rnum = int((args.rdepth * target_size) / (rlen * args.target_ratio))
+        total_rnum = int((args.rdepth * target_size) / (rlen * args.ontarget_ratio))
     else:
         total_rnum = args.rnum
-    logging.info(' Total read number for tumor sample: %d', total_rnum)
+    logging.info(' Total number of reads to simulate for tumor sample: %d', total_rnum)
     MAX_READNUM = int(total_rnum * MAX_READFRAC)
 
     with open(sample_file, 'w') as fout:
-        fout.write('probe: {}\n'.format(args.probe))
-        fout.write('error_model: {}\n'.format(args.error_model))
+        fout.write('probe: {}\n'.format(os.path.abspath(args.probe)))
+        fout.write('error_model: {}\n'.format(os.path.abspath(args.error_model)))
         fout.write('genomes:\n')
         # two normal cell haplotypes
         if not args.single:
@@ -550,7 +552,7 @@ def run_snakemake(outdir, args, sample_file, snake_file):
             os.remove(snake_file_copy)
             shutil.move(tmp, snake_file_copy)
 
-    orig_params = args.snakemake.split()
+    orig_params = args.snakemake.strip('\'').split()
     config = ' rlen=' + str(args.rlen)
     if not ('--cores' in args.snakemake or '--jobs' in args.snakemake or '-j' in args.snakemake):
         # Use the number of cores specified here
@@ -569,6 +571,19 @@ def run_snakemake(outdir, args, sample_file, snake_file):
     logging.info(' Command: %s', ' '.join(final_cmd_params))
 
     os.system(' '.join(final_cmd_params))
+
+class TargetAction(argparse.Action):
+    # adapted from documentation
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values)
+        defaultsim = getattr(namespace, 'simulator')
+        if defaultsim == 'wessim' :
+            defaultval = RATIO_WESSIM
+        elif defaultsim == 'capgem':
+            defaultval = RATIO_CAPGEM
+        else:
+            defaultval = 0.5
+        setattr(namespace, 'ontarget_ratio', defaultval)
 
 
 def main(progname=None):
@@ -592,10 +607,7 @@ def main(progname=None):
     default = 0.6
     group2.add_argument('-p', '--purity', metavar='FLOAT', type=check_purity, default=default,
                        help='The proportion of tumor cells in simulated sample [{}]'.format(default))
-    default = 0.5
-    group2.add_argument('--target_ratio', metavar='FLOAT', type=float, default=default,
-                       help='The percentage that simulated reads are expected to be from the target regions [{}]'.format(default))
-    default = 100
+    default = 150
     group2.add_argument('--rlen', metavar='INT', type=int, default=default,
                        help='Illumina: read length [{}]'.format(default))
     group2.add_argument('--single_end', action='store_true',
@@ -618,8 +630,11 @@ def main(progname=None):
     group2.add_argument('-s', '--random_seed', type=check_seed,
                        help='The seed for random number generator [{}]'.format(default))
     default = 'wessim'
-    group2.add_argument('--simulator', default=default, choices=['capgem', 'wessim', 'capsim'],
+    group2.add_argument('--simulator', default=default, choices=['capgem', 'wessim'], action=TargetAction,
                        help='The whole-exome sequencing simulator used for simulating short reads [{}]'.format(default))
+    default = RATIO_WESSIM
+    group2.add_argument('--ontarget_ratio', metavar='FLOAT', type=float, default=default,
+                       help='The percentage that simulated reads are expected to be from the target regions. It is dependent on the simulator. The default value is {} for wessim and {} for capgem [{}]'.format(RATIO_WESSIM, RATIO_CAPGEM, default))
     default = None
     group2.add_argument('--error_model', metavar='FILE', type=check_file,
                        help='The file containing the empirical error model for NGS reads generated by GemErr (It must be provided when capgem or wessim is used for simulation) [{}]'.format(default))
@@ -667,6 +682,7 @@ def main(progname=None):
         seed = random_int()
     else:
         seed = args.random_seed
+    logging.info(' Ontarget ratio: %s', str(args.ontarget_ratio))
     logging.info(' Random seed: %d', seed)
     numpy.random.seed(seed)
 
@@ -682,7 +698,7 @@ def main(progname=None):
 
     wes_dir = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'wes')
     # Add path variables
-    if args.simulator == 'capsim':
+    if args.simulator == 'capsim':  # Not exposed to user for simplificity
         snake_file = os.path.join(wes_dir, 'config/Snakefile_capsim')
     elif args.simulator == 'wessim':
         snake_file = os.path.join(wes_dir, 'config/Snakefile_wessim')
