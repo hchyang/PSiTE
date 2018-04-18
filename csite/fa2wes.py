@@ -284,10 +284,10 @@ def prepare_sample_tumor(sample_file, args, total_cells, normal_cells, normal_gs
         rlen = args.rlen
     else:
         rlen = args.rlen * 2
-    if args.rdepth > 0:
-        total_rnum = int((args.rdepth * target_size) / (rlen * args.ontarget_ratio))
+    if args.tumor_rdepth > 0:
+        total_rnum = int((args.tumor_rdepth * target_size) / (rlen * args.ontarget_ratio))
     else:
-        total_rnum = args.rnum
+        total_rnum = args.tumor_rnum
     logging.info(' Total number of reads to simulate for tumor sample: %d', total_rnum)
     MAX_READNUM = int(total_rnum * MAX_READFRAC)
 
@@ -393,10 +393,10 @@ def prepare_sample_all(sample_file, args, total_cells, normal_cells, normal_gsiz
         total_rnum_normal = args.normal_rnum
     logging.info(' Total number of reads to simulate for normal sample: %d', total_rnum_normal)
     MAX_READNUM_NORMAL = int(total_rnum_normal * MAX_READFRAC)
-    if args.rdepth > 0:
-        total_rnum = int((args.rdepth * target_size) / (rlen * args.ontarget_ratio))
+    if args.tumor_rdepth > 0:
+        total_rnum = int((args.tumor_rdepth * target_size) / (rlen * args.ontarget_ratio))
     else:
-        total_rnum = args.rnum
+        total_rnum = args.tumor_rnum
     logging.info(' Total number of reads to simulate for tumor sample: %d', total_rnum)
     MAX_READNUM = int(total_rnum * MAX_READFRAC)
 
@@ -600,7 +600,7 @@ def main(progname=None):
                        help='The map file containing the relationship between tip nodes and samples')
     group1.add_argument( '--probe', metavar='FILE', type=check_file, required=True,
                        help='The Probe file containing the probe sequences (FASTA format)')
-    group1.add_argument('--target', metavar='FILE', type=str, required=True,
+    group1.add_argument('--target', metavar='FILE', type=check_file, required=True,
                        help='The Target file containing the target regions (BED format)')
 
     group2 = parser.add_argument_group('Arguments for simulation')
@@ -611,26 +611,26 @@ def main(progname=None):
     group2.add_argument('--rlen', metavar='INT', type=int, default=default,
                        help='Illumina: read length [{}]'.format(default))
     group2.add_argument('--single_end', action='store_true',
-        help='Simulating single-end reads (Only simulators wessim and capgem support this mode)')
+        help='Simulating single-end reads')
     group = group2.add_mutually_exclusive_group()
-    default = 0.0
-    group.add_argument('-d', '--rdepth', metavar='FLOAT', type=float, default=default,
-                       help='The mean rdepth of tumor sample for simulating short reads [{}]'.format(default))
     default = 0
-    group.add_argument('-r', '--rnum', metavar='INT', type=int, default=default,
-                       help='The number of short reads simulated for tumor sample [{}]'.format(default))
+    group.add_argument('-d', '--tumor_rdepth', metavar='FLOAT', type=check_depth, default=default,
+                       help='The mean depth of tumor sample for simulating short reads [{}]'.format(default))
+    default = 0
+    group.add_argument('-r', '--tumor_rnum', metavar='INT', type=int, default=default,
+                       help='The number of short reads to simulate for tumor sample [{}]'.format(default))
     group = group2.add_mutually_exclusive_group()
-    default = 0.0
-    group.add_argument('-D', '--normal_rdepth', metavar='FLOAT', type=float, default=default,
-                       help='The mean rdepth of normal sample for simulating short reads. In principle, one can specify the mean depth for tumor and normal samples in a single command. To save time, one can simulate tumor and normal samples in parallel by running two fa2wes commands at the same time, with one command specifying the depth of tumor (normal) sample to be 0 when simulating normal (tumor) sample [{}]'.format(default))
+    default = 0
+    group.add_argument('-D', '--normal_rdepth', metavar='FLOAT', type=float, default=check_depth,
+                       help='The mean depth of normal sample for simulating short reads [{}]'.format(default))
     default = 0
     group.add_argument('-R', '--normal_rnum', metavar='INT', type=int, default=default,
-                       help='The number of short reads simulated for normal sample. In principle, one can specify the read number for tumor and normal samples in a single command. To save time, one can simulate tumor and normal samples in parallel by running two fa2wes commands at the same time, with one command specifying the read number of tumor (normal) sample to be 0 while simulating normal (tumor) sample [{}]'.format(default))
+                       help='The number of short reads to simulate for normal sample [{}]'.format(default))
     default = None
     group2.add_argument('-s', '--random_seed', type=check_seed,
                        help='The seed for random number generator [{}]'.format(default))
     default = 'wessim'
-    group2.add_argument('--simulator', default=default, choices=['capgem', 'wessim'], action=TargetAction,
+    group2.add_argument('--simulator', default=default, choices=['wessim','capgem'], action=TargetAction,
                        help='The whole-exome sequencing simulator used for simulating short reads [{}]'.format(default))
     default = RATIO_WESSIM
     group2.add_argument('--ontarget_ratio', metavar='FLOAT', type=float, default=default,
@@ -714,10 +714,10 @@ def main(progname=None):
 
     normal_gsize = compute_normal_gsize(args.normal)
     target_size = compute_target_size(args.target)
-    # logging.info(' Size of target region: %s', str(target_size))
+    logging.info(' Size of target region: %s', str(target_size))
 
     # Simulate normal and tumor sample at the same time
-    if (args.rdepth > 0 or args.rnum > 0) and (args.normal_rdepth > 0 or args.normal_rnum > 0):
+    if (args.tumor_rdepth > 0 or args.tumor_rnum > 0) and (args.normal_rdepth > 0 or args.normal_rnum > 0):
         outdir = args.output
         configdir = os.path.join(outdir, 'config')
         if not os.path.exists(configdir):
@@ -749,7 +749,7 @@ def main(progname=None):
         clean_output(args.out_level, outdir)
 
     # Separate the simulation of tumor and normal samples
-    elif args.rdepth > 0 or args.rnum > 0:
+    elif args.tumor_rdepth > 0 or args.tumor_rnum > 0:
         outdir = os.path.join(args.output, 'tumor')
         if not os.path.exists(outdir):
             os.makedirs(outdir)
