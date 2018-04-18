@@ -210,8 +210,6 @@ def main(progname=None):
         except FileExistsError as e:
             raise OutputExistsError("'{}' exists already! \nCan not use it as the output folder of tumor NGS reads.".format(normal_dir)+
                 '\nDelete it or use another folder as output folder.') from e
-#create a reference meta file which can be used by wessim to simulate exome-seq data
-        ref_meta=open('reference.meta','w')
 #two normal cell haplotypes
         for parental in 0,1:
             if args.single:
@@ -229,7 +227,6 @@ def main(progname=None):
                 'id':'nm_prt{}'.format(parental)}
             params_matrix.append(sim_cfg)
             fullname=os.path.abspath(ref)
-            ref_meta.write('{}\t{}\n'.format(fullname,str(normal_cells/total_cells/2)))
 
 #tumor cells haplotypes
         for tip_node in sorted(tip_node_leaves.keys()):
@@ -253,9 +250,7 @@ def main(progname=None):
                 if args.single:
                     continue
                 fullname=os.path.abspath(ref)
-                ref_meta.write('{}\t{}\n'.format(fullname,
                     str(tip_node_leaves[tip_node]/total_cells*tip_node_gsize[tip_node][parental]/tip_node_gsize[tip_node][2])))
-        ref_meta.close()
 
 #generate fastq (and compress them) parallelly
 #every thread will generate at most 2 percent of the total data you want to simulate
