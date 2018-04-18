@@ -226,7 +226,6 @@ def main(progname=None):
                 'out':prefix,
                 'id':'nm_prt{}'.format(parental)}
             params_matrix.append(sim_cfg)
-            fullname=os.path.abspath(ref)
 
 #tumor cells haplotypes
         for tip_node in sorted(tip_node_leaves.keys()):
@@ -249,8 +248,6 @@ def main(progname=None):
                 params_matrix.append(sim_cfg)
                 if args.single:
                     continue
-                fullname=os.path.abspath(ref)
-                    str(tip_node_leaves[tip_node]/total_cells*tip_node_gsize[tip_node][parental]/tip_node_gsize[tip_node][2])))
 
 #generate fastq (and compress them) parallelly
 #every thread will generate at most 2 percent of the total data you want to simulate
