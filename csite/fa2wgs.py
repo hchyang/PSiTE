@@ -67,7 +67,7 @@ def main(progname=None):
     default=None
     group2.add_argument('-s','--random_seed',type=check_seed,metavar='INT',
         help='the seed for random number generator [{}]'.format(default))
-    default=100
+    default=150
     group2.add_argument('--rlen',type=int,default=default,metavar='INT',
         help="the length of reads to simulate [{}]".format(default))
     default='art_illumina --noALN --quiet --paired --mflen 500 --sdev 20'
