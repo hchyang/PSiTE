@@ -86,11 +86,11 @@ def main(progname=None):
         help="keep each tip node's NGS reads file separately")
     group3.add_argument('--single',action="store_true",
         help="single cell mode. "+\
-        "After this setting, the value of --depth/--rdepth is the depth of each tumor cell "+\
+        "After this setting, the value of --tumor_depth/--tumor_rdepth is the depth of each tumor cell "+\
         "(not the total depth of tumor sample anymore)")
     group4=parser.add_argument_group('Module fa2wgs arguments')
     default=50
-    group4.add_argument('-d','--depth',type=check_depth,default=default,metavar='FLOAT',
+    group4.add_argument('-d','--tumor_depth',type=check_depth,default=default,metavar='FLOAT',
         help='the mean depth of tumor sample for fa2wgs to simulate NGS reads [{}]'.format(default))
     default=0
     group4.add_argument('-D','--normal_depth',type=check_depth,default=default,metavar='FLOAT',
@@ -105,10 +105,10 @@ def main(progname=None):
     default=50
     group5sub1=group5.add_mutually_exclusive_group()
     group5sub2=group5.add_mutually_exclusive_group()
-    group5sub1.add_argument('--rdepth',type=check_depth,default=default,metavar='FLOAT',
+    group5sub1.add_argument('--tumor_rdepth',type=check_depth,default=default,metavar='FLOAT',
         help='the mean depth of tumor sample for fa2wes to simulate NGS reads [{}]'.format(default))
     default=0
-    group5sub1.add_argument('--rnum',metavar='INT',type=int,default=default,
+    group5sub1.add_argument('--tumor_rnum',metavar='INT',type=int,default=default,
         help='The number of short reads simulated for tumor sample [{}]'.format(default))
     default=0
     group5sub2.add_argument('--normal_rdepth',type=check_depth,default=default,metavar='FLOAT',
@@ -141,8 +141,8 @@ def main(progname=None):
     if args.type in ['WES','BOTH']:
         if args.probe==None:
             raise argparse.ArgumentTypeError("'--probe' is required to simulate WES data!")
-        if args.rdepth!=0 and args.rnum!=0:
-            raise argparse.ArgumentTypeError("--rdepth: not allowed with --rnum!")
+        if args.tumor_rdepth!=0 and args.tumor_rnum!=0:
+            raise argparse.ArgumentTypeError("--tumor_rdepth: not allowed with --tumor_rnum!")
         if args.normal_rdepth!=0 and args.normal_rnum!=0:
             raise argparse.ArgumentTypeError("--normal_rdepth: not allowed with --normal_rnum!")
 
@@ -258,7 +258,7 @@ def main(progname=None):
                     '--normal',normal_fa,
                     '--tumor',tumor_fa,
                     '--map',map_file,
-                    '--depth',str(args.depth),
+                    '--tumor_depth',str(args.tumor_depth),
                     '--normal_depth',str(args.normal_depth),
                     '--purity',str(args.purity),
                     '--output',reads_dir,
@@ -293,10 +293,10 @@ def main(progname=None):
                     '--cores',str(args.cores),
                     '--out_level',str(args.out_level),
                     '--snakemake','{}'.format(args.snakemake)]
-        if args.rdepth:
-            cmd_params.extend(['--rdepth',str(args.rdepth)])
-        elif args.rnum:
-            cmd_params.extend(['--rnum',str(args.rnum)])
+        if args.tumor_rdepth:
+            cmd_params.extend(['--tumor_rdepth',str(args.tumor_rdepth)])
+        elif args.tumor_rnum:
+            cmd_params.extend(['--tumor_rnum',str(args.tumor_rnum)])
         if args.normal_rdepth:
             cmd_params.extend(['--normal_rdepth',str(args.normal_rdepth)])
         elif args.normal_rnum:

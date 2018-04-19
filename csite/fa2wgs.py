@@ -56,7 +56,7 @@ def main(progname=None):
         help='the map file containing the relationship between tip nodes and samples')
     group2 = parser.add_argument_group('Arguments for simulation')
     default=50
-    group2.add_argument('-d','--depth',type=check_depth,default=default,metavar='FLOAT',
+    group2.add_argument('-d','--tumor_depth',type=check_depth,default=default,metavar='FLOAT',
         help='the mean depth of tumor sample for ART to simulate NGS reads [{}]'.format(default))
     default=0
     group2.add_argument('-D','--normal_depth',type=check_depth,default=default,metavar='FLOAT',
@@ -80,7 +80,7 @@ def main(progname=None):
         help="keep each tip node's NGS reads file separately")
     group2.add_argument('--single',action="store_true",
         help="single cell mode. "+\
-        "After this setting, the value of --depth is the depth of each tumor cell "+\
+        "After this setting, the value of --tumor_depth is the depth of each tumor cell "+\
         "(not the total depth of tumor sample anymore).")
     group3 = parser.add_argument_group('Output arguments')
     default='art_reads'
@@ -113,7 +113,7 @@ def main(progname=None):
     numpy.random.seed(seed)
 
 #exit the program if you do not want to simulate any reads for normal or tumor samples
-    if args.depth+args.normal_depth==0:
+    if args.tumor_depth+args.normal_depth==0:
         sys.exit('Do nothing as the total depth (normal+tumor) is 0!')
 
 #single cell mode or bulk tumor mode
@@ -146,7 +146,7 @@ def main(progname=None):
     normal_gsize=0
     for parental in 0,1:
         normal_gsize+=genomesize(fasta='{}/normal.parental_{}.fa'.format(args.normal,parental))
-    tumor_seq_bases=normal_gsize/2*args.depth
+    tumor_seq_bases=normal_gsize/2*args.tumor_depth
 
     tumor_cells=sum(tip_node_leaves.values())
     total_cells=tumor_cells/args.purity
@@ -204,7 +204,7 @@ def main(progname=None):
             params_matrix.append(sim_cfg)
 
 #simulation for tumor sample
-    if args.depth>0:
+    if args.tumor_depth>0:
         try:
             os.mkdir(tumor_dir,mode=0o755)
         except FileExistsError as e:
@@ -253,9 +253,9 @@ def main(progname=None):
 #every thread will generate at most 2 percent of the total data you want to simulate
     sizeBlock=None
     if args.single:
-        sizeBlock=(normal_gsize*args.normal_depth+sum([x[2] for x in tip_node_gsize.values()])*args.depth)*0.02
+        sizeBlock=(normal_gsize*args.normal_depth+sum([x[2] for x in tip_node_gsize.values()])*args.tumor_depth)*0.02
     else:
-        sizeBlock=normal_gsize*(args.depth+args.normal_depth)*0.02
+        sizeBlock=normal_gsize*(args.tumor_depth+args.normal_depth)*0.02
     final_params_matrix=[]
     for cfg in params_matrix:
         n=math.ceil(cfg['gsize']*cfg['fcov']/sizeBlock)
@@ -289,7 +289,7 @@ def main(progname=None):
                 target='{}/normal.{}'.format(normal_dir,suffix)
                 source.sort()
                 sample_fq_files.append([target,source])
-    if args.depth>0:
+    if args.tumor_depth>0:
         for suffix in suffixes:
             if args.single or args.separate:
                 for tip_node in ['normal']+sorted(tip_node_leaves.keys()):
