@@ -28,7 +28,7 @@ rule build_bowtie_index:
         expand("genome_index/{{gid}}.{index}.bt2",  index=range(1,5)),
         expand("genome_index/{{gid}}.rev.{index}.bt2", index=range(1,3)),
     log:
-        "log/build_index.log"
+        "log/build_bowtie_index.log"
     shell:
         '''
         bowtie2-build {input.genome} {params.prefix}
@@ -37,7 +37,7 @@ rule build_bowtie_index:
 
 rule align_probe_bowtie:
     input:
-        rules.build_index.output,
+        rules.build_bowtie_index.output,
         probe = config['probe']
     output:
         bam="mapping/{gid}.sorted.bam",
@@ -46,7 +46,7 @@ rule align_probe_bowtie:
         rprefix="genome_index/{gid}",
         bprefix="mapping/{gid}.sorted",
     log:
-        "log/align_probe.log"
+        "log/align_probe_bowtie.log"
     shell:
         '''
         bowtie2 --local --very-sensitive-local -p 8 --mp 8 --rdg 10,8 --rfg 10,8 -k 10000 -f -x {params.rprefix} -U {input.probe} | samtools view -bSu - | samtools sort -o {output.bam} -

@@ -24,7 +24,6 @@ This script is based on GemReads.py from GemSim.
 In particular, it is based on script "\_\_sub_wessim2.py" from Wessim (http://sak042.github.io/Wessim/).
 
 
-
 #### Install
 CapGem requires a Java Runtime Environment (Java Runtime Environment >=1.7).
 

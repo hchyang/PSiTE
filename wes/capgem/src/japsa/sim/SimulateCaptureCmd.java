@@ -209,7 +209,6 @@ public class SimulateCaptureCmd extends CommandLine{
 
 				int start = sam.getAlignmentStart();
 				int end = sam.getAlignmentEnd();
-
 				if ((end - start) < hybridizationRatio * sam.getReadLength())
 					continue;
 
@@ -240,7 +239,7 @@ public class SimulateCaptureCmd extends CommandLine{
 				}
 			}//for
 			//Logging.info("Mark capturable regions 2 -- done");
-		}else{
+		}else{	// No probe provided
 			accLen = new long[chrList.size()];
 			accLen[0] = chrList.get(0).length();
 			Logging.info("Acc 0 " + accLen[0]);
@@ -248,7 +247,6 @@ public class SimulateCaptureCmd extends CommandLine{
 				accLen[i] = accLen[i-1] + chrList.get(i).length();
 				Logging.info("Acc " + i + " " + accLen[i]);
 			}
-
 		}
 
 		long numFragment = 0;
@@ -274,15 +272,12 @@ public class SimulateCaptureCmd extends CommandLine{
 			//1. Generate the length of the next fragment
 			int fragLength =
 					Math.max((int) Simulation.logLogisticSample(fmedian, fshape, rnd), 50);
-
 			//Logging.info("Gen0 " + fragLength);
 
 			//2. Generate the position of the fragment
 			//toss the coin
 			double r = rnd.nextDouble();
-
 			int chrIndex = 0, chrPos = 0;
-
 			if (genRegion != null){
 				long p = (long) (r * genRegion.totLength);
 				int index = 0;
@@ -290,19 +285,15 @@ public class SimulateCaptureCmd extends CommandLine{
 				while (p > genRegion.regions.get(index).accuLength){
 					index ++;
 				}
-
 				if (index > 0){
 					p = p - genRegion.regions.get(index - 1).accuLength;
 				}
-
 				if (p > genRegion.regions.get(index).length){
 					Logging.exit("Not expecting2 " + p + " vs " + index, 1);
 				}
-
 				chrPos = ((int) p) + genRegion.regions.get(index).position;
 				chrIndex = genRegion.regions.get(index).chrIndex;
 			}else{
-
 				long p = (long) (r * genome.getLength());
 				int index = 0;
 				while (p > accLen[index])
@@ -311,7 +302,6 @@ public class SimulateCaptureCmd extends CommandLine{
 				if (index > 0){
 					p = p - accLen[index - 1];
 				}
-
 				chrIndex = index;
 				chrPos = (int) p;
 				//Logging.info("Found " + index + " " + myP + "  " + p);
@@ -331,11 +321,9 @@ public class SimulateCaptureCmd extends CommandLine{
 				//if probe is provided, see if the fragment is rejected
 				if (!bitSets[chrIndex].get(chrPos)){
 					//Logging.info("Reject0 " + fragLength);
-
 					fragmentRej1 ++;
 					continue;//while
 				}
-
 				/*******************************************************************************
 				SAMRecordIterator iter = samReader.query(chrList.get(chrIndex).getName(), chrPos, chrPos + fragLength, false);
 				int countProbe = 0;
@@ -419,7 +407,6 @@ public class SimulateCaptureCmd extends CommandLine{
 			//	myOdd = dist2[dist2.length - 1];
 			//else myOdd = dist2[fragLength];
 
-
 			//if (rnd.nextDouble() > myOdd){
 			//	fragmentRej4 ++;
 			//	continue;
@@ -449,7 +436,6 @@ public class SimulateCaptureCmd extends CommandLine{
 					miFrag.print(frag.charAt(i));
 				miFrag.print("\n");
 			}
-
 		}
 
 		Logging.info("Generated " + numGen + " selected " + numFragment
