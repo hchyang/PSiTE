@@ -65,7 +65,7 @@ def main(progname=None):
     group2.add_argument('-p','--purity',type=check_purity,default=default,metavar='FLOAT',
         help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
     default=None
-    group2.add_argument('-s','--random_seed',type=check_seed,metavar='INT',
+    group2.add_argument('--random_seed',type=check_seed,metavar='INT',
         help='the seed for random number generator [{}]'.format(default))
     default=150
     group2.add_argument('--rlen',type=int,default=default,metavar='INT',

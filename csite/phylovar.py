@@ -266,7 +266,10 @@ def main(progname=None):
     group3sub.add_argument('-X','--prune_proportion',type=check_proportion,default=default,metavar='FLOAT',
         help='trim all the children of the nodes with equal or less than this proportion of total leaves [{}]'.format(default))
     default=None
-    group3.add_argument('-s','--random_seed',type=check_seed,metavar='INT',
+    group3.add_argument('-s','--sex_chr',type=check_sex,default=default,metavar='STR',
+        help='sex chromosomes of the genome (separated by comma) [{}]'.format(default))
+    default=None
+    group3.add_argument('--random_seed',type=check_seed,metavar='INT',
         help='the seed for random number generator (an integer between 0 and 2**31-1) [{}]'.format(default))
     default=0
     group3.add_argument('--trunk_length',type=float,default=default,metavar='FLOAT',
@@ -274,9 +277,6 @@ def main(progname=None):
     default=0.6
     group3.add_argument('--purity',type=check_purity,default=default,metavar='FLOAT',
         help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
-    default=None
-    group3.add_argument('--sex_chr',type=check_sex,default=default,metavar='STR',
-        help='sex chromosomes of the genome (separated by comma) [{}]'.format(default))
     group4=parser.add_argument_group('Output arguments')
     default='phylovar.snvs'
     group4.add_argument('-S','--snv',type=str,default=default,metavar='FILE',

@@ -627,7 +627,7 @@ def main(progname=None):
     group.add_argument('-R', '--normal_rnum', metavar='INT', type=int, default=default,
                        help='The number of short reads to simulate for normal sample [{}]'.format(default))
     default = None
-    group2.add_argument('-s', '--random_seed', type=check_seed,
+    group2.add_argument('--random_seed', metavar='INT', type=check_seed,
                        help='The seed for random number generator [{}]'.format(default))
     default = 'wessim'
     group2.add_argument('--simulator', default=default, choices=['wessim','capgem'], action=TargetAction,
