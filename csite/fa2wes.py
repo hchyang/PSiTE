@@ -17,6 +17,7 @@ import subprocess
 import shutil
 import glob
 import multiprocessing
+import pip
 from csite.phylovar import check_purity, check_seed, random_int
 from csite.fa2wgs import check_folder, check_file, check_depth, merge_fq, OutputExistsError, tip_node_leaves_counting, genomesize
 
@@ -36,13 +37,50 @@ def check_input(args):
     # there must be two haplotype fasta in the normal dir
     for parental in 0, 1:
         assert os.path.isfile('{}/normal.parental_{}.fa'.format(args.normal, parental)),\
-            'Can not find normal.parental_{}.fa under the normal directory: {}'.format(
+            'Cannot find normal.parental_{}.fa under the normal directory: {}'.format(
                 parental, args.normal)
+    # if args.single_end:
+    #     assert args.simulator in ['wessim','capgem']
 
-    if args.simulator in ['wessim','capgem']:
-        assert os.path.isfile(os.path.abspath(args.error_model)),"{} doesn't exist or isn't a file.".format(os.path.abspath(args.error_model))
-    if args.single_end:
-        assert args.simulator in ['wessim','capgem']
+class TargetAction(argparse.Action):
+    # adapted from documentation
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values)
+        defaultsim = getattr(namespace, 'simulator')
+        if defaultsim == 'wessim' :
+            defaultval = RATIO_WESSIM
+        elif defaultsim == 'capgem':
+            defaultval = RATIO_CAPGEM
+        else:
+            defaultval = 0.5
+        setattr(namespace, 'ontarget_ratio', defaultval)
+
+
+def check_program(value):
+    if value == "capgem":
+        progs=['bowtie2-build', 'bowtie2', 'samtools', 'capsim']
+        for prog in progs:
+            if shutil.which(prog) is None:
+                raise argparse.ArgumentTypeError("Cannot find program '{}'. Please ensure that you have installed it!".format(prog))
+    elif value == "wessim":
+        progs=['samtools', 'faToTwoBit', 'blat']
+        for prog in progs:
+            if shutil.which(prog) is None:
+                raise argparse.ArgumentTypeError("Cannot find program '{}'. Please ensure that you have installed it!".format(prog))
+        package = "pysam"
+        try:
+            import package
+        except:
+            pip.main(['install', package])
+    else:
+        pass
+    return value
+
+
+def check_snakemake(value):
+    # Use double quotes around option --cluster to distinguish with the single quotes around --snakemake
+    value = value.replace("'",'"')
+    return value
 
 
 def compute_target_size(ftarget):
@@ -99,7 +137,7 @@ def compute_tumor_dna(tumor_dir, tip_node_leaves):
 
             for parental in 0, 1:
                 assert os.path.isfile('{}/{}.parental_{}.fa'.format(tumor_dir, tip_node, parental)),\
-                    'Can not find {}.parental_{}.fa under the tumor directory: {}'.format(
+                    'Cannot find {}.parental_{}.fa under the tumor directory: {}'.format(
                         tip_node, parental, tumor_dir)
                 tip_node_gsize[tip_node].append(genomesize(
                     fasta='{}/{}.parental_{}.fa'.format(tumor_dir, tip_node, parental)))
@@ -552,12 +590,11 @@ def run_snakemake(outdir, args, sample_file, snake_file):
             os.remove(snake_file_copy)
             shutil.move(tmp, snake_file_copy)
 
-    orig_params = args.snakemake.strip('\'').split()
-    config = ' rlen=' + str(args.rlen)
+    # Remove the surrounding quotes around snakemake command.
+    orig_params = args.snakemake.split()
     if not ('--cores' in args.snakemake or '--jobs' in args.snakemake or '-j' in args.snakemake):
         # Use the number of cores specified here
         orig_params += ['-j', str(args.cores)]
-
     if '--cluster' in args.snakemake and '--cluster-config' not in args.snakemake:
         cluster_file = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'wes/config/cluster.yaml')
         assert os.path.isfile(cluster_file), 'Cannot find cluster.yaml below under the program directory:{}'.format(cluster_file)
@@ -565,25 +602,11 @@ def run_snakemake(outdir, args, sample_file, snake_file):
         shutil.copyfile(cluster_file, cluster_file_copy)
         orig_params += ['--cluster-config', cluster_file_copy]
 
-
+    config = ' rlen=' + str(args.rlen)
     final_cmd_params =  orig_params + ['-s', os.path.abspath(snake_file_copy), '-d', os.path.abspath(outdir), '--configfile', os.path.abspath(sample_file), '--config', config]
-
     logging.info(' Command: %s', ' '.join(final_cmd_params))
 
     os.system(' '.join(final_cmd_params))
-
-class TargetAction(argparse.Action):
-    # adapted from documentation
-    def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, values)
-        defaultsim = getattr(namespace, 'simulator')
-        if defaultsim == 'wessim' :
-            defaultval = RATIO_WESSIM
-        elif defaultsim == 'capgem':
-            defaultval = RATIO_CAPGEM
-        else:
-            defaultval = 0.5
-        setattr(namespace, 'ontarget_ratio', defaultval)
 
 
 def main(progname=None):
@@ -621,7 +644,7 @@ def main(progname=None):
                        help='The number of short reads to simulate for tumor sample [{}]'.format(default))
     group = group2.add_mutually_exclusive_group()
     default = 0
-    group.add_argument('-D', '--normal_rdepth', metavar='FLOAT', type=float, default=check_depth,
+    group.add_argument('-D', '--normal_rdepth', metavar='FLOAT', type=check_depth, default=default,
                        help='The mean depth of normal sample for simulating short reads [{}]'.format(default))
     default = 0
     group.add_argument('-R', '--normal_rnum', metavar='INT', type=int, default=default,
@@ -630,7 +653,7 @@ def main(progname=None):
     group2.add_argument('--random_seed', metavar='INT', type=check_seed,
                        help='The seed for random number generator [{}]'.format(default))
     default = 'wessim'
-    group2.add_argument('--simulator', default=default, choices=['wessim','capgem'], action=TargetAction,
+    group2.add_argument('--simulator', default=default, choices=['wessim','capgem'], action=TargetAction, type=check_program,
                        help='The whole-exome sequencing simulator used for simulating short reads [{}]'.format(default))
     default = RATIO_WESSIM
     group2.add_argument('--ontarget_ratio', metavar='FLOAT', type=float, default=default,
@@ -640,9 +663,9 @@ def main(progname=None):
                        help='The file containing the empirical error model for NGS reads generated by GemErr (It must be provided when capgem or wessim is used for simulation) [{}]'.format(default))
     group2.add_argument('--single', action='store_true',
         help='single cell mode. After this setting, the value of --rnum is for each tumor cell (not the whole tumor sample anymore)')
-    default = "'snakemake --rerun-incomplete -k --latency-wait 120'"
-    group2.add_argument('--snakemake', metavar='STR', type=str, default=default,
-                       help="The command used for calling a whole-exome sequencing simulator. The Snakefile for a simulator is under the directory 'wes/config' of the source code. Additional parameters for a simulator can be adjusted in the Snakefile [{}]".format(default))
+    default = "snakemake --rerun-incomplete -k --latency-wait 120"
+    group2.add_argument('--snakemake', metavar='STR', type=check_snakemake, default=default,
+                       help="The snakemake command used for calling a whole-exome sequencing simulator. The Snakefile for a simulator is under the directory 'wes/config' of the source code. Additional parameters for a simulator can be adjusted in the Snakefile ['{}']".format(default))
     default = 1
     group2.add_argument('--cores', type=int, default=default, metavar='INT',
                         help="The number of cores used to run the program (including snakemake). If '--cores' or '--jobs' or '-j' is specified in the options of snakemake, the value specified by '--cores' here will be ignored when snakemake is called [{}]".format(default))
@@ -672,7 +695,11 @@ def main(progname=None):
     argv_copy = sys.argv[:]
     try:
         snakemake_index = argv_copy.index('--snakemake')
-        argv_copy[snakemake_index + 1] = "'{}'".format(argv_copy[snakemake_index + 1])
+        # Single quotes are required for the snakemake command
+        snakemake_str = argv_copy[snakemake_index + 1]
+        if "'" in snakemake_str:
+            snakemake_str = snakemake_str.replace("'",'"')
+        argv_copy[snakemake_index + 1] = "'{}'".format(snakemake_str)
     except ValueError:
         pass
     argv_copy.insert(1, 'fa2wes')

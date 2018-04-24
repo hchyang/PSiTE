@@ -20,3 +20,5 @@ Several additional packages are required to run WesSim, including:
 	* samtools (http://samtools.sourceforge.net/)
 	* faToTwoBit (http://hgdownload.cse.ucsc.edu/admin/exe/ )
 	* blat (http://hgdownload.cse.ucsc.edu/admin/exe/)
+
+You may use `pip install pysam` to install pysam. 
