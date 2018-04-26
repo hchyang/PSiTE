@@ -281,10 +281,6 @@ def main(progname=None):
     random_n=random_int()
     if args.type in ['WES','BOTH']:
         reads_dir='wes_reads'
-        if os.path.isdir(reads_dir):
-            shutil.rmtree(reads_dir)
-        elif os.path.isfile(reads_dir):
-            os.remove(reads_dir)
         cmd_params=[sys.argv[0],'fa2wes',
                     '--normal',normal_fa,
                     '--tumor',tumor_fa,
