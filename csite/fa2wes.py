@@ -29,18 +29,40 @@ signal(SIGPIPE, SIG_DFL)
 
 # MAX_READFRAC specifies the maximum fraction of simulated total short reads for a single run of simulation. If a large number of reads are simulated, this allows simulation in several batches, with each batch generating a smaller number of reads. Different batches can run at the same time. In the end, the output files from different batches are merged.
 MAX_READFRAC = 0.02
+MAX_CHROM = 512000000
 RATIO_WESSIM = 0.85
 RATIO_CAPGEM = 0.39
 
 
-def check_input(args):
-    # there must be two haplotype fasta in the normal dir
+def check_normal_fa(normal_dir):
+    '''
+    There must be one fasta file for each haplotype in the normal dir
+    '''
     for parental in 0, 1:
-        assert os.path.isfile('{}/normal.parental_{}.fa'.format(args.normal, parental)),\
-            'Cannot find normal.parental_{}.fa under the normal directory: {}'.format(
-                parental, args.normal)
-    # if args.single_end:
-    #     assert args.simulator in ['wessim','capgem']
+        if not os.path.isfile('{}/normal.parental_{}.fa'.format(normal_dir, parental)):
+            raise argparse.ArgumentTypeError('Cannot find normal.parental_{}.fa under directory: {}'.format(
+                parental, normal_dir))
+
+
+def check_tumor_fa(tumor_dir, tip_node_leaves, simulator):
+    '''
+    Ensure the size of a chromsome is not too large for 'samtools index'
+    See https://github.com/samtools/htsjdk/issues/447 for the issues for large chromosomes
+    '''
+    for tip_node, leaves in tip_node_leaves.items():
+        for parental in 0, 1:
+            fasta = '{}/{}.parental_{}.fa'.format(tumor_dir, tip_node, parental)
+            if not os.path.isfile(fasta):
+                raise argparse.ArgumentTypeError('Cannot find {}.parental_{}.fa under directory: {}'.format(
+                    tip_node, parental, tumor_dir))
+            if (simulator == 'capgem'):
+                fa = pyfaidx.Faidx(fasta)
+                for chroms in fa.index.keys():
+                    chr_len = fa.index[chroms].rlen
+                    if(chr_len > MAX_CHROM):
+                        raise argparse.ArgumentTypeError('The size of chromsome {} ({}) for {} is larger than 512 M!'.format(
+                            chroms, chr_len, fasta))
+
 
 class TargetAction(argparse.Action):
     # adapted from documentation
@@ -137,8 +159,8 @@ def compute_tumor_dna(tumor_dir, tip_node_leaves):
 
             for parental in 0, 1:
                 assert os.path.isfile('{}/{}.parental_{}.fa'.format(tumor_dir, tip_node, parental)),\
-                    'Cannot find {}.parental_{}.fa under the tumor directory: {}'.format(
-                        tip_node, parental, tumor_dir)
+                'Cannot find {}.parental_{}.fa under the tumor directory: {}'.format(
+                    tip_node, parental, tumor_dir)
                 tip_node_gsize[tip_node].append(genomesize(
                     fasta='{}/{}.parental_{}.fa'.format(tumor_dir, tip_node, parental)))
 
@@ -687,6 +709,7 @@ def main(progname=None):
                         help='Output the reads of each genome separately')
 
     args = parser.parse_args()
+    check_normal_fa(args.normal)
 
     # logging and random seed setting
     logging.basicConfig(filename=args.log,
@@ -713,7 +736,6 @@ def main(progname=None):
     logging.info(' Random seed: %d', seed)
     numpy.random.seed(seed)
 
-    check_input(args)
     #create output folders
     if os.path.exists(args.output):
         if os.path.isdir(args.output):
@@ -737,7 +759,7 @@ def main(progname=None):
         if os.path.exists(os.path.join(capgem_dir, 'bin')):
             os.environ['PATH'] += os.pathsep + os.path.join(capgem_dir, 'bin')
         os.environ['PATH'] += os.pathsep + os.path.join(capgem_dir, 'src')
-    assert os.path.isfile(snake_file), 'Cannot find Snakefile below under the program directory:\n{}'.format(snake_file)
+    assert os.path.isfile(snake_file), 'Cannot find Snakefile {} under the program directory:\n'.format(snake_file)
 
     normal_gsize = compute_normal_gsize(args.normal)
     target_size = compute_target_size(args.target)
@@ -745,12 +767,14 @@ def main(progname=None):
 
     # Simulate normal and tumor sample at the same time
     if (args.tumor_rdepth > 0 or args.tumor_rnum > 0) and (args.normal_rdepth > 0 or args.normal_rnum > 0):
+        tip_node_leaves = tip_node_leaves_counting(f=args.map)
+        check_tumor_fa(args.tumor, tip_node_leaves, args.simulator)
+
         outdir = args.output
         configdir = os.path.join(outdir, 'config')
         if not os.path.exists(configdir):
             os.makedirs(configdir)
 
-        tip_node_leaves = tip_node_leaves_counting(f=args.map)
         if args.single:
             for tip_node in tip_node_leaves:
                 assert tip_node_leaves[tip_node]==1,\
@@ -777,6 +801,9 @@ def main(progname=None):
 
     # Separate the simulation of tumor and normal samples
     elif args.tumor_rdepth > 0 or args.tumor_rnum > 0:
+        tip_node_leaves = tip_node_leaves_counting(f=args.map)
+        check_tumor_fa(args.tumor, tip_node_leaves, args.simulator)
+
         outdir = os.path.join(args.output, 'tumor')
         if not os.path.exists(outdir):
             os.makedirs(outdir)
@@ -784,7 +811,6 @@ def main(progname=None):
         if not os.path.exists(configdir):
             os.makedirs(configdir)
 
-        tip_node_leaves = tip_node_leaves_counting(f=args.map)
         if args.single:
             for tip_node in tip_node_leaves:
                 assert tip_node_leaves[tip_node]==1,\
