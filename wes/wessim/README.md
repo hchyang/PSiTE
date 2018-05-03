@@ -1,4 +1,4 @@
-This module is a revision to Wessim (http://sak042.github.io/Wessim/).
+This module is a revision to [Wessim](http://sak042.github.io/Wessim/).
 
 #### Original Wessim
 Wessim is a simulator for whole exome sequencing.
@@ -20,3 +20,7 @@ Several additional packages are required to run WesSim, including:
 	* samtools (http://samtools.sourceforge.net/)
 	* faToTwoBit (http://hgdownload.cse.ucsc.edu/admin/exe/ )
 	* blat (http://hgdownload.cse.ucsc.edu/admin/exe/)
+
+You may use `pip install pysam` to install pysam.
+
+If pysam is not installed, the script fa2wes.py (under folder csite) will try to install it automatically.

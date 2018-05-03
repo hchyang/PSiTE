@@ -17,6 +17,7 @@ import subprocess
 import shutil
 import glob
 import multiprocessing
+import pip
 from csite.phylovar import check_purity, check_seed, random_int
 from csite.fa2wgs import check_folder, check_file, check_depth, merge_fq, OutputExistsError, tip_node_leaves_counting, genomesize
 
@@ -28,21 +29,80 @@ signal(SIGPIPE, SIG_DFL)
 
 # MAX_READFRAC specifies the maximum fraction of simulated total short reads for a single run of simulation. If a large number of reads are simulated, this allows simulation in several batches, with each batch generating a smaller number of reads. Different batches can run at the same time. In the end, the output files from different batches are merged.
 MAX_READFRAC = 0.02
+MAX_CHROM = 512000000
 RATIO_WESSIM = 0.85
 RATIO_CAPGEM = 0.39
 
 
-def check_input(args):
-    # there must be two haplotype fasta in the normal dir
+def check_normal_fa(normal_dir):
+    '''
+    There must be one fasta file for each haplotype in the normal dir
+    '''
     for parental in 0, 1:
-        assert os.path.isfile('{}/normal.parental_{}.fa'.format(args.normal, parental)),\
-            'Can not find normal.parental_{}.fa under the normal directory: {}'.format(
-                parental, args.normal)
+        if not os.path.isfile('{}/normal.parental_{}.fa'.format(normal_dir, parental)):
+            raise argparse.ArgumentTypeError('Cannot find normal.parental_{}.fa under directory: {}'.format(
+                parental, normal_dir))
 
-    if args.simulator in ['wessim','capgem']:
-        assert os.path.isfile(os.path.abspath(args.error_model)),"{} doesn't exist or isn't a file.".format(os.path.abspath(args.error_model))
-    if args.single_end:
-        assert args.simulator in ['wessim','capgem']
+
+def check_tumor_fa(tumor_dir, tip_node_leaves, simulator):
+    '''
+    Ensure the size of a chromsome is not too large for 'samtools index'
+    See https://github.com/samtools/htsjdk/issues/447 for the issues for large chromosomes
+    '''
+    for tip_node, leaves in tip_node_leaves.items():
+        for parental in 0, 1:
+            fasta = '{}/{}.parental_{}.fa'.format(tumor_dir, tip_node, parental)
+            if not os.path.isfile(fasta):
+                raise argparse.ArgumentTypeError('Cannot find {}.parental_{}.fa under directory: {}'.format(
+                    tip_node, parental, tumor_dir))
+            if (simulator == 'capgem'):
+                fa = pyfaidx.Faidx(fasta)
+                for chroms in fa.index.keys():
+                    chr_len = fa.index[chroms].rlen
+                    if(chr_len > MAX_CHROM):
+                        raise argparse.ArgumentTypeError('The size of chromsome {} ({}) for {} is larger than 512 M!'.format(
+                            chroms, chr_len, fasta))
+
+
+class TargetAction(argparse.Action):
+    # adapted from documentation
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values)
+        defaultsim = getattr(namespace, 'simulator')
+        if defaultsim == 'wessim' :
+            defaultval = RATIO_WESSIM
+        elif defaultsim == 'capgem':
+            defaultval = RATIO_CAPGEM
+        else:
+            defaultval = 0.5
+        setattr(namespace, 'ontarget_ratio', defaultval)
+
+
+def check_program(value):
+    if value == "capgem":
+        progs=['bowtie2-build', 'bowtie2', 'samtools', 'capsim']
+        for prog in progs:
+            if shutil.which(prog) is None:
+                raise argparse.ArgumentTypeError("Cannot find program '{}'. Please ensure that you have installed it!".format(prog))
+    elif value == "wessim":
+        progs=['samtools', 'faToTwoBit', 'blat']
+        for prog in progs:
+            if shutil.which(prog) is None:
+                raise argparse.ArgumentTypeError("Cannot find program '{}'. Please ensure that you have installed it!".format(prog))
+        package = "pysam"
+        try:
+            import package
+        except:
+            pip.main(['install', package])
+    else:
+        pass
+    return value
+
+
+def check_snakemake(value):
+    # Use double quotes around option --cluster to distinguish with the single quotes around --snakemake
+    value = value.replace("'",'"')
+    return value
 
 
 def compute_target_size(ftarget):
@@ -99,8 +159,8 @@ def compute_tumor_dna(tumor_dir, tip_node_leaves):
 
             for parental in 0, 1:
                 assert os.path.isfile('{}/{}.parental_{}.fa'.format(tumor_dir, tip_node, parental)),\
-                    'Can not find {}.parental_{}.fa under the tumor directory: {}'.format(
-                        tip_node, parental, tumor_dir)
+                'Cannot find {}.parental_{}.fa under the tumor directory: {}'.format(
+                    tip_node, parental, tumor_dir)
                 tip_node_gsize[tip_node].append(genomesize(
                     fasta='{}/{}.parental_{}.fa'.format(tumor_dir, tip_node, parental)))
 
@@ -552,12 +612,11 @@ def run_snakemake(outdir, args, sample_file, snake_file):
             os.remove(snake_file_copy)
             shutil.move(tmp, snake_file_copy)
 
-    orig_params = args.snakemake.strip('\'').split()
-    config = ' rlen=' + str(args.rlen)
+    # Remove the surrounding quotes around snakemake command.
+    orig_params = args.snakemake.split()
     if not ('--cores' in args.snakemake or '--jobs' in args.snakemake or '-j' in args.snakemake):
         # Use the number of cores specified here
         orig_params += ['-j', str(args.cores)]
-
     if '--cluster' in args.snakemake and '--cluster-config' not in args.snakemake:
         cluster_file = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'wes/config/cluster.yaml')
         assert os.path.isfile(cluster_file), 'Cannot find cluster.yaml below under the program directory:{}'.format(cluster_file)
@@ -565,25 +624,11 @@ def run_snakemake(outdir, args, sample_file, snake_file):
         shutil.copyfile(cluster_file, cluster_file_copy)
         orig_params += ['--cluster-config', cluster_file_copy]
 
-
+    config = ' rlen=' + str(args.rlen)
     final_cmd_params =  orig_params + ['-s', os.path.abspath(snake_file_copy), '-d', os.path.abspath(outdir), '--configfile', os.path.abspath(sample_file), '--config', config]
-
     logging.info(' Command: %s', ' '.join(final_cmd_params))
 
     os.system(' '.join(final_cmd_params))
-
-class TargetAction(argparse.Action):
-    # adapted from documentation
-    def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, values)
-        defaultsim = getattr(namespace, 'simulator')
-        if defaultsim == 'wessim' :
-            defaultval = RATIO_WESSIM
-        elif defaultsim == 'capgem':
-            defaultval = RATIO_CAPGEM
-        else:
-            defaultval = 0.5
-        setattr(namespace, 'ontarget_ratio', defaultval)
 
 
 def main(progname=None):
@@ -621,7 +666,7 @@ def main(progname=None):
                        help='The number of short reads to simulate for tumor sample [{}]'.format(default))
     group = group2.add_mutually_exclusive_group()
     default = 0
-    group.add_argument('-D', '--normal_rdepth', metavar='FLOAT', type=float, default=check_depth,
+    group.add_argument('-D', '--normal_rdepth', metavar='FLOAT', type=check_depth, default=default,
                        help='The mean depth of normal sample for simulating short reads [{}]'.format(default))
     default = 0
     group.add_argument('-R', '--normal_rnum', metavar='INT', type=int, default=default,
@@ -630,7 +675,7 @@ def main(progname=None):
     group2.add_argument('--random_seed', metavar='INT', type=check_seed,
                        help='The seed for random number generator [{}]'.format(default))
     default = 'wessim'
-    group2.add_argument('--simulator', default=default, choices=['wessim','capgem'], action=TargetAction,
+    group2.add_argument('--simulator', default=default, choices=['wessim','capgem'], action=TargetAction, type=check_program,
                        help='The whole-exome sequencing simulator used for simulating short reads [{}]'.format(default))
     default = RATIO_WESSIM
     group2.add_argument('--ontarget_ratio', metavar='FLOAT', type=float, default=default,
@@ -640,9 +685,9 @@ def main(progname=None):
                        help='The file containing the empirical error model for NGS reads generated by GemErr (It must be provided when capgem or wessim is used for simulation) [{}]'.format(default))
     group2.add_argument('--single', action='store_true',
         help='single cell mode. After this setting, the value of --rnum is for each tumor cell (not the whole tumor sample anymore)')
-    default = "'snakemake --rerun-incomplete -k --latency-wait 120'"
-    group2.add_argument('--snakemake', metavar='STR', type=str, default=default,
-                       help="The command used for calling a whole-exome sequencing simulator. The Snakefile for a simulator is under the directory 'wes/config' of the source code. Additional parameters for a simulator can be adjusted in the Snakefile [{}]".format(default))
+    default = "snakemake --rerun-incomplete -k --latency-wait 120"
+    group2.add_argument('--snakemake', metavar='STR', type=check_snakemake, default=default,
+                       help="The snakemake command used for calling a whole-exome sequencing simulator. The Snakefile for a simulator is under the directory 'wes/config' of the source code. Additional parameters for a simulator can be adjusted in the Snakefile ['{}']".format(default))
     default = 1
     group2.add_argument('--cores', type=int, default=default, metavar='INT',
                         help="The number of cores used to run the program (including snakemake). If '--cores' or '--jobs' or '-j' is specified in the options of snakemake, the value specified by '--cores' here will be ignored when snakemake is called [{}]".format(default))
@@ -664,6 +709,7 @@ def main(progname=None):
                         help='Output the reads of each genome separately')
 
     args = parser.parse_args()
+    check_normal_fa(args.normal)
 
     # logging and random seed setting
     logging.basicConfig(filename=args.log,
@@ -672,7 +718,11 @@ def main(progname=None):
     argv_copy = sys.argv[:]
     try:
         snakemake_index = argv_copy.index('--snakemake')
-        argv_copy[snakemake_index + 1] = "'{}'".format(argv_copy[snakemake_index + 1])
+        # Single quotes are required for the snakemake command
+        snakemake_str = argv_copy[snakemake_index + 1]
+        if "'" in snakemake_str:
+            snakemake_str = snakemake_str.replace("'",'"')
+        argv_copy[snakemake_index + 1] = "'{}'".format(snakemake_str)
     except ValueError:
         pass
     argv_copy.insert(1, 'fa2wes')
@@ -686,7 +736,6 @@ def main(progname=None):
     logging.info(' Random seed: %d', seed)
     numpy.random.seed(seed)
 
-    check_input(args)
     #create output folders
     if os.path.exists(args.output):
         if os.path.isdir(args.output):
@@ -710,7 +759,7 @@ def main(progname=None):
         if os.path.exists(os.path.join(capgem_dir, 'bin')):
             os.environ['PATH'] += os.pathsep + os.path.join(capgem_dir, 'bin')
         os.environ['PATH'] += os.pathsep + os.path.join(capgem_dir, 'src')
-    assert os.path.isfile(snake_file), 'Cannot find Snakefile below under the program directory:\n{}'.format(snake_file)
+    assert os.path.isfile(snake_file), 'Cannot find Snakefile {} under the program directory:\n'.format(snake_file)
 
     normal_gsize = compute_normal_gsize(args.normal)
     target_size = compute_target_size(args.target)
@@ -718,12 +767,14 @@ def main(progname=None):
 
     # Simulate normal and tumor sample at the same time
     if (args.tumor_rdepth > 0 or args.tumor_rnum > 0) and (args.normal_rdepth > 0 or args.normal_rnum > 0):
+        tip_node_leaves = tip_node_leaves_counting(f=args.map)
+        check_tumor_fa(args.tumor, tip_node_leaves, args.simulator)
+
         outdir = args.output
         configdir = os.path.join(outdir, 'config')
         if not os.path.exists(configdir):
             os.makedirs(configdir)
 
-        tip_node_leaves = tip_node_leaves_counting(f=args.map)
         if args.single:
             for tip_node in tip_node_leaves:
                 assert tip_node_leaves[tip_node]==1,\
@@ -750,6 +801,9 @@ def main(progname=None):
 
     # Separate the simulation of tumor and normal samples
     elif args.tumor_rdepth > 0 or args.tumor_rnum > 0:
+        tip_node_leaves = tip_node_leaves_counting(f=args.map)
+        check_tumor_fa(args.tumor, tip_node_leaves, args.simulator)
+
         outdir = os.path.join(args.output, 'tumor')
         if not os.path.exists(outdir):
             os.makedirs(outdir)
@@ -757,7 +811,6 @@ def main(progname=None):
         if not os.path.exists(configdir):
             os.makedirs(configdir)
 
-        tip_node_leaves = tip_node_leaves_counting(f=args.map)
         if args.single:
             for tip_node in tip_node_leaves:
                 assert tip_node_leaves[tip_node]==1,\

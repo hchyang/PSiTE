@@ -1,4 +1,5 @@
 # This file specifies the parameter settings for running snakemake on a cluster
+# You may adjust the resources used by a snakemake rule here
 "__default__" :
   "time" : "48:00:00"
   "mem" : 8G

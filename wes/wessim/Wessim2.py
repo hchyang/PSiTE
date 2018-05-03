@@ -2,7 +2,6 @@
 
 import sys
 import bisect
-import pysam
 import gzip
 import numpy
 from time import time, localtime, strftime

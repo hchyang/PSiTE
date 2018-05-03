@@ -57,15 +57,13 @@ import japsa.util.Logging;
 import japsa.util.Simulation;
 import japsa.util.deploy.Deployable;
 
-
-
 /**
  * @author minhduc
  *
  */
 @Deployable(
 		scriptName = "capsim",
-		scriptDesc = "Simulate capture sequencing"
+		scriptDesc = "Simulate target capture sequencing"
 		)
 public class SimulateCaptureCmd extends CommandLine{
 	//CommandLine cmdLine;
@@ -164,7 +162,6 @@ public class SimulateCaptureCmd extends CommandLine{
 		//}
 
 		SequenceOutputStream miFrag = null;
-
 		if (miseq != null){
 			miFrag = SequenceOutputStream.makeOutputStream(miseq + "_frag.txt");
 		}
@@ -281,7 +278,6 @@ public class SimulateCaptureCmd extends CommandLine{
 			if (genRegion != null){
 				long p = (long) (r * genRegion.totLength);
 				int index = 0;
-
 				while (p > genRegion.regions.get(index).accuLength){
 					index ++;
 				}
@@ -479,5 +475,4 @@ public class SimulateCaptureCmd extends CommandLine{
 			return region;
 		}
 	}
-
 }
