@@ -103,8 +103,9 @@ def main(progname=None):
     default=None
     group5.add_argument('--probe',metavar='FILE',type=check_file,default=default,
         help='The file containing the probe sequences (FASTA format) [{}]'.format(default))
-    group5.add_argument('--target', metavar='FILE', type=str, required=True,
-    help='The Target file containing the target regions (BED format)')
+    default=None
+    group5.add_argument('--target', metavar='FILE', type=str, default=default,
+        help='The Target file containing the target regions (BED format)')
     default=0
     group5sub1=group5.add_mutually_exclusive_group()
     group5sub2=group5.add_mutually_exclusive_group()
@@ -147,6 +148,8 @@ def main(progname=None):
     if args.type in ['WES','BOTH']:
         if args.probe==None:
             raise argparse.ArgumentTypeError("'--probe' is required to simulate WES data!")
+        if args.target==None:
+            raise argparse.ArgumentTypeError("'--target' is required to simulate WES data!")
         if args.tumor_rdepth!=0 and args.tumor_rnum!=0:
             raise argparse.ArgumentTypeError("--tumor_rdepth: not allowed with --tumor_rnum!")
         if args.normal_rdepth!=0 and args.normal_rnum!=0:
