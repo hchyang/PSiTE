@@ -121,8 +121,8 @@ def main(progname=None):
     group5sub2.add_argument('--normal_rnum',metavar='INT',type=int,default=default,
         help='The number of short reads to simulate for normal sample [{}]'.format(default))
     default='wessim'
-    group5.add_argument('--simulator', default=default, choices=['wessim','capgem'], 
-        action=TargetAction, type=check_program, 
+    group5.add_argument('--simulator', default=default, choices=['wessim','capgem'],
+        action=TargetAction,
         help='The whole-exome sequencing simulator used for simulating short reads [{}]'.format(default))
     default = RATIO_WESSIM
     group5.add_argument('--ontarget_ratio', metavar='FLOAT', type=float, default=default,
@@ -161,6 +161,7 @@ def main(progname=None):
             raise argparse.ArgumentTypeError("--tumor_rdepth: not allowed with --tumor_rnum!")
         if args.normal_rdepth!=0 and args.normal_rnum!=0:
             raise argparse.ArgumentTypeError("--normal_rdepth: not allowed with --normal_rnum!")
+        check_program(args.simulator)
 
 #get absolute paths for the input files
     reference=os.path.abspath(args.reference)
