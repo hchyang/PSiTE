@@ -30,8 +30,8 @@ def usage():
     print("         phylovar   simulate somatic variants along a phylogeny")
     print("         chain2fa   build tumor genomes from somatic variants (encoded in the chain file)")
     print("         fa2wgs     simulate WGS reads from normal and tumor genomes (in fasta format)")
-    print("         fa2wes     simulate WES short reads from normal and tumor fasta")
-    print("         allinone   a wrapper for NGS reads simulation combining all previous steps")
+    print("         fa2wes     simulate WES reads from normal and tumor genomes (in fasta format)")
+    print("         allinone   a wrapper for NGS reads simulation by combining all individual steps")
     print("")
 
 def main():
