@@ -301,7 +301,7 @@ def main(progname=None):
         help='the output file to save SNVs/CNVs on each node [{}]'.format(default))
     default=None
     group4.add_argument('--cnv_profile',type=str,default=default,metavar='FILE',
-        help='the file to save CNVs profile [{}]'.format(default))
+        help='the file to save CNVs profile across the cell population of the sample [{}]'.format(default))
     group4.add_argument('--snv_genotype',type=str,metavar='FILE',
         help='the file to save SNV genotypes for each cell')
     group4.add_argument('--ind_cnvs',type=str,metavar='FILE',
@@ -402,24 +402,26 @@ def main(progname=None):
     else:
         mytree.prune(tips=0.5)
     tipnode_leaves=mytree.tipnode_leaves
+    tipnode_list=list(tipnode_leaves.keys())
+    tipnode_list.sort()
     leaf_tipnode={}
     leaves_names=[]
-    for tipnode,names in tipnode_leaves.items():
-        leaves_names.extend(names)
-        for name in names:
-            leaf_tipnode[name]=tipnode
+    for tipnode,leaves in tipnode_leaves.items():
+        leaves_names.extend(leaves)
+        for leaf in leaves:
+            leaf_tipnode[leaf]=tipnode
     leaves_names.sort()
     logging.info(' There are %s leaves on your input tree.',len(leaves_names))
     if args.prune>0 or args.prune_proportion>0:
-        logging.info(' After pruning, there are %s tip nodes on the tree.',len(tipnode_leaves))
+        logging.info(' After pruning, there are %s tip nodes on the tree.',len(tipnode_list))
 
 ###### output the map of tip_node(after pruning):leaf
-    if args.chain:
+    if args.chain!=None:
         os.mkdir(args.chain,mode=0o755)
-    if args.map:
+    if args.map!=None:
         with open(args.map,'w') as tipnode_samples_map_f:
             tipnode_samples_map_f.write('#tip_node\tcell_count\tcells\n')
-            for tip_node in sorted(tipnode_leaves.keys()):
+            for tip_node in tipnode_list:
                 tipnode_samples_map_f.write('{}\t{}\t'.format(tip_node,len(tipnode_leaves[tip_node])))
                 tipnode_samples_map_f.write(','.join(sorted(tipnode_leaves[tip_node])))
                 tipnode_samples_map_f.write('\n')
@@ -445,7 +447,7 @@ def main(progname=None):
 
     if args.snv_genotype!=None:
         genotype_file=open(args.snv_genotype,'w')
-        genotype_file.write('#chr\tstart\tend\tform\t{}\n'.format('\t'.join(leaves_names)))
+        genotype_file.write('#chr\tstart\tend\tform\t{}\n'.format('\t'.join(tipnode_list)))
     
     if args.ind_cnvs!=None:
         ind_cnvs_file=open(args.ind_cnvs,'w')
@@ -501,13 +503,13 @@ def main(progname=None):
         if args.snv_genotype!=None:
             for pos,mutation,freq in snvs_freq:
                 genotype_file.write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,pos,pos+1,mutation,
-                    '\t'.join([str(tipnode_snv_alts[leaf_tipnode[leaf]][pos])+':'+str(tipnode_snv_refs[leaf_tipnode[leaf]][pos]) for leaf in leaves_names])))
+                    '\t'.join([str(tipnode_snv_alts[tipnode][pos])+':'+str(tipnode_snv_refs[tipnode][pos]) for tipnode in tipnode_list])))
 
         if args.ind_cnvs!=None:
-            for leaf in leaves_names:
-                for cnv in tipnode_cnvs[leaf_tipnode[leaf]]:
+            for tipnode in tipnode_list:
+                for cnv in tipnode_cnvs[tipnode]:
                     cnv_copy='+{}'.format(cnv['copy']) if cnv['copy']>0 else str(cnv['copy'])
-                    ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [leaf,cnv['parental'],chroms,cnv['start'],cnv['end'],cnv_copy]])))
+                    ind_cnvs_file.write('{}\n'.format('\t'.join([str(x) for x in [tipnode,cnv['parental'],chroms,cnv['start'],cnv['end'],cnv_copy]])))
 
 #        if args.haplotype_copy!=None:
 #            for snv in hap_local_copy_for_all_snvs:
@@ -522,6 +524,8 @@ def main(progname=None):
 
         if args.cnv_profile!=None:
             for seg in cnv_profile:
+#cnv_profile means the local copy of each segment across the cell population of the sample (normal+tumor)
+                seg[-1]=seg[-1]+normal_dosage
                 cnv_profile_file.write('{}\n'.format('\t'.join([str(x) for x in [chroms]+seg])))
 
 ##output for expands

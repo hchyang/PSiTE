@@ -469,7 +469,7 @@ class Tree:
                 for tipnode in self.collect_tipnodes():
                     if tipnode not in genotypes:
                         genotypes[tipnode]=[]
-#set leaves_count=1 here, as each tipnode just each of the leaves under it,
+#set leaves_count=1 here, as a tipnode is a representative of each one of the leaves under it
                     genotypes[tipnode].append({'start':cnv['start'],'end':cnv['end'],'copy':cnv['copy'],'leaves_count':1,'parental':parental})
                 if cnv['copy']>0: #amplification
                     for cp in cnv['new_copies']:
