@@ -59,7 +59,7 @@ def main(progname=None):
         pyfaidx.Faidx(fa)
     pool=multiprocessing.Pool(processes=args.cores)
     results=[]
-    for node_chain in glob.glob(args.chain+'/node*.chain'):
+    for node_chain in glob.glob(os.path.join(args.chain,'node*.chain')):
         results.append(pool.apply_async(build_fasta,args=(args.output,node_chain,normal_fa,args.width)))
     pool.close()
     pool.join()
@@ -76,7 +76,7 @@ def build_fasta(output=None,chain=None,normal_fa=None,width=None):
     node=node.split('.')[0]
     outputf=[]
     for parental in 0,1:
-        outputf.append(open('{}/{}.parental_{}.fa'.format(output,node,parental),'w'))
+        outputf.append(open(os.path.join(output,'{}.parental_{}.fa'.format(node,parental)),'w'))
     reference=None
     with open(chain) as inputf:
         seq_name=None

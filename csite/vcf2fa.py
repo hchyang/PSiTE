@@ -95,7 +95,7 @@ def main(progname=None):
     os.mkdir(args.output,mode=0o755) 
 
     for i in range(2):
-        with open('{}/normal.parental_{}.fa'.format(args.output,i),'w') as output:
+        with open(os.path.join(args.output,'normal.parental_{}.fa'.format(i)),'w') as output:
             for chroms in genome_profile['order']:
                 if i<len(genome_profile[chroms]['hap_vars']):
                     start=0

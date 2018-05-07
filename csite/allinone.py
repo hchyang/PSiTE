@@ -257,7 +257,7 @@ def main(progname=None):
 
         cmd_params=[sys.argv[0],'chain2fa',
                     '--chain',tumor_chain,
-                    '--normal','{dir}/normal.parental_0.fa,{dir}/normal.parental_1.fa'.format(dir=normal_fa),
+                    '--normal',','.join([os.path.join(normal_fa,'normal.parental_{}.fa'.format(x)) for x in 0,1]),
                     '--cores',str(args.cores),
                     '--output',tumor_fa]
         logging.info(' Command: %s',' '.join(cmd_params))

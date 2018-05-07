@@ -127,12 +127,12 @@ def main(progname=None):
     pool=multiprocessing.Pool(processes=args.cores)
     results=[]
     for parental in 0,1:
-        fasta='{}/normal.parental_{}.fa'.format(args.normal,parental)
+        fasta=os.path.join(args.normal,'normal.parental_{}.fa'.format(parental))
         assert os.path.isfile(fasta),\
             "Couldn't find {} under the normal directory: {}".format(fasta,args.normal)
         results.append(pool.apply_async(build_fai,args=(fasta,)))
         for tip_node in tip_node_leaves.keys():
-            fasta='{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)
+            fasta=os.path.join(args.tumor,'{}.parental_{}.fa'.format(tip_node,parental))
             assert os.path.isfile(fasta),\
                 "Couldn't find {} under the tumor directory: {}".format(fasta,args.tumor)
             results.append(pool.apply_async(build_fai,args=(fasta,)))
@@ -145,7 +145,7 @@ def main(progname=None):
 #FIXME: cell number: float? int?
     normal_gsize=0
     for parental in 0,1:
-        normal_gsize+=genomesize(fasta='{}/normal.parental_{}.fa'.format(args.normal,parental))
+        normal_gsize+=genomesize(fasta=os.path.join(args.normal,'normal.parental_{}.fa'.format(parental)))
     tumor_seq_bases=normal_gsize/2*args.tumor_depth
 
     tumor_cells=sum(tip_node_leaves.values())
@@ -162,7 +162,7 @@ def main(progname=None):
 #2)the sum of parental 0 and 1
         tip_node_gsize[tip_node]=[]
         for parental in 0,1:
-            tip_node_gsize[tip_node].append(genomesize(fasta='{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)))
+            tip_node_gsize[tip_node].append(genomesize(fasta=os.path.join(args.tumor,'{}.parental_{}.fa'.format(tip_node,parental))))
         tip_node_gsize[tip_node].append(tip_node_gsize[tip_node][0]+tip_node_gsize[tip_node][1])
         tumor_dna+=tip_node_gsize[tip_node][2]*tip_node_leaves[tip_node]
     tumor_seq_per_base=tumor_seq_bases/(normal_dna+tumor_dna)
@@ -175,8 +175,8 @@ def main(progname=None):
             raise OutputExistsError("A file in the name of '{}' exists.\nDelete it or try another name as output folder.".format(args.output))
     else:
         os.mkdir(args.output,mode=0o755)
-    tumor_dir=args.output+'/tumor'
-    normal_dir=args.output+'/normal'
+    tumor_dir= os.path.join(args.output,'tumor')
+    normal_dir=os.path.join(args.output,'normal')
 
 #collect simulation parameters first
     params_matrix=[]
@@ -190,9 +190,9 @@ def main(progname=None):
             raise OutputExistsError("'{}' exists already! \nCan not use it as the output folder of normal NGS reads.".format(normal_dir)+
                 '\nDelete it or use another folder as output folder.') from e
         for parental in 0,1:
-            prefix='{}/normal.parental_{}.'.format(normal_dir,parental)
+            prefix=os.path.join(normal_dir,'normal.parental_{}.'.format(parental))
             fcov=args.normal_depth/2
-            ref='{}/normal.parental_{}.fa'.format(args.normal,parental)
+            ref=os.path.join(args.normal,'normal.parental_{}.fa'.format(parental))
             sim_cfg={
                 'gsize':normal_gsize/2,
                 'base_cmd':art_params,
@@ -214,9 +214,9 @@ def main(progname=None):
         for parental in 0,1:
             if args.single:
                 continue
-            prefix='{}/normal.parental_{}.'.format(tumor_dir,parental)
+            prefix=os.path.join(tumor_dir,'normal.parental_{}.'.format(parental))
             fcov=normal_cells*tumor_seq_per_base
-            ref='{}/normal.parental_{}.fa'.format(args.normal,parental)
+            ref=os.path.join(args.normal,'normal.parental_{}.fa'.format(parental))
             sim_cfg={
                 'gsize':normal_gsize/2,
                 'base_cmd':art_params,
@@ -235,8 +235,8 @@ def main(progname=None):
             else:
                 fcov=tip_node_leaves[tip_node]*tumor_seq_per_base
             for parental in 0,1:
-                ref='{}/{}.parental_{}.fa'.format(args.tumor,tip_node,parental)
-                prefix='{}/{}.parental_{}.'.format(tumor_dir,tip_node,parental)
+                ref=os.path.join(args.tumor,'{}.parental_{}.fa'.format(tip_node,parental))
+                prefix=os.path.join(tumor_dir,'{}.parental_{}.'.format(tip_node,parental))
                 sim_cfg={
                     'gsize':tip_node_gsize[tip_node][parental],
                     'base_cmd':art_params,
@@ -283,27 +283,27 @@ def main(progname=None):
         suffixes=[x+'.gz' for x in suffixes]
     if args.normal_depth>0:
         for suffix in suffixes:
-            prefix='{}/normal.parental_[01].[0-9][0-9].'.format(normal_dir)
+            prefix=os.path.join(normal_dir,'normal.parental_[01].[0-9][0-9].')
             source=glob.glob(prefix+suffix)
             if len(source):
-                target='{}/normal.{}'.format(normal_dir,suffix)
+                target=os.path.join(normal_dir,'normal.{}'.format(suffix))
                 source.sort()
                 sample_fq_files.append([target,source])
     if args.tumor_depth>0:
         for suffix in suffixes:
             if args.single or args.separate:
                 for tip_node in ['normal']+sorted(tip_node_leaves.keys()):
-                    prefix='{}/{}.parental_[01].[0-9][0-9].'.format(tumor_dir,tip_node)
+                    prefix=os.path.join(tumor_dir,'{}.parental_[01].[0-9][0-9].'.format(tip_node))
                     source=glob.glob(prefix+suffix)
                     if len(source):
-                        target='{}/{}.{}'.format(tumor_dir,tip_node,suffix)
+                        target=os.path.join(tumor_dir,'{}.{}'.format(tip_node,suffix))
                         source.sort()
                         sample_fq_files.append([target,source])
             else:
-                prefix='{}/*.parental_[01].[0-9][0-9].'.format(tumor_dir)
+                prefix=os.path.join(tumor_dir,'*.parental_[01].[0-9][0-9].')
                 source=glob.glob(prefix+suffix)
                 if len(source):
-                    target='{}/tumor.{}'.format(tumor_dir,suffix)
+                    target=os.path.join(tumor_dir,'tumor.{}'.format(suffix))
                     source.sort()
                     sample_fq_files.append([target,source])
     pool=multiprocessing.Pool(processes=args.cores)
