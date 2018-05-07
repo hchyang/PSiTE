@@ -34,7 +34,7 @@ def check_autosomes(autosomes_str=None):
         if n==0:
             pass
         elif n==1:
-            m=re.search('^(.*)([0-9]+)\.\.(\\1)?([0-9]+)$',i)
+            m=re.search('^(.*?)([0-9]+)\.\.(\\1)?([0-9]+)$',i)
             if m:
                 start=int(m.group(2))
                 end=int(m.group(4))
@@ -131,7 +131,7 @@ def parse_autosomes(autosomes_str=None):
         if n==0:
             autosomes.append(i)
         elif n==1:
-            m=re.search('^(.*)([0-9]+)\.\.(\\1)?([0-9]+)$',i)
+            m=re.search('^(.*?)([0-9]+)\.\.(\\1)?([0-9]+)$',i)
             if m:
                 prefix=m.group(1)
                 start=int(m.group(2))
