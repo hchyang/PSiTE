@@ -86,10 +86,10 @@ def check_purity(value=None):
     return fvalue
 
 def check_folder(directory=None):
-    good_charactors=re.compile('^[0-9a-zA-Z/_\-]+$') 
+    good_charactors=re.compile('^[0-9a-zA-Z/_\-.]+$') 
     if not good_charactors.match(directory):
         raise argparse.ArgumentTypeError("'{}' is an invalid string for --chain. ".format(directory)+
-            "Please only use number, alphabet and _/- in the directory name.")
+            "Please only use number, alphabet and ._/- in the directory name.")
     if os.path.exists(directory):
         raise argparse.ArgumentTypeError("'{}' exists already. Delete it or use another name instead.".format(directory))
     return directory
@@ -206,6 +206,60 @@ def check_config_file(config=None):
 class ConfigFileError(Exception):
     pass
 
+class AffiliationFileError(Exception):
+    pass
+
+def read_affiliation(affiliation_f=None):
+    '''
+    Check the format of affiliation file and dump the data into the dictionay sectors.
+    There should be 3 columns in the affiliation fle.
+    1. sector id
+    2. prune proportion of the sector
+    3. tumor cells in the sector
+    '''
+    sectors={}
+    with open(affiliation_f) as input:
+        for line in input:
+            if line.startswith('#'):
+                continue
+            line=line.rstrip()
+            cols=line.split()
+            if len(cols)!=3:
+                raise AffiliationFileError("The format of your affiliation file is not right!")
+            sector=cols[0]
+            prune_p=float(cols[1])
+            cells=[]
+            for i in cols[2].split(','):
+                n=i.count('..')
+                if n==0:
+                    cells.append(i)
+                elif n==1:
+                    m=re.search('^(.*?)([0-9]+)\.\.(\\1)?([0-9]+)$',i)
+                    if m:
+                        prefix=m.group(1)
+                        start=int(m.group(2))
+                        end=int(m.group(4))
+                        if start>=end:
+                            raise AffiliationFileError("The string '{}' is not valid in your affiliation file.".format(i))
+                        else:
+                            cells.extend([prefix+str(x) for x in range(start,end+1)])
+                    else:
+                        raise AffiliationFileError("The string '{}' is not valid in your affiliation file.".format(i))
+                else:
+                    raise AffiliationFileError("The string '{}' is not valid in your affiliation file.".format(i))
+            if sector in sectors:
+                if prune_p!=sectors[sector]['prune_p']:
+                    raise AffiliationFileError("Found two different prune proportions for sector {} in affiliation file:\n{} and {}"\
+                        .format(prune_p,sectors[sector]['prune_p']))
+                else:
+                    sectors[sector]['members'].extend(cells)
+            else:
+                sectors[sector]={'prune_p':prune_p,'members':cells}
+
+    for sector in sectors:
+        sectors[sector]['members']=set(sectors[sector]['members'])
+    return sectors
+
 #use kernprof -l -v script.py to profile
 #@profile
 def main(progname=None):
@@ -222,6 +276,9 @@ def main(progname=None):
     group1.add_argument('--config',type=str,default=default,metavar='FILE',
         help='a YAML file which contains the configuration of somatic variant simulation. '+
             '-n/-r/-R/-d/-l/-L/-c/-C/-p/--tstv/--length will be ignored. [{}]'.format(default))
+    default=None
+    group1.add_argument('--affiliation',type=str,default=default,metavar='FILE',
+        help='a file containing sector affiliation of the cells in the sample [{}]'.format(default))
     group2=parser.add_argument_group('Simulation arguments (can be set in config YAML)')
     default='1'
     group2.add_argument('-n','--name',type=str,default=default,metavar='STR',
@@ -312,8 +369,8 @@ def main(progname=None):
 #    parser.add_argument('--expands',type=str,default=default,
 #        help='the basename of the file to output the snv and segment data for EXPANDS [{}]'.format(default))
     default=None
-    group4.add_argument('--map',type=str,default=default,metavar='FILE',
-        help='the map file to save the relationship between tip nodes and original samples [{}]'.format(default))
+    group4.add_argument('--map',type=check_folder,default=default,metavar='DIR',
+        help='directory to output the map file for each sector, which contain the relationship between tip nodes and original samples [{}]'.format(default))
     default=None
     group4.add_argument('--chain',type=check_folder,default=default,metavar='DIR',
         help='directory to output chain files for each sample [{}]'.format(default))
@@ -382,25 +439,37 @@ def main(progname=None):
     mytree=csite.tree.newick2tree(newick)
     if args.trunk_length:
         mytree.lens=args.trunk_length
+                
 #################original_tree
     original_tree=copy.deepcopy(mytree)
-    leaves_number=mytree.leaves_counting()
 
-####### prune the tree if required
-    if args.prune>0 and args.prune_proportion>0:
-        raise argparse.ArgumentTypeError("Use either --prune or --prune_proportion. Do not use both!")
-    elif args.prune>0:
-        if not args.prune<leaves_number:
-            raise argparse.ArgumentTypeError("There are only {} leaves on the tree. Can not prune {} leaves.".format(
-                leaves_number,args.prune))
-        elif args.prune>=1:
-            mytree.prune(tips=args.prune)
-    elif args.prune_proportion>0:
-        trim=leaves_number*args.prune_proportion
-        if trim>=1:
-            mytree.prune(tips=trim)
+###### anyway, prune the tree 
+    leaves_number=mytree.leaves_counting()
+    leaves_names=mytree.leaves_naming()
+    sectors={}
+    prune_p=0
+    if args.affiliation:
+        if args.prune or args.prune_proportion:
+            raise argparse.ArgumentTypeError("Please set the prune cutoff in affiliation file.")
+        sectors=read_affiliation(args.affiliation)
+        for sector in sectors:
+            invalid=set(sectors[sector]['members'])-set(leaves_names)
+            if invalid:
+                raise AffiliationFileError("Can not find the cells below on your tree:\n{}".format(','.join([str(x) for x in invalid])))
     else:
-        mytree.prune(tips=0.5)
+        if args.prune>0:
+            if args.prune>leaves_number:
+                raise argparse.ArgumentTypeError("There are only {} leaves on the tree. Can not prune {} leaves.".format(
+                    leaves_number,args.prune))
+            prune_p=args.prune/leaves_number
+        elif args.prune_proportion>0:
+            prune_p=args.prune_proportion
+        sectors['Tumor']={'prune_p':prune_p,'members':set(mytree.leaves_naming())}
+    for sector in sectors:
+        sectors[sector]['prune_n']=sectors[sector]['prune_p']*len(sectors[sector]['members'])
+    mytree.prune(sectors=sectors)
+
+######
     tipnode_leaves=mytree.tipnode_leaves
     tipnode_list=list(tipnode_leaves.keys())
     tipnode_list.sort()
@@ -419,12 +488,16 @@ def main(progname=None):
     if args.chain!=None:
         os.mkdir(args.chain,mode=0o755)
     if args.map!=None:
-        with open(args.map,'w') as tipnode_samples_map_f:
-            tipnode_samples_map_f.write('#tip_node\tcell_count\tcells\n')
-            for tip_node in tipnode_list:
-                tipnode_samples_map_f.write('{}\t{}\t'.format(tip_node,len(tipnode_leaves[tip_node])))
-                tipnode_samples_map_f.write(','.join(sorted(tipnode_leaves[tip_node])))
-                tipnode_samples_map_f.write('\n')
+        os.mkdir(args.map,mode=0o755)
+        for sector in sectors:
+            with open(os.path.join(args.map,'{}.tipnode.map'.format(sector)),'w') as tipnode_samples_map_f:
+                tipnode_samples_map_f.write('#tip_node\tcell_count\tcells\n')
+                for tip_node in tipnode_list:
+                    focal_members=sectors[sector]['members'].intersection(set(tipnode_leaves[tip_node]))
+                    if len(focal_members):
+                        tipnode_samples_map_f.write('{}\t{}\t'.format(tip_node,len(focal_members)))
+                        tipnode_samples_map_f.write(','.join(sorted(focal_members)))
+                        tipnode_samples_map_f.write('\n')
 
 
 

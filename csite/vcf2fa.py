@@ -55,10 +55,10 @@ def check_sex(chrs=None):
     return chrs
 
 def check_output_folder(directory=None):
-    good_charactors=re.compile('^[0-9a-zA-Z/_\-]+$') 
+    good_charactors=re.compile('^[0-9a-zA-Z/_\-.]+$') 
     if not good_charactors.match(directory):
         raise argparse.ArgumentTypeError("'{}' is an invalid string for --output. ".format(directory)+
-            "Please only the combination of numbers, alphabets and _/- as the directory name.")
+            "Please only the combination of numbers, alphabets and ._/- as the directory name.")
     if os.path.exists(directory):
         raise argparse.ArgumentTypeError("'{}' exists already. Delete it or use another name instead.".format(directory))
     return directory

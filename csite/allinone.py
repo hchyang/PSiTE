@@ -45,6 +45,9 @@ def main(progname=None):
         help='a YAML file which contains the configuration of somatic variant simulation')
     group1.add_argument('-a','--autosomes',type=check_autosomes,required=True,metavar='STR',
         help='autosomes of the genome (e.g. 1,2,3,4,5 or 1..4,5)')
+    default=None
+    group2.add_argument('--affiliation',type=check_file,default=default,metavar='FILE',
+        help='a file containing sector affiliation of the cells in the sample [{}]'.format(default))
     default='WGS'
     group0.add_argument('--type',type=str,default=default,choices=['WGS','WES','BOTH'],
         help='sequencing type to simulate [{}]'.format(default))
@@ -81,6 +84,10 @@ def main(progname=None):
     default=0.6
     group3.add_argument('-p','--purity',type=check_purity,default=default,metavar='FLOAT',
         help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
+    default=None
+    group3.add_argument('--sectors',type=check_file,default=default,metavar='FILE',
+        help='the file contains purity and depth profile of each tumor sector. \
+              After this setting, -d/-p will be ignored. [{}]'.format(default))
     default=150
     group3.add_argument('--rlen',type=int,default=default,metavar='INT',
         help="the length of reads to simulate [{}]".format(default))
@@ -170,6 +177,10 @@ def main(progname=None):
     config=os.path.abspath(args.config)
     if args.trunk_vars:
         trunk_vars=os.path.abspath(args.trunk_vars)
+    if args.affiliation:
+        affiliation=os.path.abspath(args.affiliation)
+    if args.sectors:
+        sectors=os.path.abspath(args.sectors)
     outdir=args.output
     if args.start==1:
         try:
@@ -205,7 +216,7 @@ def main(progname=None):
     tumor_fa='tumor_fa'
     tumor_chain='tumor_chain'
 #map file
-    map_file='tipnode_samples.map'
+    map_dir='map'
 
 #vcf2fa
     if args.start<2:
@@ -233,12 +244,14 @@ def main(progname=None):
                     '--config',config,
                     '--purity',str(args.purity),
                     '--random_seed',str(random_n),
-                    '--map',map_file,
+                    '--map',map_dir,
                     '--chain',tumor_chain]
         if args.sex_chr:
             cmd_params.extend(['--sex_chr',args.sex_chr])
         if args.trunk_vars:
             cmd_params.extend(['--trunk_vars',trunk_vars])
+        if args.affiliation:
+            cmd_params.extend(['--affiliation',affiliation])
         if args.trunk_length:
             cmd_params.extend(['--trunk_length',str(args.trunk_length)])
         if args.prune:
@@ -257,7 +270,7 @@ def main(progname=None):
 
         cmd_params=[sys.argv[0],'chain2fa',
                     '--chain',tumor_chain,
-                    '--normal',','.join([os.path.join(normal_fa,'normal.parental_{}.fa'.format(x)) for x in 0,1]),
+                    '--normal',','.join([os.path.join(normal_fa,'normal.parental_{}.fa'.format(x)) for x in (0,1)]),
                     '--cores',str(args.cores),
                     '--output',tumor_fa]
         logging.info(' Command: %s',' '.join(cmd_params))
@@ -274,15 +287,18 @@ def main(progname=None):
         cmd_params=[sys.argv[0],'fa2wgs',
                     '--normal',normal_fa,
                     '--tumor',tumor_fa,
-                    '--map',map_file,
-                    '--tumor_depth',str(args.tumor_depth),
+                    '--map',map_dir,
                     '--normal_depth',str(args.normal_depth),
-                    '--purity',str(args.purity),
                     '--output',reads_dir,
                     '--random_seed',str(random_n),
                     '--cores',str(args.cores),
                     '--rlen',str(args.rlen),
                     '--art','{}'.format(args.art)]
+        if args.sectors:
+            cmd_params.extend(['--sectors',sectors])
+        else:
+            cmd_params.extend(['--tumor_depth',str(args.tumor_depth)])
+            cmd_params.extend(['--purity',str(args.purity)])
         if args.single:
             cmd_params.extend(['--single'])
         cmd_params_copy=cmd_params[:]
@@ -297,7 +313,7 @@ def main(progname=None):
         cmd_params=[sys.argv[0],'fa2wes',
                     '--normal',normal_fa,
                     '--tumor',tumor_fa,
-                    '--map',map_file,
+                    '--map',map_dir,
                     '--probe',args.probe,
                     '--target',args.target,
                     '--simulator',args.simulator,

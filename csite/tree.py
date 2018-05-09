@@ -345,15 +345,16 @@ class Tree:
         '''
         After this method, ALL nodes will have the attribute leaves_names.
         '''
-        if self.left==None and self.right==None:
-            leaves_names=[self.name]
-        else:
-            leaves_names=[]
-            if self.left!=None:
-                leaves_names.extend(self.left.leaves_naming())
-            if self.right!=None:
-                leaves_names.extend(self.right.leaves_naming())
-        return leaves_names
+        if not hasattr(self,'leaves_names') or self.leaves_names == None:
+            if self.left==None and self.right==None:
+                self.leaves_names=[self.name]
+            else:
+                self.leaves_names=[]
+                if self.left!=None:
+                    self.leaves_names.extend(self.left.leaves_naming())
+                if self.right!=None:
+                    self.leaves_names.extend(self.right.leaves_naming())
+        return self.leaves_names
     
     def collect_tipnodes(self):
         '''
@@ -383,9 +384,9 @@ class Tree:
         if self.right!=None:
             self.right.attach_info(attr,info)
 
-    def collect_leaves_and_trim(self,tips=None,tipnode_leaves=None):
+    def collect_leaves_and_trim(self,tipnode_leaves=None,sectors=None):
         '''
-        Prune all branches with equal or less than the number of tips specified by the parameter tips.
+        Prune all branches with EQUAL OR LESS than the number of tips specified by the prune_n in each sector.
         For a Tree object, it should run the leaves_counting() method before run this method.
         For a node, if node.left.leaves_count<=tips and node.right.leaves_count<=tips, prune it into a tip node.
         If node.left.leaves_count<=tips and node.right.leaves_count>tips, just prune node.left into a tip node.
@@ -394,28 +395,42 @@ class Tree:
         if self.left==None and self.right==None:
             tipnode_leaves[self.nodeid]=self.leaves_naming()
             self.name=self.nodeid
-            if self.leaves_count<=tips:
-                self.sim=False
+            self.sim=False
+            for sector in sectors:
+                cells=sectors[sector]['members']
+                tips=sectors[sector]['prune_n']
+                if len(cells.intersection(self.leaves_names))>tips:
+                    self.sim=True
+                    break
         else:
-            if self.left.leaves_count<=tips and self.right.leaves_count<=tips:
+            for sector in sectors:
+                cells=sectors[sector]['members']
+                tips=sectors[sector]['prune_n']
+                if len(cells.intersection(self.left.leaves_names))>tips or len(cells.intersection(self.right.leaves_names))>tips:
+                    self.left.collect_leaves_and_trim(tipnode_leaves=tipnode_leaves,sectors=sectors)
+                    self.right.collect_leaves_and_trim(tipnode_leaves=tipnode_leaves,sectors=sectors)
+                    break
+            else:
                 tipnode_leaves[self.nodeid]=self.leaves_naming()
                 self.left=None
                 self.right=None
                 self.name=self.nodeid
-                if self.leaves_count<=tips:
-                    self.sim=False
-            else:
-                self.left.collect_leaves_and_trim(tips=tips,tipnode_leaves=tipnode_leaves)
-                self.right.collect_leaves_and_trim(tips=tips,tipnode_leaves=tipnode_leaves)
+                self.sim=False
+                for sector in sectors:
+                    cells=sectors[sector]['members']
+                    tips=sectors[sector]['prune_n']
+                    if len(cells.intersection(self.leaves_names))>tips:
+                        self.sim=True
+                        break
 
-    def prune(self,tips=None):
+    def prune(self,sectors=None):
         '''
         After this method, the root node will have an attribute tipnode_leaves,
         which is a dictionary in the form of {tipnode1:[leaf1,leaf2,...],tipnode2:[leaf3,...],...}
         '''
         if not hasattr(self,'tipnode_leaves'):
             tipnode_leaves={}
-            self.collect_leaves_and_trim(tips=tips,tipnode_leaves=tipnode_leaves)
+            self.collect_leaves_and_trim(tipnode_leaves=tipnode_leaves,sectors=sectors)
             self.tipnode_leaves=tipnode_leaves
         else:
             raise TreePruneError('Can not prune a tree which is pruned before!')
@@ -838,9 +853,9 @@ def output_tipnode_hap(tipnode_hap=None,directory=None,chroms=None,haplotype=Non
     Output the variants of each tipnode in the order of coordinate.
     '''
     for tipnode in tipnode_hap['vars'].keys():
-        with open('{}/{}.genome.chain'.format(directory,tipnode),'a') as cfg_file:
-            cfg_file.write('>{}_Hap{} parental:{}\n'.format(chroms,haplotype,parental))
-            retrieve_tip_vars(tip_vars=tipnode_hap,tip=tipnode,out_file=cfg_file,chroms=chroms)
+        with open(os.path.join(directory,'{}.genome.chain'.format(tipnode)),'a') as chain_file:
+            chain_file.write('>{}_Hap{} parental:{}\n'.format(chroms,haplotype,parental))
+            retrieve_tip_vars(tip_vars=tipnode_hap,tip=tipnode,out_file=chain_file,chroms=chroms)
 
 def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
     '''
