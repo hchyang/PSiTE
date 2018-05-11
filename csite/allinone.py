@@ -325,6 +325,8 @@ def main(progname=None):
                     '--cores',str(args.cores),
                     '--out_level',str(args.out_level),
                     '--snakemake','{}'.format(args.snakemake)]
+        if args.sectors:
+            cmd_params.extend(['--sectors',sectors])      
         if args.tumor_rdepth:
             cmd_params.extend(['--tumor_rdepth',str(args.tumor_rdepth)])
         elif args.tumor_rnum:

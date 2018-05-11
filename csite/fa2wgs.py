@@ -53,11 +53,11 @@ def main(progname=None):
     group1.add_argument('-t','--tumor',type=check_folder,required=True,metavar='DIR',
         help='the directory of the tumor fasta')
     group1.add_argument('-m','--map',type=check_folder,required=True,metavar='DIR',
-        help='the directory of map files, which containing the relationship between tip nodes and samples')
+        help='the directory of map files, which contains the relationship between tip nodes and samples')
     default=None
     group1.add_argument('-s','--sectors',type=check_file,default=default,metavar='FILE',
-        help='the file contains purity and depth profile of each tumor sector. \
-              After this setting, -d/-p will be ignored. [{}]'.format(default))
+        help='the file containing purity and depth profile of each tumor sector. \
+              After this setting, -d/-p will be ignored [{}]'.format(default))
     group2 = parser.add_argument_group('Arguments for simulation')
     default=50
     group2.add_argument('-d','--tumor_depth',type=check_depth,default=default,metavar='FLOAT',
@@ -84,7 +84,7 @@ def main(progname=None):
         help="keep each tip node's WGS reads file separately")
     group2.add_argument('--single',action="store_true",
         help="single cell mode. "+\
-        "After this setting, the value of --tumor_depth is the depth of each tumor cell "+\
+        "After this setting,  -p will be ignored and the value of --tumor_depth is the depth of each tumor cell "+\
         "(not the total depth of tumor sample anymore).")
     group3 = parser.add_argument_group('Output arguments')
     default='art_reads'
@@ -146,8 +146,8 @@ def main(progname=None):
         for sector in sectors:
             for tipnode,leaves_n in sectors[sector]['composition'].items():
                 assert leaves_n==1,\
-                    'In single mode, each tip node should represent one cell.\n'+\
-                    'But found {} leaves underneath tipnode {} in one of your map files!'.format(leaves_n,tipnode)
+                    'In single mode, each tip node should represent only one cell.\n'+\
+                    'But {} leaves are found underneath tipnode {} in one of your map files!'.format(leaves_n,tipnode)
 
 #create index file (.fai) for each fasta
     pool=multiprocessing.Pool(processes=args.cores)
@@ -377,7 +377,7 @@ def generate_fq(params=None,compress=False):
     '''
     run art command to generate the fastq file, and call compress_fq if required.
     '''
-    cmd_params=params['base_cmd'].split()+['--len',str(params['rlen']), 
+    cmd_params=params['base_cmd'].split()+['--len',str(params['rlen']),
                                            '--fcov',str(params['fcov']),
                                            '--in',params['in'],
                                            '--id',params['id'],
