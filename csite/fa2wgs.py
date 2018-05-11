@@ -31,10 +31,10 @@ def check_folder(directory=None):
         raise argparse.ArgumentTypeError("'{}' doesn't exist or isn't a folder.".format(directory))
     return directory
 
-def check_file(directory=None):
-    if not os.path.isfile(directory):
-        raise argparse.ArgumentTypeError("'{}' doesn't exist or isn't a file.".format(directory))
-    return directory
+def check_file(f=None):
+    if not os.path.isfile(f):
+        raise argparse.ArgumentTypeError("'{}' doesn't exist or isn't a file.".format(f))
+    return f
 
 def check_depth(value=None):
     fvalue=float(value)
@@ -61,10 +61,10 @@ def main(progname=None):
     group2 = parser.add_argument_group('Arguments for simulation')
     default=50
     group2.add_argument('-d','--tumor_depth',type=check_depth,default=default,metavar='FLOAT',
-        help='the mean depth of tumor sample for ART to simulate NGS reads [{}]'.format(default))
+        help='the mean depth of tumor sample for ART to simulate WGS reads [{}]'.format(default))
     default=0
     group2.add_argument('-D','--normal_depth',type=check_depth,default=default,metavar='FLOAT',
-        help='the mean depth of normal sample for ART to simulate NGS reads [{}]'.format(default))
+        help='the mean depth of normal sample for ART to simulate WGS reads [{}]'.format(default))
     default=0.6
     group2.add_argument('-p','--purity',type=check_purity,default=default,metavar='FLOAT',
         help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
@@ -81,7 +81,7 @@ def main(progname=None):
     group2.add_argument('--cores',type=int,default=default,metavar='INT',
         help='number of cores used to run the program [{}]'.format(default))
     group2.add_argument('--separate',action="store_true",
-        help="keep each tip node's NGS reads file separately")
+        help="keep each tip node's WGS reads file separately")
     group2.add_argument('--single',action="store_true",
         help="single cell mode. "+\
         "After this setting, the value of --tumor_depth is the depth of each tumor cell "+\
@@ -97,16 +97,15 @@ def main(progname=None):
 
 #always compress the simulated fastq files
     compress=True
-# logging and random seed setting
+
+#logging and random seed setting
     logging.basicConfig(filename=args.log,
         filemode='w',format='[%(asctime)s] %(levelname)s: %(message)s',
         datefmt='%m-%d %H:%M:%S',level='INFO')
     argv_copy=sys.argv[:]
-    try:
+    if '--art' in argv_copy:
         art_index=argv_copy.index('--art')
         argv_copy[art_index+1]="'{}'".format(argv_copy[art_index+1])
-    except ValueError:
-        pass
     argv_copy.insert(1,'fa2wgs')
     logging.info(' Command: %s',' '.join(argv_copy))
     if args.random_seed==None:
@@ -116,17 +115,23 @@ def main(progname=None):
     logging.info(' Random seed: %s',seed)
     numpy.random.seed(seed)
 
-#construct the dictionary sectors to store the meta informations of sectors
+#construct the sectors dictionary to store the meta information of all tumor sectors
     sectors={}
-    if args.sectors:
+    if args.sectors!=None:
         sectors=read_sectors_file(f=args.sectors)
+        for sector in sectors:
+            mapfile=os.path.join(args.map,'{}.tipnode.map'.format(sector))
+            assert os.path.isfile(mapfile),\
+                "Couldn't find the map file ({}.tipnode.map) for sector '{}' ".format(sector,sector)+\
+                "under the map directory ({}).".format(os.path.abspath(args.map))
     else:
         mapfiles=glob.glob(os.path.join(args.map,'*.tipnode.map'))
-        sector_list=['.'.join(os.path.basename(x).split('.')[:-2]) for x in mapfiles]
-        for sector in sector_list:
+        infered_sectors=['.'.join(os.path.basename(x).split('.')[:-2]) for x in mapfiles]
+        for sector in infered_sectors:
             sectors[sector]={'purity':args.purity,'depth':args.tumor_depth}
     for sector in sectors:
-        sectors[sector]['composition']=tipnode_leaves_counting(f=os.path.join(args.map,'{}.tipnode.map'.format(sector)))
+        mapfile=os.path.join(args.map,'{}.tipnode.map'.format(sector))
+        sectors[sector]['composition']=tipnode_leaves_counting(f=mapfile)
 
 #exit the program if you do NOT want to simulate any reads for normal and tumor samples
     if args.normal_depth==0:
@@ -141,7 +146,7 @@ def main(progname=None):
         for sector in sectors:
             for tipnode,leaves_n in sectors[sector]['composition'].items():
                 assert leaves_n==1,\
-                    'In single mode, each tip node should represent 1 cell.\n'+\
+                    'In single mode, each tip node should represent one cell.\n'+\
                     'But found {} leaves underneath tipnode {} in one of your map files!'.format(leaves_n,tipnode)
 
 #create index file (.fai) for each fasta
@@ -170,7 +175,7 @@ def main(progname=None):
         if os.path.isdir(args.output):
             pass
         else:
-            raise OutputExistsError("A file in the name of '{}' exists.\nDelete it or try another name as output folder.".format(args.output))
+            raise OutputExistsError("A FILE in the name of '{}' exists.\nDelete it or try another name as output folder.".format(args.output))
     else:
         os.mkdir(args.output,mode=0o755)
     normal_dir=os.path.join(args.output,'normal')
@@ -178,7 +183,7 @@ def main(progname=None):
         try:
             os.mkdir(normal_dir,mode=0o755)
         except FileExistsError as e:
-            raise OutputExistsError("'{}' exists already! \nCan not use it as the output folder of normal NGS reads.".format(normal_dir)+
+            raise OutputExistsError("'{}' exists already! \nCan not use it as the output folder of normal WGS reads.".format(normal_dir)+
                 '\nDelete it or use another folder as output folder.') from e
 
 #collect simulation parameters first
@@ -220,32 +225,32 @@ def main(progname=None):
 
 #simulation for tumor sample
     for sector in sorted(sectors.keys()):
+        if sectors[sector]['depth']>0:
 #compute coverage and run ART
 #FIXME: cell number: float? int?
-        tumor_dir=os.path.join(args.output,sector)
-        tipnode_leaves=sectors[sector]['composition']
-        tumor_seq_bases=normal_gsize/2*sectors[sector]['depth']
-        tumor_cells=sum(tipnode_leaves.values())
-        total_cells=tumor_cells/sectors[sector]['purity']
-        normal_cells=total_cells-tumor_cells
-
-        normal_dna=normal_gsize*normal_cells
-        tumor_dna=0
-        for tipnode,leaves in tipnode_leaves.items():
-            tumor_dna+=tipnode_gsize[tipnode][2]*leaves
-        tumor_seq_per_base=tumor_seq_bases/(normal_dna+tumor_dna)
-
-        if sectors[sector]['depth']>0:
+            sector_dir=os.path.join(args.output,sector)
             try:
-                os.mkdir(tumor_dir,mode=0o755)
+                os.mkdir(sector_dir,mode=0o755)
             except FileExistsError as e:
-                raise OutputExistsError("'{}' exists already! \nCan not use it as the output folder of tumor NGS reads.".format(normal_dir)+
+                raise OutputExistsError("'{}' exists already! \nCan not use it as the output folder of tumor WGS reads.".format(sector_dir)+
                     '\nDelete it or use another folder as output folder.') from e
+
+            tipnode_leaves=sectors[sector]['composition']
+            sector_sim_bases=normal_gsize/2*sectors[sector]['depth']
+            tumor_cells=sum(tipnode_leaves.values())
+            total_cells=tumor_cells/sectors[sector]['purity']
+            normal_cells=total_cells-tumor_cells
+            normal_dna=normal_gsize*normal_cells
+            tumor_dna=0
+            for tipnode,leaves_n in tipnode_leaves.items():
+                tumor_dna+=tipnode_gsize[tipnode][2]*leaves_n
+            mean_depth_per_base=sector_sim_bases/(normal_dna+tumor_dna)
+
 #two normal cell haplotypes
             if not args.single:
                 for parental in 0,1:
-                    prefix=os.path.join(tumor_dir,'normal.parental_{}.'.format(parental))
-                    fcov=normal_cells*tumor_seq_per_base
+                    prefix=os.path.join(sector_dir,'normal.parental_{}.'.format(parental))
+                    fcov=normal_cells*mean_depth_per_base
                     ref=os.path.join(args.normal,'normal.parental_{}.fa'.format(parental))
                     sim_cfg={
                         'gsize':normal_gsize/2,
@@ -262,12 +267,12 @@ def main(progname=None):
             for tipnode in sorted(tipnode_leaves.keys()):
                 fcov=None
                 if args.single:
-                    fcov=tumor_seq_bases/tipnode_gsize[tipnode][2]
+                    fcov=sector_sim_bases/tipnode_gsize[tipnode][2]
                 else:
-                    fcov=tipnode_leaves[tipnode]*tumor_seq_per_base
+                    fcov=tipnode_leaves[tipnode]*mean_depth_per_base
                 for parental in 0,1:
                     ref=os.path.join(args.tumor,'{}.parental_{}.fa'.format(tipnode,parental))
-                    prefix=os.path.join(tumor_dir,'{}.parental_{}.'.format(tipnode,parental))
+                    prefix=os.path.join(sector_dir,'{}.parental_{}.'.format(tipnode,parental))
                     sim_cfg={
                         'gsize':tipnode_gsize[tipnode][parental],
                         'base_cmd':art_params,
@@ -281,6 +286,7 @@ def main(progname=None):
 
 #generate fastq and compress them parallelly
 #every thread will generate at most 2 percent of the total data you want to simulate
+    assert total_sim_bases>0,'The genome sizes of all cells in the sample is 0!'
     sizeBlock=total_sim_bases*0.02
     final_params_matrix=[]
     for cfg in params_matrix:
@@ -302,7 +308,7 @@ def main(progname=None):
     for result in results:
         result.get()
 
-#merge small fastq files into one for normal/tumor sample
+#merge small fastq files into one fastq for normal/tumor sample
     sample_fq_files=[]
     suffixes=['fq','1.fq','2.fq']
     if compress:
@@ -317,21 +323,22 @@ def main(progname=None):
                 sample_fq_files.append([target,source])
     for sector in sorted(sectors.keys()):
         if sectors[sector]['depth']>0:
-            tumor_dir=os.path.join(args.output,sector)
+            sector_dir=os.path.join(args.output,sector)
+            tipnode_leaves=sectors[sector]['composition']
             for suffix in suffixes:
                 if args.single or args.separate:
                     for tipnode in ['normal']+sorted(tipnode_leaves.keys()):
-                        prefix=os.path.join(tumor_dir,'{}.parental_[01].[0-9][0-9].'.format(tipnode))
+                        prefix=os.path.join(sector_dir,'{}.parental_[01].[0-9][0-9].'.format(tipnode))
                         source=glob.glob(prefix+suffix)
                         if len(source):
-                            target=os.path.join(tumor_dir,'{}.{}'.format(tipnode,suffix))
+                            target=os.path.join(sector_dir,'{}.{}'.format(tipnode,suffix))
                             source.sort()
                             sample_fq_files.append([target,source])
                 else:
-                    prefix=os.path.join(tumor_dir,'*.parental_[01].[0-9][0-9].')
+                    prefix=os.path.join(sector_dir,'*.parental_[01].[0-9][0-9].')
                     source=glob.glob(prefix+suffix)
                     if len(source):
-                        target=os.path.join(tumor_dir,'{}.{}'.format(sector,suffix))
+                        target=os.path.join(sector_dir,'{}.{}'.format(sector,suffix))
                         source.sort()
                         sample_fq_files.append([target,source])
     pool=multiprocessing.Pool(processes=args.cores)
@@ -432,8 +439,8 @@ def tipnode_leaves_counting(f=None):
         for line in input:
             if not line.startswith('#'):
                 line=line.rstrip()
-                tipnode,leaves=line.split()[:2]
-                tipnode_leaves[tipnode]=int(leaves)
+                tipnode,leaves_n=line.split()[:2]
+                tipnode_leaves[tipnode]=int(leaves_n)
     return tipnode_leaves
 
 def genomesize(fasta=None):
