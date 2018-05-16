@@ -583,7 +583,7 @@ class Tree:
 #In order to avoid two SNVs occuring at the same position, I stored all the SNVs
 #of each chromosome (multiple haplotype) to the set Tree.snv_pos.
         Tree.snv_pos=set()
-        for snvs in trunk_snvs.keys():
+        for snvs in trunk_snvs.values():
             Tree.snv_pos.update([snv['start'] for snv in snvs])
 #collect all snvs and cnvs
         for i in range(ploidy):
