@@ -197,11 +197,9 @@ def main(progname=None):
         filemode='w',format='[%(asctime)s] %(levelname)s: %(message)s',
         datefmt='%m-%d %H:%M:%S',level='INFO')
     argv_copy=sys.argv[:]
-    try:
+    if '--art' in argv_copy:
         art_index=argv_copy.index('--art')
         argv_copy[art_index+1]="'{}'".format(argv_copy[art_index+1])
-    except ValueError:
-        pass
     argv_copy.insert(1,'allinone')
     logging.info(' Command: %s',' '.join(argv_copy))
     if args.random_seed==None:
@@ -293,7 +291,7 @@ def main(progname=None):
                     '--random_seed',str(random_n),
                     '--cores',str(args.cores),
                     '--rlen',str(args.rlen),
-                    '--art','{}'.format(args.art)]
+                    '--art',args.art]
         if args.sectors:
             cmd_params.extend(['--sectors',sectors])
         else:

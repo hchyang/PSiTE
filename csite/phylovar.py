@@ -160,9 +160,9 @@ def check_config_file(config=None):
         raise ConfigFileError('Check your config file. The format in chromosomes section is not correct.')
     total_chroms_length=0
     total_snv_rate=0
-    missing_snv_rate=0
     total_cnv_rate=0
-    missing_cnv_rate=0
+    missing_snv_rate=False
+    missing_cnv_rate=False
     for chroms in config['chromosomes']: 
         if not isinstance(chroms,dict) or len(chroms)>1:
             raise ConfigFileError('Check your config file. The format in chromosomes section is not correct.')
@@ -181,22 +181,22 @@ def check_config_file(config=None):
             if 'snv_rate' in chroms_cfg:
                 total_snv_rate+=chroms_cfg['snv_rate']
             else:
-                missing_snv_rate=1
+                missing_snv_rate=True
             if 'cnv_rate' in chroms_cfg:
                 total_cnv_rate+=chroms_cfg['cnv_rate']
             else:
-                missing_cnv_rate=1
+                missing_cnv_rate=True
 
     if config['genome']['length']!=total_chroms_length:
         raise ConfigFileError('In your config file, the length of genome is {},'.format(str(config['genome']['length']))+
             'But the total length of all chromosomes are {}'.format(str(total_chroms_length)))
-    if missing_snv_rate==1:
+    if missing_snv_rate:
         if total_snv_rate>config['genome']['snv_rate']:
             raise ConfigFileError('Check your config file, the sum of snv_rate in chromosmomes section is larger than the rate in genome section!')
     else:
         if total_snv_rate!=config['genome']['snv_rate']:
             raise ConfigFileError('Check your config file, the sum of snv_rate in chromosmomes section is not equal the rate in genome section!')
-    if missing_cnv_rate==1:
+    if missing_cnv_rate:
         if total_cnv_rate>config['genome']['cnv_rate']:
             raise ConfigFileError('Check your config file, the sum of cnv_rate in chromosmomes section is larger than the rate in genome section!')
     else:
@@ -464,7 +464,7 @@ def main(progname=None):
             prune_p=args.prune/leaves_number
         elif args.prune_proportion>0:
             prune_p=args.prune_proportion
-        sectors['Tumor']={'prune_p':prune_p,'members':set(mytree.leaves_naming())}
+        sectors['tumor']={'prune_p':prune_p,'members':set(mytree.leaves_naming())}
     for sector in sectors:
         sectors[sector]['prune_n']=sectors[sector]['prune_p']*len(sectors[sector]['members'])
     mytree.prune(sectors=sectors)
