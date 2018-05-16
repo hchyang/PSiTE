@@ -8,7 +8,7 @@ import logging
 import os
 
 class Tree:
-    snv_pos={}
+    snv_pos=set()
     def __init__(self,name=None,lens=None,left=None,right=None,top=None,snvs=None,accumulated_snvs=None,cnvs=None,accumulated_cnvs=None,C='0.0.0',nodeid=None,sim=True):
         self.name=name
         self.lens=lens
@@ -93,16 +93,16 @@ class Tree:
                     while pos in Tree.snv_pos:
                         hit+=1
                         if hit>10:
-                            raise TooManyMutationsError
+                            raise TooManyHitsOnSamePosError
                         pos=numpy.random.randint(start,end)
-                    new_snv=1
+                    new_snv=True
                     if self.accumulated_cnvs:
                         for del_start,del_end in [[cnv['start'],cnv['end']] for cnv in self.accumulated_cnvs if cnv['type']=='DEL']:
                             if del_start<=pos<del_end:
-                                new_snv=0
+                                new_snv=False
                                 break
-                    if new_snv==1:
-                        Tree.snv_pos[pos]=1
+                    if new_snv:
+                        Tree.snv_pos.add(pos)
                         snv={'type':'SNV',
                              'start':pos,
                              'end':pos+1,
@@ -258,11 +258,11 @@ class Tree:
 
     def all_snvs_summary(self):
         '''
-        It will return a dictionary of all SNVs in the tree. 
-        {pos:{'mutation':,'alt_count':},...}
-        We will summary the allele count of all snvs on both main tree and all
+        It will return a dictionary of all SNVs on the tree. 
+        {pos:{'mutation':xxx,'alt_count':xxx},...}
+        We will summary the allele count of all snvs on the main tree and all
         subtrees (new copy of cnv).
-        There are three kind of snvs: 
+        There are three kinds of snvs: 
         1) on the main tree 
         2) on the subtree (pre_snvs and new snvs)
         3) in deletions (pre_snvs)
@@ -580,6 +580,11 @@ class Tree:
 #I used haps_cnvs to calculate the count number of each parental copies before.
 #We do not need this feature anymore.
 #        haps_cnvs=[]
+#In order to avoid two SNVs occuring at the same position, I stored all the SNVs
+#of each chromosome (multiple haplotype) to the set Tree.snv_pos.
+        Tree.snv_pos=set()
+        for snvs in trunk_snvs.keys():
+            Tree.snv_pos.update([snv['start'] for snv in snvs])
 #collect all snvs and cnvs
         for i in range(ploidy):
             logging.info(' Simulate haplotype %s (total: %s)',i+1,ploidy)
@@ -591,7 +596,18 @@ class Tree:
                 cnv_rate=cnv_rate,del_prob=del_prob,cnv_length_beta=cnv_length_beta,
                 cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg)
 
-            all_snvs_alt_counts.update(hap_tree.all_snvs_summary())
+#Update the dictionary all_snvs_alt_counts here
+#There will not be two snps occure on the same position of different haplotype,
+#except they are specified by users in trunk_vars 
+            hap_trunk_snvs_pos=[snv['start'] for snv in hap_trunk_snvs]
+            for pos,info in hap_tree.all_snvs_summary().items():
+                if pos in all_snvs_alt_counts:
+                    if pos in hap_trunk_snvs_pos:
+                        all_snvs_alt_counts[pos]['alt_count']+=info['alt_count']
+                    else:
+                        raise ShouldNotBeHereError
+                else:
+                    all_snvs_alt_counts[pos]=info
 
             haplotype_cnvs=hap_tree.all_cnvs_collect()
             all_cnvs.extend(haplotype_cnvs)
@@ -910,7 +926,7 @@ def build_line(elements=None):
     '''
     return '{}\n'.format('\t'.join([str(x) for x in elements]))
 
-class TooManyMutationsError(Exception):
+class TooManyHitsOnSamePosError(Exception):
     pass
 
 class ShouldNotBeHereError(Exception):
