@@ -362,9 +362,9 @@ def build_fai(fasta=None):
     pyfaidx.Faidx(fasta)
     return 'Built index for {}'.format(fasta)
 
-def merge_fq(target=None,source=None):
+def merge_fq(target=None,source=None, remove=True):
     '''
-    after generating fq in multiprocessing mode,
+    After generating short reads in multiprocessing mode,
     there will be multiple fq files for each genome.
     I will merge them into one file for each genome.
     '''
@@ -373,7 +373,8 @@ def merge_fq(target=None,source=None):
         for f in source:
             with open(f,'rb') as infile:
                 shutil.copyfileobj(infile, outfile)
-            os.remove(f)
+            if remove:
+                os.remove(f)
 
 def generate_fq(params=None,compress=False):
     '''

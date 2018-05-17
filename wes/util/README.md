@@ -38,3 +38,5 @@ Sample command:
 #### Note
 GemErr.py and GemStats.py are taken from GemSIM (https://sourceforge.net/projects/gemsim).
 They are slightly revised to remove their dependencies on python 2.
+
+Please ensure that the error model provides to moduel fa2wes is consistent with the length of short reads to simulate!

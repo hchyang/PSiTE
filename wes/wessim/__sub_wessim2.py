@@ -389,6 +389,8 @@ def main(argv):
 
 def pickonekey(matchkeys):
     r = int(random.uniform(0, len(matchkeys) - 1))
+    if not len(matchkeys)>0:
+        raise Exception("Unable to generate short reads from the segments!") 
     key = matchkeys[r]
     return key
 
