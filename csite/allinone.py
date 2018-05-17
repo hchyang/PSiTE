@@ -161,13 +161,13 @@ def main(progname=None):
     check_config_file(config=config)
     if args.type in ['WES','BOTH']:
         if args.probe==None:
-            raise argparse.ArgumentTypeError("'--probe' is required to simulate WES data!")
+            raise argparse.ArgumentTypeError("--probe is required to simulate WES data!")
         if args.target==None:
-            raise argparse.ArgumentTypeError("'--target' is required to simulate WES data!")
+            raise argparse.ArgumentTypeError("--target is required to simulate WES data!")
         if args.tumor_rdepth!=0 and args.tumor_rnum!=0:
-            raise argparse.ArgumentTypeError("--tumor_rdepth: not allowed with --tumor_rnum!")
+            raise argparse.ArgumentTypeError("--tumor_rdepth is not allowed to use together with --tumor_rnum!")
         if args.normal_rdepth!=0 and args.normal_rnum!=0:
-            raise argparse.ArgumentTypeError("--normal_rdepth: not allowed with --normal_rnum!")
+            raise argparse.ArgumentTypeError("--normal_rdepth is not allowed to use together with --normal_rnum!")
         check_program(args.simulator)
 
 #get absolute paths for the input files
@@ -200,16 +200,12 @@ def main(progname=None):
     if '--art' in argv_copy:
         art_index=argv_copy.index('--art')
         argv_copy[art_index+1]="'{}'".format(argv_copy[art_index+1])
-    except ValueError:
-        pass
     if '--snakemake' in argv_copy:
         snakemake_index=argv_copy.index('--snakemake')
         argv_copy[snakemake_index+1]="'{}'".format(argv_copy[snakemake_index+1])
-    except ValueError:
-        pass
     argv_copy.insert(1,'allinone')
     logging.info(' Command: %s',' '.join(argv_copy))
-    
+
     if args.random_seed==None:
         seed=random_int()
     else:
@@ -299,7 +295,7 @@ def main(progname=None):
                     '--random_seed',str(random_n),
                     '--cores',str(args.cores),
                     '--rlen',str(args.rlen),
-                    '--art','{}'.format(args.art)]
+                    '--art',args.art]
         if args.sectors:
             cmd_params.extend(['--sectors',sectors])
         else:
@@ -330,7 +326,7 @@ def main(progname=None):
                     '--random_seed',str(random_n),
                     '--cores',str(args.cores),
                     '--out_level',str(args.out_level),
-                    '--snakemake','{}'.format(args.snakemake)]
+                    '--snakemake',args.snakemake]
         if args.sectors:
             cmd_params.extend(['--sectors',sectors])
         if args.tumor_rdepth:
