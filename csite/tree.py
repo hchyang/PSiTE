@@ -197,7 +197,7 @@ class Tree:
 #collect the new copies of cnvs
                             new_copies=[]
                             for i in range(cnv_copy):
-                                segment=Tree(name=self.name,lens=self.lens-waiting_t,nodeid=self.nodeid)
+                                segment=Tree(name=self.name,lens=self.lens-waiting_t,nodeid=self.nodeid,sim=self.sim)
                                 if self.left != None:
                                     segment.left=copy.deepcopy(self.left)
                                     segment.left.top=segment
@@ -390,7 +390,8 @@ class Tree:
         For a Tree object, it should run the leaves_counting() method before run this method.
         For a node, if node.left.leaves_count<=tips and node.right.leaves_count<=tips, prune it into a tip node.
         If node.left.leaves_count<=tips and node.right.leaves_count>tips, just prune node.left into a tip node.
-        Mark all tip nodes with sim=False, whose leaves_count<=tips. 
+        Mark all tip nodes with sim=False, whose leaves_count<=tips for all sectors. 
+        In order to uniform the names in --nhx output, we rename each tipnode with its nodeid.
         '''
         if self.left==None and self.right==None:
             tipnode_leaves[self.nodeid]=self.leaves_naming()
@@ -399,14 +400,15 @@ class Tree:
             for sector in sectors:
                 cells=sectors[sector]['members']
                 tips=sectors[sector]['prune_n']
-                if len(cells.intersection(self.leaves_names))>tips:
+                if len(cells.intersection(self.leaves_names))>=tips:
                     self.sim=True
                     break
         else:
             for sector in sectors:
                 cells=sectors[sector]['members']
                 tips=sectors[sector]['prune_n']
-                if len(cells.intersection(self.left.leaves_names))>tips or len(cells.intersection(self.right.leaves_names))>tips:
+                if len(cells.intersection(self.left.leaves_names))>=tips or len(cells.intersection(self.right.leaves_names))>=tips:
+                    self.sim=True
                     self.left.collect_leaves_and_trim(tipnode_leaves=tipnode_leaves,sectors=sectors)
                     self.right.collect_leaves_and_trim(tipnode_leaves=tipnode_leaves,sectors=sectors)
                     break
@@ -419,7 +421,7 @@ class Tree:
                 for sector in sectors:
                     cells=sectors[sector]['members']
                     tips=sectors[sector]['prune_n']
-                    if len(cells.intersection(self.leaves_names))>tips:
+                    if len(cells.intersection(self.leaves_names))>=tips:
                         self.sim=True
                         break
 
@@ -640,6 +642,11 @@ class Tree:
             while pos>=cnvs_pos_changes[0][0]:
                 local_tumor_dosage+=cnvs_pos_changes.pop(0)[1]
             all_snvs_alt_freq.append([pos,all_snvs_alt_counts[pos]['mutation'],all_snvs_alt_counts[pos]['alt_count']/(normal_dosage+local_tumor_dosage)])
+
+######################
+#TODO: output true freq for multi-sectoring data
+#Just need to work on all_cnvs and all_snvs_alt_counts
+######################
 
 #calculate the number of reference alleles of each SNV for each tipnode
         tipnode_snv_refs={}
@@ -874,6 +881,7 @@ def output_tipnode_hap(tipnode_hap=None,directory=None,chroms=None,haplotype=Non
             retrieve_tip_vars(tip_vars=tipnode_hap,tip=tipnode,out_file=chain_file,chroms=chroms)
 
 def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
+#FIXME: output AMPs explicitly
     '''
     The data structure of tip_vars is:
     {'start':start,'end':end,'vars':{'tip_node1':[SNVs+CNVs],'tip_node2':[SNVs+CNVs],...}}

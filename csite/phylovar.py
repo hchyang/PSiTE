@@ -62,14 +62,14 @@ def check_prune(value=None):
     ivalue=int(float(value))
     if not ivalue>0:
         raise argparse.ArgumentTypeError("{} is an invalid value for --prune. ".format(value)+
-            "It should be an positive integer and less than the number of leaves of the tree.")
+            "It should be an integer in the range of [0,N], where N is the number of leaves of the tree.")
     return ivalue
 
 def check_proportion(value=None):
     fvalue=float(value)
-    if not 0<fvalue<1:
+    if not 0<=fvalue<=1:
         raise argparse.ArgumentTypeError("{} is an invalid value for --prune_proportion. ".format(value)+
-            "It should be an float between 0 and 1.")
+            "It should be an float number in the range of [0,1].")
     return fvalue
 
 def check_tstv(value=None):
@@ -213,7 +213,7 @@ class AffiliationFileError(Exception):
 def read_affiliation(affiliation_f=None):
     '''
     Check the format of affiliation file and dump the data into the dictionay sectors.
-    There should be 3 columns in the affiliation fle.
+    There should be 3 columns in the affiliation file.
     1. sector id
     2. prune proportion of the sector
     3. tumor cells in the sector
@@ -229,6 +229,10 @@ def read_affiliation(affiliation_f=None):
                 raise AffiliationFileError("The format of your affiliation file is not right!")
             sector=cols[0]
             prune_p=float(cols[1])
+            if not 0<=prune_p<=1:
+                raise AffiliationFileError(
+                    "The prune proportion {} for sector {} is not valid in your affiliation file.\n".format(prune_p,sector)+\
+                    "It should be a float number in the range of [0,1]")
             cells=[]
             for i in cols[2].split(','):
                 n=i.count('..')
@@ -321,10 +325,10 @@ def main(progname=None):
     group3sub=group3.add_mutually_exclusive_group()
     default=0
     group3sub.add_argument('-x','--prune',type=check_prune,default=default,metavar='INT',
-        help='trim all the children of the nodes with equal or less than this number of leaves [{}]'.format(default))
+        help='trim all the children of the nodes with less than this number of leaves [{}]'.format(default))
     default=0.0
     group3sub.add_argument('-X','--prune_proportion',type=check_proportion,default=default,metavar='FLOAT',
-        help='trim all the children of the nodes with equal or less than this proportion of total leaves [{}]'.format(default))
+        help='trim all the children of the nodes with less than this proportion of total leaves [{}]'.format(default))
     default=None
     group3.add_argument('-s','--sex_chr',type=check_sex,default=default,metavar='STR',
         help='sex chromosomes of the genome (separated by comma) [{}]'.format(default))
@@ -446,14 +450,15 @@ def main(progname=None):
 #################original_tree
     original_tree=copy.deepcopy(mytree)
 
-###### anyway, prune the tree
+
+######In order to get the mytree.tipnode_leaves, we will prune the tree in any situation.
     leaves_number=mytree.leaves_counting()
     leaves_names=mytree.leaves_naming()
     sectors={}
     prune_p=0
     if args.affiliation:
         if args.prune or args.prune_proportion:
-            raise argparse.ArgumentTypeError("Please set the prune cutoff in affiliation file.")
+            raise argparse.ArgumentTypeError("Please set the prune cutoff in your affiliation file.")
         sectors=read_affiliation(args.affiliation)
         for sector in sectors:
             invalid=set(sectors[sector]['members'])-set(leaves_names)
