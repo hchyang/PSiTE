@@ -4,7 +4,7 @@
 # Author: Hechuan Yang
 # Created Time: 2017-09-27 10:50:14
 # File Name: vcf2fa.py
-# Description: 
+# Description:
 #########################################################################
 
 import os
@@ -13,11 +13,12 @@ import argparse
 import re
 import gzip
 import pyfaidx
+import time
 
 #handle the error below
-#python | head == IOError: [Errno 32] Broken pipe 
-from signal import signal, SIGPIPE, SIG_DFL 
-signal(SIGPIPE,SIG_DFL) 
+#python | head == IOError: [Errno 32] Broken pipe
+from signal import signal, SIGPIPE, SIG_DFL
+signal(SIGPIPE,SIG_DFL)
 
 nucleotide_re=re.compile('^[atcgnATCGN]$')
 
@@ -55,18 +56,21 @@ def check_sex(chrs=None):
     return chrs
 
 def check_output_folder(directory=None):
-    good_charactors=re.compile('^[0-9a-zA-Z/_\-.]+$') 
+    good_charactors=re.compile('^[0-9a-zA-Z/_\-.]+$')
     if not good_charactors.match(directory):
         raise argparse.ArgumentTypeError("'{}' is an invalid string for --output. ".format(directory)+
             "Please only the combination of numbers, alphabets and ._/- as the directory name.")
     if os.path.exists(directory):
         raise argparse.ArgumentTypeError("'{}' exists already. Delete it or use another name instead.".format(directory))
     return directory
-    
+
+
 def main(progname=None):
+    t0 = time.time()
+    prog=progname if progname else sys.argv[0]
     parser=argparse.ArgumentParser(
         description='Build normal genome by integrating germline SNPs from a VCF file.',
-        prog=progname if progname else sys.argv[0])
+        prog=prog)
     parser.add_argument('-v','--vcf',type=check_vcf,required=True,metavar='FILE',
         help='a VCF file containing germline SNPs')
     parser.add_argument('-r','--reference',type=str,required=True,metavar='FILE',
@@ -92,7 +96,7 @@ def main(progname=None):
 #fill in the list hap_vars in genome_profile
     add_vcf_vars(profile=genome_profile,vcf=args.vcf)
 
-    os.mkdir(args.output,mode=0o755) 
+    os.mkdir(args.output,mode=0o755)
 
     for i in range(2):
         with open(os.path.join(args.output,'normal.parental_{}.fa'.format(i)),'w') as output:
@@ -117,11 +121,15 @@ def main(progname=None):
                     output.write('>{}\n'.format(chroms))
                     for outputline in pyfaidx.wrap_sequence(genome_profile[chroms]['linebases'],''.join(segments)):
                         output.write(outputline)
+    t1 = time.time()
+    print ("Total time running {}: {} seconds".format
+       (prog, str(t1-t0)))
+
 
 def parse_autosomes(autosomes_str=None):
     '''
     Parse the --autosomes string into a set of individual chromsomes.
-    e.g. chr1..3,chr8,chr11..chr13,14..16  
+    e.g. chr1..3,chr8,chr11..chr13,14..16
          => {chr1,chr2,chr3,chr8,chr11,chr12,chr13,14,15,16}
     '''
     tmp=autosomes_str.split(',')
@@ -142,7 +150,7 @@ def parse_autosomes(autosomes_str=None):
         else:
             raise argparse.ArgumentTypeError("The string '{}' is not valid in --autosomes".format(i))
     return set(autosomes)
-    
+
 def fai_info(fai=None,autosomes=None,sex_chr=None):
     '''
     Extract fasta information from the file genome.fa.fai.
@@ -241,4 +249,3 @@ class ParentNotFoundError(Exception):
 
 if __name__=='__main__':
     main()
-

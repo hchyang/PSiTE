@@ -19,6 +19,7 @@ import subprocess
 import multiprocessing
 import shutil
 import gzip
+import time
 from csite.phylovar import check_seed,check_purity,random_int
 
 #handle the error below
@@ -43,10 +44,13 @@ def check_depth(value=None):
             "It should be a non-negative float number.")
     return fvalue
 
+
 def main(progname=None):
+    t0 = time.time()
+    prog = progname if progname else sys.argv[0]
     parser=argparse.ArgumentParser(
         description='A wrapper of simulating WGS reads from normal and tumor genome fasta',
-        prog=progname if progname else sys.argv[0])
+        prog=prog)
     group1 = parser.add_argument_group('Input arguments')
     group1.add_argument('-n','--normal',type=check_folder,required=True,metavar='DIR',
         help='the directory of the normal fasta')
@@ -351,6 +355,10 @@ def main(progname=None):
     pool.join()
     for result in results:
         result.get()
+
+    t1 = time.time()
+    print ("Total time running {}: {} seconds".format
+       (prog, str(t1-t0)))
 
 def build_fai(fasta=None):
     '''

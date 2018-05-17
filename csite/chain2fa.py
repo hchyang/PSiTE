@@ -4,7 +4,7 @@
 # Author: Hechuan Yang
 # Created Time: 2017-09-12 16:28:34
 # File Name: chain2fa.py
-# Description: 
+# Description:
 #########################################################################
 
 import os
@@ -15,28 +15,31 @@ import pyfaidx
 import glob
 import numpy
 import multiprocessing
+import time
 from csite.vcf2fa import check_output_folder
 
 #handle the error below
-#python | head == IOError: [Errno 32] Broken pipe 
-from signal import signal, SIGPIPE, SIG_DFL 
-signal(SIGPIPE,SIG_DFL) 
+#python | head == IOError: [Errno 32] Broken pipe
+from signal import signal, SIGPIPE, SIG_DFL
+signal(SIGPIPE,SIG_DFL)
 
 def check_folder(directory=None):
     if not os.path.isdir(directory):
         raise argparse.ArgumentTypeError("'{}' doesn't exist or isn't a folder.".format(directory))
     return directory
-    
+
 def check_normal_fastas(fastas=None):
     for fa in fastas.split(','):
         if not os.path.isfile(fa):
             raise argparse.ArgumentTypeError("'{}' doesn't exist or isn't a file.".format(fa))
     return fastas
-    
+
 def main(progname=None):
+    t0 = time.time()
+    prog=progname if progname else sys.argv[0]
     parser=argparse.ArgumentParser(
         description='Build tumor genomes from somatic variants (encoded in the chain file)',
-        prog=progname if progname else sys.argv[0])
+        prog=prog)
     parser.add_argument('-c','--chain',required=True,type=check_folder,metavar='DIR',
         help='the folder containing the chain files of tumor genomes')
     parser.add_argument('-n','--normal',required=True,type=check_normal_fastas,metavar='FILES',
@@ -66,6 +69,10 @@ def main(progname=None):
 #handle exceptions if any
     for result in results:
         result.get()
+
+    t1 = time.time()
+    print ("Total time running {}: {} seconds".format
+       (prog, str(t1-t0)))
 
 def build_fasta(output=None,chain=None,normal_fa=None,width=None):
     refs=[]
@@ -136,12 +143,12 @@ def build_fasta(output=None,chain=None,normal_fa=None,width=None):
                 outputf[parental].write(outputline)
     for parental in 0,1:
         outputf[parental].close()
-                        
+
 class Mutation:
     '''
     Mutation form are fixed in chain files. We just need to retrieve the alternative
     allele according the reference nuleotide.
-    If we do not fix the mutation form first, the same mutation (occured in the common 
+    If we do not fix the mutation form first, the same mutation (occured in the common
     ancestor) in different individuals may have different alternative alleles.
     '''
     _mutation_matrix={'N':['N','N','N'],
@@ -162,12 +169,12 @@ class Mutation:
 
 class ChainFileError(Exception):
     pass
-         
+
 class FastaMissingError(Exception):
     pass
-         
+
 class FastaFileError(Exception):
     pass
-         
+
 if __name__ == '__main__':
     main()
