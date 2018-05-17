@@ -112,8 +112,11 @@ def main(argv):
         script = os.path.join(script_dir , "__sub_wessim2.py")
         rgid = t + 1
         # command = "python " + script + " " + arguline + " -1 " + str(readstart) + " -2 " + str(readend) + " -i " + str(t+1)
-        seed = random_int()
-        command = "python {} {} -1 {} -2 {} -i {} -s {}".format(script, arguline, readstart, readend, rgid, seed)
+        if args.random_seed == None:
+            seed = random_int()
+            command = "python {} {} -1 {} -2 {} -i {} -s {}".format(script, arguline, readstart, readend, rgid, seed)
+        else:
+            command = "python {} {} -1 {} -2 {} -i {}".format(script, arguline, readstart, readend, rgid)
         print(command)
         p = Process(target=subprogram, args=(command, t+1))
         p.start()

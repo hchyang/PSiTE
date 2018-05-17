@@ -200,6 +200,8 @@ def main(progname=None):
     try:
         art_index=argv_copy.index('--art')
         argv_copy[art_index+1]="'{}'".format(argv_copy[art_index+1])
+        snakemake_index=argv_copy.index('--snakemake')
+        argv_copy[snakemake_index+1]="'{}'".format(argv_copy[snakemake_index+1])
     except ValueError:
         pass
     argv_copy.insert(1,'allinone')
@@ -326,7 +328,7 @@ def main(progname=None):
                     '--out_level',str(args.out_level),
                     '--snakemake','{}'.format(args.snakemake)]
         if args.sectors:
-            cmd_params.extend(['--sectors',sectors])      
+            cmd_params.extend(['--sectors',sectors])
         if args.tumor_rdepth:
             cmd_params.extend(['--tumor_rdepth',str(args.tumor_rdepth)])
         elif args.tumor_rnum:
@@ -343,7 +345,7 @@ def main(progname=None):
             cmd_params.extend(['--single'])
         cmd_params_copy=cmd_params[:]
         snakemake_index=cmd_params_copy.index('--snakemake')
-        snakemake_str = argv_copy[snakemake_index + 1]
+        snakemake_str = cmd_params_copy[snakemake_index + 1]
         if "'" in snakemake_str:
             snakemake_str = snakemake_str.replace("'",'"')
         cmd_params_copy[snakemake_index + 1] = "'{}'".format(snakemake_str)

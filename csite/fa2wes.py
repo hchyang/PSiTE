@@ -168,6 +168,7 @@ def merge_normal_sample(args, outdir):
         prefix = '{}/{}_reads/normal.parental_[01]/normal_normal.parental_[01]*_'.format(
             outdir, args.simulator)
         source = glob.glob(prefix + suffix)
+        print(source)
         if len(source):
             target_dir = os.path.join(outdir, 'merged')
             if not os.path.exists(target_dir):
@@ -175,7 +176,8 @@ def merge_normal_sample(args, outdir):
             target = '{}/{}_normal_{}'.format(target_dir,
                                               args.simulator, suffix)
             source.sort()
-            sample_fq_files.append([target, source])
+            print(target)
+            sample_fq_files.append([target, source, False])
 
     pool = multiprocessing.Pool(processes=args.cores)
     results = []
@@ -228,6 +230,7 @@ def merge_tumor_sample(args, sectors, outdir):
                 prefix = '{}/{}_reads/*.parental_[01]/{}_*.parental_[01]*_'.format(
                     outdir, args.simulator, sector)
                 source = glob.glob(prefix + suffix)
+                print(source)
                 if len(source):
                     target_dir = os.path.join(outdir, 'merged')
                     if not os.path.exists(target_dir):
@@ -236,7 +239,8 @@ def merge_tumor_sample(args, sectors, outdir):
                     target = '{}/{}_{}_{}'.format(target_dir,
                                                   args.simulator, sector, suffix)
                     source.sort()
-                    sample_fq_files.append([target, source])
+                    print(target)
+                    sample_fq_files.append([target, source, False])
 
     pool = multiprocessing.Pool(processes=args.cores)
     results = []
@@ -755,7 +759,7 @@ def main(progname=None):
 
     normal_gsize = compute_normal_gsize(args.normal)
     target_size = compute_target_size(args.target)
-    logging.info(' Size of target region: %s', str(target_size))
+    logging.info(' Size of target region: %s bp', str(target_size))
 
     # Simulate normal and tumor sample at the same time
     if (args.tumor_rdepth > 0 or args.tumor_rnum > 0) and (args.normal_rdepth > 0 or args.normal_rnum > 0):
