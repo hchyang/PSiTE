@@ -197,15 +197,19 @@ def main(progname=None):
         filemode='w',format='[%(asctime)s] %(levelname)s: %(message)s',
         datefmt='%m-%d %H:%M:%S',level='INFO')
     argv_copy=sys.argv[:]
-    try:
+    if '--art' in argv_copy:
         art_index=argv_copy.index('--art')
         argv_copy[art_index+1]="'{}'".format(argv_copy[art_index+1])
+    except ValueError:
+        pass
+    if '--snakemake' in argv_copy:
         snakemake_index=argv_copy.index('--snakemake')
         argv_copy[snakemake_index+1]="'{}'".format(argv_copy[snakemake_index+1])
     except ValueError:
         pass
     argv_copy.insert(1,'allinone')
     logging.info(' Command: %s',' '.join(argv_copy))
+    
     if args.random_seed==None:
         seed=random_int()
     else:

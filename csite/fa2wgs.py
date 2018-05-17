@@ -286,6 +286,8 @@ def main(progname=None):
 
 #generate fastq and compress them parallelly
 #every thread will generate at most 2 percent of the total data you want to simulate
+#In order to let users replicate the results (with same random seed) even using different number of cores,
+#I use the fixed size of block to parallelize the program.
     assert total_sim_bases>0,'The genome sizes of all cells in the sample is 0!'
     sizeBlock=total_sim_bases*0.02
     final_params_matrix=[]
