@@ -24,8 +24,8 @@ from csite.vcf2fa import check_sex
 from signal import signal, SIGPIPE, SIG_DFL 
 signal(SIGPIPE,SIG_DFL) 
 
-
-#I defined those two parameters as global variables. As they will be used in function
+WHOLET='tumor'
+#I defined those two variables as global variables. As they will be used in function
 #random_int and check_config_file, which are also used in allinone.py.
 LARGEST=2**31
 cfg_params={'snv_rate':float,
@@ -211,11 +211,12 @@ class AffiliationFileError(Exception):
 
 def read_affiliation(affiliation_f=None):
     '''
-    Check the format of affiliation file and dump the data into the dictionay sectors.
+    Check the format of affiliation file and dump the data into the sectors dictionary.
     There should be 3 columns in the affiliation file.
     1. sector id
-    2. prune proportion of the sector
-    3. tumor cells in the sector
+    2. purity
+    3. prune proportion of the sector
+    4. tumor cells in the sector
     '''
     sectors={}
     with open(affiliation_f) as input:
@@ -224,16 +225,24 @@ def read_affiliation(affiliation_f=None):
                 continue
             line=line.rstrip()
             cols=line.split()
-            if len(cols)!=3:
+            if len(cols)!=4:
                 raise AffiliationFileError("The format of your affiliation file is not right!")
             sector=cols[0]
-            prune_p=float(cols[1])
+            purity=float(cols[1])
+            prune_p=float(cols[2])
+            if sector==WHOLET:
+                raise AffiliationFileError(
+                    "Please do not use '{}' as a sector name. In CSiTE, I use it to stand for the whole tumor sample.".format(WHOLET))
+            if not 0<=purity<=1:
+                raise AffiliationFileError(
+                    "The purity {} for sector {} is not valid in your affiliation file.\n".format(prune_p,sector)+\
+                    "It should be a float number in the range of [0,1]")
             if not 0<=prune_p<=1:
                 raise AffiliationFileError(
                     "The prune proportion {} for sector {} is not valid in your affiliation file.\n".format(prune_p,sector)+\
                     "It should be a float number in the range of [0,1]")
             cells=[]
-            for i in cols[2].split(','):
+            for i in cols[3].split(','):
                 n=i.count('..')
                 if n==0:
                     cells.append(i)
@@ -258,8 +267,7 @@ def read_affiliation(affiliation_f=None):
                 else:
                     sectors[sector]['members'].extend(cells)
             else:
-                sectors[sector]={'prune_p':prune_p,'members':cells}
-
+                sectors[sector]={'purity':purity,'prune_p':prune_p,'members':cells}
     for sector in sectors:
         sectors[sector]['members']=set(sectors[sector]['members'])
     return sectors
@@ -339,11 +347,11 @@ def main(progname=None):
     group3.add_argument('--purity',type=check_purity,default=default,metavar='FLOAT',
         help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
     group4=parser.add_argument_group('Output arguments')
-    default='phylovar.snvs'
-    group4.add_argument('-S','--snv',type=str,default=default,metavar='FILE',
+    default='phylovar_snvs'
+    group4.add_argument('-S','--snv',type=str,default=default,metavar='DIR',
         help='the output file to save SNVs [{}]'.format(default))
-    default='phylovar.cnvs'
-    group4.add_argument('-V','--cnv',type=str,default=default,metavar='FILE',
+    default='phylovar_cnvs'
+    group4.add_argument('-V','--cnv',type=str,default=default,metavar='DIR',
         help='the output file to save CNVs [{}]'.format(default))
     default='phylovar.log'
     group4.add_argument('-g','--log',type=str,default=default,metavar='FILE',
@@ -363,14 +371,17 @@ def main(progname=None):
     default=None
     group4.add_argument('--cnv_profile',type=str,default=default,metavar='FILE',
         help='the file to save CNVs profile across the cell population of the sample [{}]'.format(default))
-    group4.add_argument('--snv_genotype',type=str,metavar='FILE',
-        help='the file to save SNV genotypes for each cell')
-    group4.add_argument('--ind_cnvs',type=str,metavar='FILE',
-        help='the file to save CNVs for each cell individual')
-#    parser.add_argument('--haplotype_copy',type=str,
+    default=None
+    group4.add_argument('--snv_genotype',type=str,default=default,metavar='FILE',
+        help='the file to save SNV genotypes for each cell [{}]'.format(default))
+    default=None
+    group4.add_argument('--ind_cnvs',type=str,default=default,metavar='FILE',
+        help='the file to save CNVs for each cell individual [{}]'.format(default))
+#    default=None
+#    parser.add_argument('--haplotype_copy',type=str,default=default,metavar='FILE',
 #        help='the file to save haplotype copy for each SNV')
 #    default=None
-#    parser.add_argument('--expands',type=str,default=default,
+#    parser.add_argument('--expands',type=str,default=default,metavar='FILE',
 #        help='the basename of the file to output the snv and segment data for EXPANDS [{}]'.format(default))
     default=None
     group4.add_argument('--map',type=check_folder,default=default,metavar='DIR',
@@ -453,25 +464,23 @@ def main(progname=None):
     sectors={}
     prune_p=0
     if args.affiliation:
-        if args.prune or args.prune_proportion:
-            raise argparse.ArgumentTypeError("Please set the prune cutoff in your affiliation file.")
         sectors=read_affiliation(args.affiliation)
         for sector in sectors:
             invalid=set(sectors[sector]['members'])-set(leaves_names)
             if invalid:
                 raise AffiliationFileError("Can not find the cells below on your tree:\n{}".format(','.join([str(x) for x in invalid])))
-    else:
-        if args.prune>0:
-            if args.prune>leaves_number:
-                raise argparse.ArgumentTypeError("There are only {} leaves on the tree. Can not prune {} leaves.".format(
-                    leaves_number,args.prune))
-            prune_p=args.prune/leaves_number
-        elif args.prune_proportion>0:
-            prune_p=args.prune_proportion
-        sectors['tumor']={'prune_p':prune_p,'members':set(mytree.leaves_naming())}
+    if args.prune>0:
+        if args.prune>leaves_number:
+            raise argparse.ArgumentTypeError("There are only {} leaves on the tree. Can not prune {} leaves.".format(
+                leaves_number,args.prune))
+        prune_p=args.prune/leaves_number
+    elif args.prune_proportion>0:
+        prune_p=args.prune_proportion
+    sectors[WHOLET]={'purity':args.purity,'prune_p':prune_p,'members':set(mytree.leaves_naming())}
     for sector in sectors:
         sectors[sector]['prune_n']=sectors[sector]['prune_p']*len(sectors[sector]['members'])
     mytree.prune(sectors=sectors)
+    mytree.collect_sectors_nodes(sectors=sectors)
 
 ######
     tipnode_leaves=mytree.tipnode_leaves
@@ -503,8 +512,6 @@ def main(progname=None):
                         tipnode_samples_map_f.write(','.join(sorted(focal_members)))
                         tipnode_samples_map_f.write('\n')
 
-
-
 ###### add trunk vars if supplied
     trunk_snvs={}
     trunk_cnvs={}
@@ -513,10 +520,15 @@ def main(progname=None):
             args.trunk_vars,final_chroms_cfg,leaves_number,mytree)
 
 ###### open all required output file and output the headers 
-    cnv_file=open(args.cnv,'w')
-    cnv_file.write('#chr\tstart\tend\tcopy\tcarrier\n')
-    snv_file=open(args.snv,'w')
-    snv_file.write('#chr\tstart\tend\tform\tfrequency\n')
+    sectors_snvs_dir=args.snv
+    os.mkdir(sectors_snvs_dir,mode=0o755)
+    sectors_cnvs_dir=args.cnv
+    os.mkdir(sectors_cnvs_dir,mode=0o755)
+    for sector,info in sectors.items():
+        info['snv_file']=open(os.path.join(sectors_snvs_dir,'{}.snv'.format(sector)),'w')
+        info['snv_file'].write('#chr\tstart\tend\tform\tfrequency\n')
+        info['cnv_file']=open(os.path.join(sectors_cnvs_dir,'{}.cnv'.format(sector)),'w')
+        info['cnv_file'].write('#chr\tstart\tend\tcopy\tcarrier\n')
 
     if args.cnv_profile!=None:
         cnv_profile_file=open(args.cnv_profile,'w')
@@ -556,9 +568,14 @@ def main(progname=None):
         normal_dosage=leaves_number*2*(1-args.purity)/args.purity
         if chroms in sex_chrs and len(sex_chrs)==2:
             normal_dosage=leaves_number*1*(1-args.purity)/args.purity
-        
-        (snvs_freq,cnvs,cnv_profile,nodes_vars,
-            tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs,
+
+        for sector,info in sectors.items():
+            if chroms in sex_chrs and len(sex_chrs)==2:
+                info['normal_dosage']=len(info['members'])*1*(1-info['purity'])/info['purity']
+            else:
+                info['normal_dosage']=len(info['members'])*2*(1-info['purity'])/info['purity']
+
+        (nodes_vars,tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs,
             )=mytree.snvs_freq_cnvs_profile(
                 parental=chroms_cfg['parental'],
                 snv_rate=chroms_cfg['snv_rate'],
@@ -574,7 +591,12 @@ def main(progname=None):
                 normal_dosage=normal_dosage,
                 chain=args.chain,
                 chroms=chroms,
+                sectors=sectors,
+                wholeT=WHOLET,
             )
+        snvs_freq=sectors[WHOLET]['snvs_alt_freq']
+        cnvs=sectors[WHOLET]['cnvs']
+        cnv_profile=sectors[WHOLET]['cnv_profile']
         all_nodes_vars=csite.tree.merge_two_dict_set(dict1=all_nodes_vars,dict2=nodes_vars)
 
         if args.snv_genotype!=None:
@@ -592,12 +614,12 @@ def main(progname=None):
 #            for snv in hap_local_copy_for_all_snvs:
 #                parental_copy_file.write('{}\t{}\n'.format(chroms,'\t'.join([str(x) for x in snv])))
 
-        for cnv in cnvs:
-            cnv_copy='+{}'.format(cnv['copy']) if cnv['copy']>0 else str(cnv['copy'])
-            cnv_file.write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,cnv['start'],cnv['end'],cnv_copy,cnv['leaves_count']))
-
-        for pos,mutation,freq in snvs_freq:
-            snv_file.write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,pos,pos+1,mutation,freq))
+        for sector,info in sectors.items():
+            for pos,mutation,freq in info['snvs_alt_freq']:
+                info['snv_file'].write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,pos,pos+1,mutation,freq))
+            for cnv in info['cnvs']:
+                cnv_copy='+{}'.format(cnv['copy']) if cnv['copy']>0 else str(cnv['copy'])
+                info['cnv_file'].write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,cnv['start'],cnv['end'],cnv_copy,cnv['leaves_count']))
 
         if args.cnv_profile!=None:
             for seg in cnv_profile:
@@ -617,8 +639,9 @@ def main(progname=None):
 #                expands_segs_file.write('{}\t{}\t{}\t{}\n'.format(chroms,start,end,copy/leaves_number))
 
 ###### close all opened files
-    cnv_file.close()
-    snv_file.close()
+    for sector,info in sectors.items():
+        info['snv_file'].close()
+        info['cnv_file'].close()
 
     if args.cnv_profile!=None:
         cnv_profile_file.close()

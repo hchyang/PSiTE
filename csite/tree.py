@@ -239,27 +239,32 @@ class Tree:
                                    cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
                                    cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg)
 
-    def all_cnvs_collect(self):
+    def all_cnvs_collect(self,sector=None):
         '''
         Return a list of all cnvs on the tree.
         '''
         all_cnvs=[]
         if self.cnvs:
-            all_cnvs=self.cnvs[:]
+            all_cnvs=[]
+            for cnv in self.cnvs:
+                cnv_cp=cnv.copy()
+                cnv_cp['node']=self.nodeid
+                cnv_cp['leaves_count']=self.sectors[sector]
+                all_cnvs.append(cnv_cp)
             for cnv in self.cnvs:
                 if cnv['copy']>0:
                     for cp in cnv['new_copies']:
-                        all_cnvs.extend(cp.all_cnvs_collect())
+                        all_cnvs.extend(cp.all_cnvs_collect(sector=sector))
         if self.left != None:
-            all_cnvs.extend(self.left.all_cnvs_collect())
+            all_cnvs.extend(self.left.all_cnvs_collect(sector=sector))
         if self.right != None:
-            all_cnvs.extend(self.right.all_cnvs_collect())
+            all_cnvs.extend(self.right.all_cnvs_collect(sector=sector))
         return all_cnvs
 
-    def all_snvs_summary(self):
+    def all_snvs_summary(self,sector=None):
         '''
         It will return a dictionary of all SNVs on the tree. 
-        {pos:{'mutation':xxx,'alt_count':xxx},...}
+        {pos:{'mutation':xxx,'alt_count':xxx,'node':xxx},...}
         We will summary the allele count of all snvs on the main tree and all
         subtrees (new copy of cnv).
         There are three kinds of snvs: 
@@ -270,21 +275,21 @@ class Tree:
         all_alt_count={}
         if self.snvs:
             for snv in self.snvs:
-                all_alt_count[snv['start']]={'mutation':snv['mutation'],'alt_count':self.leaves_counting()}
+                all_alt_count[snv['start']]={'mutation':snv['mutation'],'alt_count':self.sectors[sector],'node':self.nodeid}
         if self.cnvs:
             for cnv in self.cnvs:
                 if cnv['copy']>0: #amplification
                     for cp in cnv['new_copies']:
-                        all_alt_count=merge_two_all_alt_count(all_alt_count,cp.all_snvs_summary())
+                        all_alt_count=merge_two_all_alt_count(all_alt_count,cp.all_snvs_summary(sector=sector))
                 else:  #deletion
                     pre_snvs_dict={}
                     for snv in cnv['pre_snvs'][0]:
-                        pre_snvs_dict[snv['start']]={'mutation':snv['mutation'],'alt_count':-self.leaves_counting()}
+                        pre_snvs_dict[snv['start']]={'mutation':snv['mutation'],'alt_count':-self.sectors[sector],'node':self.nodeid}
                     all_alt_count=merge_two_all_alt_count(all_alt_count,pre_snvs_dict)
         if self.left!=None:
-            all_alt_count=merge_two_all_alt_count(all_alt_count,self.left.all_snvs_summary())
+            all_alt_count=merge_two_all_alt_count(all_alt_count,self.left.all_snvs_summary(sector=sector))
         if self.right!=None:
-            all_alt_count=merge_two_all_alt_count(all_alt_count,self.right.all_snvs_summary())
+            all_alt_count=merge_two_all_alt_count(all_alt_count,self.right.all_snvs_summary(sector=sector))
         return all_alt_count
 
     def nodes_vars_collect(self,chroms=None):
@@ -386,44 +391,68 @@ class Tree:
 
     def collect_leaves_and_trim(self,tipnode_leaves=None,sectors=None):
         '''
-        Prune all branches with EQUAL OR LESS than the number of tips specified by the prune_n in each sector.
+        1) Prune all branches with LESS than the number of tips specified by the prune_n in each sector.
         For a Tree object, it should run the leaves_counting() method before run this method.
-        For a node, if node.left.leaves_count<=tips and node.right.leaves_count<=tips, prune it into a tip node.
-        If node.left.leaves_count<=tips and node.right.leaves_count>tips, just prune node.left into a tip node.
-        Mark all tip nodes with sim=False, whose leaves_count<=tips for all sectors. 
-        In order to uniform the names in --nhx output, we rename each tipnode with its nodeid.
+        For a node, if node.left.leaves_count<cutoff and node.right.leaves_count<cutoff, prune it into a tip node.
+        If node.left.leaves_count<cutoff and node.right.leaves_count>=cutoff, just prune node.left into a tip node.
+        Mark all tip nodes with sim=False, whose leaves_count<cutoff for all sectors. 
+        2) In order to uniform the names in --nhx output, we rename each tipnode with its nodeid.
+        3) Add a dictionary to each node to save the sector information. The structure of this dictionary is:
+        {sector1:number_of_sector1_cells_in_all_leaves_of_this_node,
+         sector2:number_of_sector2_cells_in_all_leaves_of_this_node,, ...
+        }
         '''
+        if not hasattr(self,'sectors'):
+            self.sectors={}
+        self.sim=False
         if self.left==None and self.right==None:
             tipnode_leaves[self.nodeid]=self.leaves_naming()
             self.name=self.nodeid
-            self.sim=False
             for sector in sectors:
                 cells=sectors[sector]['members']
-                tips=sectors[sector]['prune_n']
-                if len(cells.intersection(self.leaves_names))>=tips:
+                cutoff=sectors[sector]['prune_n']
+                focal_cells=cells.intersection(self.leaves_names)
+                self.sectors[sector]=len(focal_cells)
+                if len(focal_cells)>=cutoff and self.sim==False:
                     self.sim=True
-                    break
         else:
             for sector in sectors:
                 cells=sectors[sector]['members']
-                tips=sectors[sector]['prune_n']
-                if len(cells.intersection(self.left.leaves_names))>=tips or len(cells.intersection(self.right.leaves_names))>=tips:
+                cutoff=sectors[sector]['prune_n']
+                focal_cells=cells.intersection(self.leaves_names)
+                self.sectors[sector]=len(focal_cells)
+                if len(cells.intersection(self.left.leaves_names))>=cutoff or len(cells.intersection(self.right.leaves_names))>=cutoff:
                     self.sim=True
                     self.left.collect_leaves_and_trim(tipnode_leaves=tipnode_leaves,sectors=sectors)
                     self.right.collect_leaves_and_trim(tipnode_leaves=tipnode_leaves,sectors=sectors)
-                    break
-            else:
-                tipnode_leaves[self.nodeid]=self.leaves_naming()
+            if self.sim==False:
                 self.left=None
                 self.right=None
+                tipnode_leaves[self.nodeid]=self.leaves_naming()
                 self.name=self.nodeid
-                self.sim=False
                 for sector in sectors:
                     cells=sectors[sector]['members']
-                    tips=sectors[sector]['prune_n']
-                    if len(cells.intersection(self.leaves_names))>=tips:
+                    cutoff=sectors[sector]['prune_n']
+                    focal_cells=cells.intersection(self.leaves_names)
+                    if len(focal_cells)>=cutoff and self.sim==False:
                         self.sim=True
-                        break
+
+    def collect_sectors_nodes(self,sectors=None):
+        '''
+        Collect the nodes that are visible to each sector.
+        After this method, the sectors will have a item 'nodes':{node1,node2,...}.
+        '''
+        for sector in sectors:
+            cells=sectors[sector]['members']
+            if cells.intersection(self.leaves_naming()):
+                try:
+                    sectors[sector]['nodes'].add(self.nodeid)
+                except KeyError:
+                    sectors[sector]['nodes']={self.nodeid}
+        if self.left!=None:
+            self.left.collect_sectors_nodes(sectors=sectors)
+        if self.right!=None:
+            self.right.collect_sectors_nodes(sectors=sectors)
 
     def prune(self,sectors=None):
         '''
@@ -562,12 +591,12 @@ class Tree:
     def snvs_freq_cnvs_profile(self,parental=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,
                                trunk_snvs=None,trunk_cnvs=None,length=None,
-                               normal_dosage=None,chain=None,chroms=None):
+                               normal_dosage=None,chain=None,chroms=None,sectors=None,wholeT=None):
         '''
         Produce the true frequency of SNVs in the samples.
         It's a warpper for generating SNVs/CNVs on a tree and summarize their frequency.
         '''
-        all_cnvs=[]
+        all_cnvs={}
         nodes_vars={}
         all_snvs_alt_counts={}
         all_snvs_alt_freq=[]
@@ -602,20 +631,24 @@ class Tree:
 #There will not be two snps occure on the same position of different haplotype,
 #except they are specified by users in trunk_vars 
             hap_trunk_snvs_pos=[snv['start'] for snv in hap_trunk_snvs]
-            for pos,info in hap_tree.all_snvs_summary().items():
-                if pos in all_snvs_alt_counts:
-                    if pos in hap_trunk_snvs_pos:
-                        all_snvs_alt_counts[pos]['alt_count']+=info['alt_count']
+            for sector in sectors.keys():
+                if sector not in all_snvs_alt_counts:
+                    all_snvs_alt_counts[sector]={}
+                for pos,info in hap_tree.all_snvs_summary(sector=sector).items():
+                    if pos in all_snvs_alt_counts[sector]:
+                        if pos in hap_trunk_snvs_pos:
+                            all_snvs_alt_counts[sector][pos]['alt_count']+=info['alt_count']
+                        else:
+                            raise ShouldNotBeHereError
                     else:
-                        raise ShouldNotBeHereError
-                else:
-                    all_snvs_alt_counts[pos]=info
+                        all_snvs_alt_counts[sector][pos]=info
 
-            haplotype_cnvs=hap_tree.all_cnvs_collect()
-            all_cnvs.extend(haplotype_cnvs)
-#            haps_cnvs.append(haplotype_cnvs))
+                if sector not in all_cnvs:
+                    all_cnvs[sector]=[]
+                haplotype_cnvs=hap_tree.all_cnvs_collect(sector=sector)
+                all_cnvs[sector].extend(haplotype_cnvs)
+
             nodes_vars=merge_two_dict_set(nodes_vars,hap_tree.nodes_vars_collect(chroms=chroms))
-
             hap_tree.genotyping(genotypes=tipnode_snv_alts)
             hap_tree.cnv_genotyping(genotypes=tipnode_cnvs,parental=parental[i])
             if chain!=None:
@@ -623,30 +656,29 @@ class Tree:
                 logging.debug('Haplotypes: %s',tipnode_hap)
                 output_tipnode_hap(tipnode_hap=tipnode_hap,directory=chain,chroms=chroms,haplotype=i,parental=parental[i])
 
-        all_snvs_pos=sorted(all_snvs_alt_counts.keys())
+        all_snvs_pos=sorted(all_snvs_alt_counts[wholeT].keys())
 
-#construct cnv profile list, assuming the whole region start with 0 and end with length
-        all_cnvs.sort(key=lambda cnv: cnv['start'])
-        cnvs_pos_changes=cnvs2pos_changes(cnvs=all_cnvs,length=length,background=background)
+#output true freq for multi-sectoring data
+        for sector,info in sectors.items():
+            sector_cnvs=all_cnvs[sector]
+            sector_snvs_alt_counts=all_snvs_alt_counts[sector]
 
-#I do not output this information anymore.
-#        hap_local_copy_for_all_snvs=hap_local_leaves(positions=all_snvs_pos,
-#            haps_cnvs=haps_cnvs,length=length,background=self.leaves_counting(),ploidy=ploidy)
+            sector_snvs_pos=sorted(sector_snvs_alt_counts.keys())
 
-#construct cnv profile for each hap_tree, assuming the whole region start with 0 and end with length
-#translate cnvs_pos_changes to cnv_profile before its changing
-        cnv_profile=pos_changes2region_profile(cnvs_pos_changes)
-
-        local_tumor_dosage=0
-        for pos in all_snvs_pos:
-            while pos>=cnvs_pos_changes[0][0]:
-                local_tumor_dosage+=cnvs_pos_changes.pop(0)[1]
-            all_snvs_alt_freq.append([pos,all_snvs_alt_counts[pos]['mutation'],all_snvs_alt_counts[pos]['alt_count']/(normal_dosage+local_tumor_dosage)])
-
-######################
-#TODO: output true freq for multi-sectoring data
-#Just need to work on all_cnvs and all_snvs_alt_counts
-######################
+            sector_cnvs_pos_changes=cnvs2pos_changes(cnvs=sector_cnvs,length=length,background=len(info['members'])*ploidy)
+            sector_cnv_profile=pos_changes2region_profile(sector_cnvs_pos_changes)
+            sector_normal_dosage=info['normal_dosage']
+            sector_local_tumor_dosage=0
+            sector_snvs_alt_freq=[]
+            for pos in sector_snvs_pos:
+                while pos>=sector_cnvs_pos_changes[0][0]:
+                    sector_local_tumor_dosage+=sector_cnvs_pos_changes.pop(0)[1]
+                sector_snvs_alt_freq.append([pos,
+                    sector_snvs_alt_counts[pos]['mutation'],
+                    sector_snvs_alt_counts[pos]['alt_count']/(sector_normal_dosage+sector_local_tumor_dosage)])
+            info['snvs_alt_freq']=sector_snvs_alt_freq
+            info['cnvs']=sector_cnvs
+            info['cnv_profile']=sector_cnv_profile
 
 #calculate the number of reference alleles of each SNV for each tipnode
         tipnode_snv_refs={}
@@ -670,8 +702,7 @@ class Tree:
                     local_ploidy+=tipnode_cnvs_pos_changes[tipnode].pop(0)[1]
                 tipnode_snv_refs[tipnode][pos]=local_ploidy-tipnode_snv_alts[tipnode][pos]
 
-        return all_snvs_alt_freq,all_cnvs,cnv_profile,nodes_vars,tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs
-#        return all_snvs_alt_freq,all_cnvs,cnv_profile,nodes_vars,tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs,hap_local_copy_for_all_snvs
+        return nodes_vars,tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs
 
     def tree2nhx(self,with_lens=False,attrs=None):
         '''
