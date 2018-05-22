@@ -59,16 +59,9 @@ def check_seed(value=None):
     return ivalue
 
 def check_prune(value=None):
-    ivalue=int(float(value))
-    if not ivalue>0:
-        raise argparse.ArgumentTypeError("{} is an invalid value for --prune. ".format(value)+
-            "It should be an integer in the range of [0,N], where N is the number of leaves of the tree.")
-    return ivalue
-
-def check_proportion(value=None):
     fvalue=float(value)
     if not 0<=fvalue<=1:
-        raise argparse.ArgumentTypeError("{} is an invalid value for --prune_proportion. ".format(value)+
+        raise argparse.ArgumentTypeError("{} is an invalid value for --prune. ".format(value)+
             "It should be an float number in the range of [0,1].")
     return fvalue
 
@@ -89,7 +82,7 @@ def check_purity(value=None):
 def check_folder(directory=None):
     good_charactors=re.compile('^[0-9a-zA-Z/_\-.]+$')
     if not good_charactors.match(directory):
-        raise argparse.ArgumentTypeError("'{}' is an invalid string for --chain. ".format(directory)+
+        raise argparse.ArgumentTypeError("'{}' is an invalid string for folder name. ".format(directory)+
             "Please only use number, alphabet and ._/- in the directory name.")
     if os.path.exists(directory):
         raise argparse.ArgumentTypeError("'{}' exists already. Delete it or use another name instead.".format(directory))
@@ -330,12 +323,8 @@ def main(progname=None):
     group2.add_argument('--length',type=int,default=default,metavar='INT',
         help='the length of the sequence to simulate [{}]'.format(default))
     group3=parser.add_argument_group('Other simulation arguments (can NOT be set in config YAML)')
-    group3sub=group3.add_mutually_exclusive_group()
-    default=0
-    group3sub.add_argument('-x','--prune',type=check_prune,default=default,metavar='INT',
-        help='trim all the children of the nodes with less than this number of leaves [{}]'.format(default))
-    default=0.0
-    group3sub.add_argument('-X','--prune_proportion',type=check_proportion,default=default,metavar='FLOAT',
+    default=0.05
+    group3.add_argument('-x','--prune',type=check_prune,default=default,metavar='FLOAT',
         help='trim all the children of the nodes with less than this proportion of total leaves [{}]'.format(default))
     default=None
     group3.add_argument('-s','--sex_chr',type=check_sex,default=default,metavar='STR',
@@ -352,10 +341,10 @@ def main(progname=None):
     group4=parser.add_argument_group('Output arguments')
     default='phylovar_snvs'
     group4.add_argument('-S','--snv',type=str,default=default,metavar='DIR',
-        help='the output file to save SNVs [{}]'.format(default))
+        help='the output directory to save SNVs files [{}]'.format(default))
     default='phylovar_cnvs'
     group4.add_argument('-V','--cnv',type=str,default=default,metavar='DIR',
-        help='the output file to save CNVs [{}]'.format(default))
+        help='the output directory to save CNVs files [{}]'.format(default))
     default='phylovar.log'
     group4.add_argument('-g','--log',type=str,default=default,metavar='FILE',
         help='the log file [{}]'.format(default))
@@ -466,21 +455,13 @@ def main(progname=None):
     leaves_number=mytree.leaves_counting()
     leaves_names=mytree.leaves_naming()
     sectors={}
-    prune_p=0
     if args.affiliation:
         sectors=read_affiliation(args.affiliation)
         for sector in sectors:
             invalid=set(sectors[sector]['members'])-set(leaves_names)
             if invalid:
                 raise AffiliationFileError("Can not find the cells below on your tree:\n{}".format(','.join([str(x) for x in invalid])))
-    if args.prune>0:
-        if args.prune>leaves_number:
-            raise argparse.ArgumentTypeError("There are only {} leaves on the tree. Can not prune {} leaves.".format(
-                leaves_number,args.prune))
-        prune_p=args.prune/leaves_number
-    elif args.prune_proportion>0:
-        prune_p=args.prune_proportion
-    sectors[WHOLET]={'purity':args.purity,'prune_p':prune_p,'members':set(mytree.leaves_naming())}
+    sectors[WHOLET]={'purity':args.purity,'prune_p':args.prune,'members':set(mytree.leaves_naming())}
     for sector in sectors:
         sectors[sector]['prune_n']=sectors[sector]['prune_p']*len(sectors[sector]['members'])
     mytree.prune(sectors=sectors)
@@ -498,7 +479,7 @@ def main(progname=None):
             leaf_tipnode[leaf]=tipnode
     leaves_names.sort()
     logging.info(' There are %s leaves on your input tree.',len(leaves_names))
-    if args.prune>0 or args.prune_proportion>0:
+    if args.prune>0:
         logging.info(' After pruning, there are %s tip nodes on the tree.',len(tipnode_list))
 
 ###### output the map of tip_node(after pruning):leaf

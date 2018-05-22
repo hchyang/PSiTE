@@ -17,7 +17,7 @@ import logging
 import subprocess
 import pyfaidx
 from csite.vcf2fa import check_sex,check_vcf,check_autosomes
-from csite.phylovar import check_prune,check_proportion,check_seed,check_purity,random_int,check_config_file
+from csite.phylovar import check_prune,check_seed,check_purity,random_int,check_config_file
 from csite.fa2wgs import check_depth,check_file
 from csite.fa2wes import TargetAction, RATIO_WESSIM, RATIO_CAPGEM, check_program, check_snakemake
 
@@ -67,12 +67,8 @@ def main(progname=None):
     default=None
     group1.add_argument('-s','--sex_chr',type=check_sex,default=default,metavar='STR',
         help='sex chromosomes of the genome (separated by comma) [{}]'.format(default))
-    group2sub=group2.add_mutually_exclusive_group()
-    default=0
-    group2sub.add_argument('-x','--prune',type=check_prune,default=default,metavar='INT',
-        help='trim all the children of the nodes with equal or less than this number of leaves [{}]'.format(default))
-    default=0.0
-    group2sub.add_argument('-X','--prune_proportion',type=check_proportion,default=default,metavar='FLOAT',
+    default=0.05
+    group2.add_argument('-x','--prune',type=check_prune,default=default,metavar='FLOAT',
         help='trim all the children of the nodes with equal or less than this proportion of total leaves [{}]'.format(default))
     default=None
     group2.add_argument('--trunk_vars',type=str,default=default,metavar='FILE',
@@ -154,8 +150,8 @@ def main(progname=None):
             Level 2: keep only final results ('merged' and 'separate') [{}]".format(default))
 
     args=parser.parse_args()
-    if (args.prune or args.prune_proportion) and args.single:
-        raise argparse.ArgumentTypeError("Can not prune the tree in single cell mode!")
+    if args.prune and args.single:
+        raise argparse.ArgumentTypeError("Can not prune the tree in single cell mode! Set '--prune 0' if you want to simulate single cell data.")
     with open(args.config,'r') as configfile:
         config=yaml.safe_load(configfile)
     check_config_file(config=config)
@@ -245,6 +241,7 @@ def main(progname=None):
                     '--tree',tree,
                     '--config',config,
                     '--purity',str(args.purity),
+                    '--prune',str(args.prune),
                     '--random_seed',str(random_n),
                     '--map',map_dir,
                     '--chain',tumor_chain]
@@ -256,10 +253,6 @@ def main(progname=None):
             cmd_params.extend(['--affiliation',affiliation])
         if args.trunk_length:
             cmd_params.extend(['--trunk_length',str(args.trunk_length)])
-        if args.prune:
-            cmd_params.extend(['--prune',str(args.prune)])
-        elif args.prune_proportion:
-            cmd_params.extend(['--prune_proportion',str(args.prune_proportion)])
         logging.info(' Command: %s',' '.join(cmd_params))
         subprocess.run(args=cmd_params,check=True)
 
