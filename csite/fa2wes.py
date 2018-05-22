@@ -18,6 +18,7 @@ import shutil
 import glob
 import multiprocessing
 import pip
+import time
 from csite.phylovar import check_purity, check_seed, random_int
 from csite.fa2wgs import check_folder, check_file, check_depth, merge_fq, OutputExistsError, read_sectors_file, tipnode_leaves_counting, genomesize
 
@@ -616,9 +617,11 @@ def run_snakemake(outdir, args, sample_file, snake_file):
 
 
 def main(progname=None):
+    t0 = time.time()
+    prog = progname if progname else sys.argv[0]
     parser = argparse.ArgumentParser(
         description='a wrapper of simulating targeted capture sequencing from reference genome files',
-        prog=progname if progname else sys.argv[0])
+        prog=prog)
 
     group1 = parser.add_argument_group('Input arguments')
     group1.add_argument('-n', '--normal', metavar='DIR', type=check_folder, required=True,
@@ -818,3 +821,7 @@ def main(progname=None):
         clean_output(args.out_level, outdir)
     else:
         logging.info('Please specify sequening depth!')
+
+    t1 = time.time()
+    print ("Total time running {}: {} seconds".format
+       (prog, str(t1-t0)))

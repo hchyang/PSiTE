@@ -4,7 +4,7 @@
 # Author: Hechuan Yang
 # Created Time: 2017-04-04 18:00:34
 # File Name: phylovar.py
-# Description: 
+# Description:
 #########################################################################
 
 import sys
@@ -15,14 +15,15 @@ import numpy
 import logging
 import copy
 import yaml
+import time
 import csite.trunk_vars
 import csite.tree
 from csite.vcf2fa import check_sex
 
 #handle the error below
-#python | head == IOError: [Errno 32] Broken pipe 
-from signal import signal, SIGPIPE, SIG_DFL 
-signal(SIGPIPE,SIG_DFL) 
+#python | head == IOError: [Errno 32] Broken pipe
+from signal import signal, SIGPIPE, SIG_DFL
+signal(SIGPIPE,SIG_DFL)
 
 WHOLET='tumor'
 #I defined those two variables as global variables. As they will be used in function
@@ -46,54 +47,54 @@ def random_int():
     But in jave (used in fa2wes) the range is (-2**31,2**31-1).
     Let's use this to generate a integers can be used by both.
     '''
-    return numpy.random.randint(LARGEST) 
+    return numpy.random.randint(LARGEST)
 
 def check_seed(value=None):
     ivalue=int(value)
 #2**32: Must be convertible to 32 bit unsigned integers.
 #in jave the range is (-2**31,2**31-1)
-    if not 0<=ivalue<LARGEST: 
+    if not 0<=ivalue<LARGEST:
         raise argparse.ArgumentTypeError("{} is an invalid value for --random_seed. ".format(value)+
             "It should be an integer between 0 and {}.".format(LARGEST-1))
     return ivalue
 
 def check_prune(value=None):
     ivalue=int(float(value))
-    if not ivalue>0: 
+    if not ivalue>0:
         raise argparse.ArgumentTypeError("{} is an invalid value for --prune. ".format(value)+
             "It should be an integer in the range of [0,N], where N is the number of leaves of the tree.")
     return ivalue
 
 def check_proportion(value=None):
     fvalue=float(value)
-    if not 0<=fvalue<=1: 
+    if not 0<=fvalue<=1:
         raise argparse.ArgumentTypeError("{} is an invalid value for --prune_proportion. ".format(value)+
             "It should be an float number in the range of [0,1].")
     return fvalue
 
 def check_tstv(value=None):
     fvalue=float(value)
-    if fvalue<=0: 
+    if fvalue<=0:
         raise argparse.ArgumentTypeError("{} is an invalid value for transition/transversion ratio. ".format(value)+
             "It should be an float larger than 0.")
     return fvalue
 
 def check_purity(value=None):
     fvalue=float(value)
-    if not 0<fvalue<=1: 
+    if not 0<fvalue<=1:
         raise argparse.ArgumentTypeError("{} is an invalid value for --purity. ".format(value)+
             "It should be a float number in the range of (0,1].")
     return fvalue
 
 def check_folder(directory=None):
-    good_charactors=re.compile('^[0-9a-zA-Z/_\-.]+$') 
+    good_charactors=re.compile('^[0-9a-zA-Z/_\-.]+$')
     if not good_charactors.match(directory):
         raise argparse.ArgumentTypeError("'{}' is an invalid string for --chain. ".format(directory)+
             "Please only use number, alphabet and ._/- in the directory name.")
     if os.path.exists(directory):
         raise argparse.ArgumentTypeError("'{}' exists already. Delete it or use another name instead.".format(directory))
     return directory
-    
+
 def check_cnv_length_cfg(chroms=None,cnv_length_beta=None,cnv_length_max=None,chr_length=None):
     if cnv_length_max>chr_length:
          raise argparse.ArgumentTypeError("{}: The value of cnv_length_max ".format(chroms)+
@@ -163,7 +164,7 @@ def check_config_file(config=None):
     total_cnv_rate=0
     missing_snv_rate=False
     missing_cnv_rate=False
-    for chroms in config['chromosomes']: 
+    for chroms in config['chromosomes']:
         if not isinstance(chroms,dict) or len(chroms)>1:
             raise ConfigFileError('Check your config file. The format in chromosomes section is not correct.')
         for chroms_n,chroms_cfg in chroms.items():
@@ -273,11 +274,13 @@ def read_affiliation(affiliation_f=None):
     return sectors
 
 #use kernprof -l -v script.py to profile
-#@profile
+# @profile
 def main(progname=None):
+    t0 = time.time()
+    prog=progname if progname else sys.argv[0]
     parser=argparse.ArgumentParser(
         description='Simulate SNVs/CNVs on a coalescent tree in newick format',
-        prog=progname if progname else sys.argv[0])
+        prog=prog)
     group1=parser.add_argument_group('Input arguments')
     group1.add_argument('-t','--tree',required=True,metavar='FILE',
         help='a file containing ONE tree in newick format')
@@ -394,7 +397,7 @@ def main(progname=None):
 ###### figure out the simulation setting for each chroms
 #1. The setting in configure YAML file will override the setting in command line.
 #2. In the configure file, the setting for individual chr will override the setting of genome.
-    final_chroms_cfg={} 
+    final_chroms_cfg={}
     final_chroms_cfg[args.name]={}
     final_chroms_cfg['order']=[args.name]
     for parameter in cfg_params:
@@ -403,7 +406,7 @@ def main(progname=None):
 
     if args.config:
         config={}
-        final_chroms_cfg={} 
+        final_chroms_cfg={}
         with open(args.config,'r') as configfile:
             config=yaml.safe_load(configfile)
         check_config_file(config=config)
@@ -413,7 +416,7 @@ def main(progname=None):
         undefined_snv_rate_length=config['genome']['length']
         undefined_cnv_rate=config['genome']['cnv_rate']
         undefined_cnv_rate_length=config['genome']['length']
-        for chroms in config['chromosomes']: 
+        for chroms in config['chromosomes']:
             for chroms_cfg in chroms.values():
                 if 'snv_rate' in chroms_cfg:
                     undefined_snv_rate-=chroms_cfg['snv_rate']
@@ -421,7 +424,7 @@ def main(progname=None):
                 if 'cnv_rate' in chroms_cfg:
                     undefined_cnv_rate-=chroms_cfg['cnv_rate']
                     undefined_cnv_rate_length-=chroms_cfg['length']
-        for chroms in config['chromosomes']: 
+        for chroms in config['chromosomes']:
             for chroms_n,chroms_cfg in chroms.items():
                 final_chroms_cfg[chroms_n]={}
                 final_chroms_cfg[chroms_n]['snv_rate']=chroms_cfg.get('snv_rate',chroms_cfg['length']/undefined_snv_rate_length*undefined_snv_rate)
@@ -454,9 +457,10 @@ def main(progname=None):
     mytree=csite.tree.newick2tree(newick)
     if args.trunk_length:
         mytree.lens=args.trunk_length
-                
+
 #################original_tree
     original_tree=copy.deepcopy(mytree)
+
 
 ######In order to get the mytree.tipnode_leaves, we will prune the tree in any situation.
     leaves_number=mytree.leaves_counting()
@@ -537,7 +541,7 @@ def main(progname=None):
     if args.snv_genotype!=None:
         genotype_file=open(args.snv_genotype,'w')
         genotype_file.write('#chr\tstart\tend\tform\t{}\n'.format('\t'.join(tipnode_list)))
-    
+
     if args.ind_cnvs!=None:
         ind_cnvs_file=open(args.ind_cnvs,'w')
         ind_cnvs_file.write('#cell\tparental\tchr\tstart\tend\tcopy\n')
@@ -648,7 +652,7 @@ def main(progname=None):
 
     if args.snv_genotype!=None:
         genotype_file.close()
-    
+
     if args.ind_cnvs!=None:
         ind_cnvs_file.close()
 
@@ -679,3 +683,6 @@ def main(progname=None):
                 vars_list=sorted(vars_list,key=lambda x:(x[0],int(x[1]),int(x[2])))
                 for var in vars_list:
                     nodes_vars_file.write('{}\t{}\n'.format(node,'\t'.join(var)))
+    t1 = time.time()
+    print ("Total time running {}: {} seconds".format
+      (prog, str(t1-t0)))
