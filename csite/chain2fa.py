@@ -131,6 +131,8 @@ def build_fasta(output=None,chain=None,normal_fa=None,width=None):
                     elif segment==IndexError:
                         raise ChainFileError("'{}' is not a valid mutation form of SNV,\n".format(form)+
                             "but it's found in your chain file ({}):\n{}".format(chain,line))
+                elif seq_type=='AMP':
+                    pass
                 elif seq_type=='DEL':
                     pass
                 else:

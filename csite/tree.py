@@ -937,9 +937,9 @@ def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
         elif var['type']=='DEL': #deletion
             if var['start']>breakpoint:
                 out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'REF']))
-                out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type']]))
+                out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type'],var['copy']]))
             elif var['start']==breakpoint:
-                out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type']]))
+                out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type'],var['copy']]))
             else:
                 raise ShouldNotBeHereError
             breakpoint=var['end']
@@ -947,6 +947,7 @@ def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
             if var['start']>breakpoint:
                 out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'REF']))
                 breakpoint=var['start']
+            out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type'],'+{}'.format(var['copy'])]))
             for haplotype in var['haplotypes']:
                 retrieve_tip_vars(tip_vars=haplotype,tip=tip,out_file=out_file,chroms=chroms)
         else: 
