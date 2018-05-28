@@ -299,11 +299,11 @@ def main(progname=None):
         n=math.ceil(cfg['gsize']*cfg['fcov']/sizeBlock)
         if n==0:
             continue
-        cfg['fcov']/=n
+        cfg['fcov']=round(cfg['fcov']/n,6)
         for i in range(n):
             final_params_matrix.append(cfg.copy())
-            final_params_matrix[-1]['out']=cfg['out']+'{:02d}.'.format(i)
-            final_params_matrix[-1]['id']=cfg['id']+'_{:02d}-'.format(i)
+            final_params_matrix[-1]['out']=cfg['out']+'{:03d}.'.format(i)
+            final_params_matrix[-1]['id']=cfg['id']+'_{:03d}-'.format(i)
             final_params_matrix[-1]['rndSeed']=str(random_int())
     pool=multiprocessing.Pool(processes=args.cores)
     results=[]
@@ -321,7 +321,7 @@ def main(progname=None):
         suffixes=[x+'.gz' for x in suffixes]
     if args.normal_depth>0:
         for suffix in suffixes:
-            prefix=os.path.join(normal_dir,'normal.parental_[01].[0-9][0-9].')
+            prefix=os.path.join(normal_dir,'normal.parental_[01].[0-9][0-9][0-9].')
             source=glob.glob(prefix+suffix)
             if len(source):
                 target=os.path.join(normal_dir,'normal.{}'.format(suffix))
@@ -334,14 +334,14 @@ def main(progname=None):
             for suffix in suffixes:
                 if args.single or args.separate:
                     for tipnode in ['normal']+sorted(tipnode_leaves.keys()):
-                        prefix=os.path.join(sector_dir,'{}.parental_[01].[0-9][0-9].'.format(tipnode))
+                        prefix=os.path.join(sector_dir,'{}.parental_[01].[0-9][0-9][0-9].'.format(tipnode))
                         source=glob.glob(prefix+suffix)
                         if len(source):
                             target=os.path.join(sector_dir,'{}.{}'.format(tipnode,suffix))
                             source.sort()
                             sample_fq_files.append([target,source])
                 else:
-                    prefix=os.path.join(sector_dir,'*.parental_[01].[0-9][0-9].')
+                    prefix=os.path.join(sector_dir,'*.parental_[01].[0-9][0-9][0-9].')
                     source=glob.glob(prefix+suffix)
                     if len(source):
                         target=os.path.join(sector_dir,'{}.{}'.format(sector,suffix))

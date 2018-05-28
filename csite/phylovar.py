@@ -464,6 +464,7 @@ def main(progname=None):
     sectors[WHOLET]={'purity':args.purity,'prune_p':args.prune,'members':set(mytree.leaves_naming())}
     for sector in sectors:
         sectors[sector]['prune_n']=sectors[sector]['prune_p']*len(sectors[sector]['members'])
+    logging.info(' Start pruning ...')
     mytree.prune(sectors=sectors)
     mytree.collect_sectors_nodes(sectors=sectors)
 
@@ -479,8 +480,7 @@ def main(progname=None):
             leaf_tipnode[leaf]=tipnode
     leaves_names.sort()
     logging.info(' There are %s leaves on your input tree.',len(leaves_names))
-    if args.prune>0:
-        logging.info(' After pruning, there are %s tip nodes on the tree.',len(tipnode_list))
+    logging.info(' After pruning, there are %s tip nodes on the tree.',len(tipnode_list))
 
 ###### output the map of tip_node(after pruning):leaf
     if args.chain!=None:
@@ -601,7 +601,7 @@ def main(progname=None):
 
         for sector,info in sectors.items():
             for pos,mutation,freq in info['snvs_alt_freq']:
-                info['snv_file'].write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,pos,pos+1,mutation,freq))
+                info['snv_file'].write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,pos,pos+1,mutation,round(freq,4)))
             for cnv in info['cnvs']:
                 cnv_copy='+{}'.format(cnv['copy']) if cnv['copy']>0 else str(cnv['copy'])
                 info['cnv_file'].write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,cnv['start'],cnv['end'],cnv_copy,cnv['leaves_count']))
