@@ -391,15 +391,17 @@ class Tree:
 
     def collect_leaves_and_trim(self,tipnode_leaves=None,sectors=None):
         '''
+        NOTE: For a Tree object, you should run the leaves_counting() method on it before running this method.
         1) Prune all branches with LESS than the number of tips specified by the prune_n in each sector.
-        For a Tree object, it should run the leaves_counting() method before run this method.
         For a node, if node.left.leaves_count<cutoff and node.right.leaves_count<cutoff, prune it into a tip node.
-        If node.left.leaves_count<cutoff and node.right.leaves_count>=cutoff, just prune node.left into a tip node.
-        Mark all tip nodes with sim=False, whose leaves_count<cutoff for all sectors. 
-        2) In order to uniform the names in --nhx output, we rename each tipnode with its nodeid.
-        3) Add a dictionary to each node to save the sector information. The structure of this dictionary is:
+        If node.left.leaves_count<cutoff and node.right.leaves_count>=cutoff, just prune node.left into a tip node,
+        and then check the node.right's left and right nodes.
+        2) Mark a tip nodes with sim=False, if its leaves_count is less than the cutoffs of ALL sectors. 
+        3) In order to uniform the names in --nhx output, we rename each tipnode with its nodeid.
+        4) Add a dictionary to each node to save the sector information. The structure of this dictionary is:
         {sector1:number_of_sector1_cells_in_all_leaves_of_this_node,
-         sector2:number_of_sector2_cells_in_all_leaves_of_this_node,, ...
+         sector2:number_of_sector2_cells_in_all_leaves_of_this_node,
+         ...
         }
         '''
         if not hasattr(self,'sectors'):
@@ -413,18 +415,18 @@ class Tree:
                 cutoff=sectors[sector]['prune_n']
                 focal_cells=cells.intersection(self.leaves_names)
                 self.sectors[sector]=len(focal_cells)
-                if len(focal_cells)>=cutoff and self.sim==False:
+                if self.sim==False and len(focal_cells)>=cutoff:
                     self.sim=True
         else:
             for sector in sectors:
                 cells=sectors[sector]['members']
                 cutoff=sectors[sector]['prune_n']
-                focal_cells=cells.intersection(self.leaves_names)
+                focal_cells=cells.intersection(self.leaves_naming())
                 self.sectors[sector]=len(focal_cells)
-                if len(cells.intersection(self.left.leaves_names))>=cutoff or len(cells.intersection(self.right.leaves_names))>=cutoff:
-                    self.sim=True
+                if self.sim==False and (len(cells.intersection(self.left.leaves_names))>=cutoff or len(cells.intersection(self.right.leaves_names))>=cutoff):
                     self.left.collect_leaves_and_trim(tipnode_leaves=tipnode_leaves,sectors=sectors)
                     self.right.collect_leaves_and_trim(tipnode_leaves=tipnode_leaves,sectors=sectors)
+                    self.sim=True
             if self.sim==False:
                 self.left=None
                 self.right=None
@@ -434,7 +436,8 @@ class Tree:
                     cells=sectors[sector]['members']
                     cutoff=sectors[sector]['prune_n']
                     focal_cells=cells.intersection(self.leaves_names)
-                    if len(focal_cells)>=cutoff and self.sim==False:
+                    self.sectors[sector]=len(focal_cells)
+                    if self.sim==False and len(focal_cells)>=cutoff:
                         self.sim=True
 
     def collect_sectors_nodes(self,sectors=None):
