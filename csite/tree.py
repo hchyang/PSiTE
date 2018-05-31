@@ -198,6 +198,8 @@ class Tree:
                             new_copies=[]
                             for i in range(cnv_copy):
                                 segment=Tree(name=self.name,lens=self.lens-waiting_t,nodeid=self.nodeid,sim=self.sim)
+                                if hasattr(self,'sectors'):
+                                    segment.sectors=self.sectors
                                 if self.left != None:
                                     segment.left=copy.deepcopy(self.left)
                                     segment.left.top=segment
@@ -704,7 +706,6 @@ class Tree:
                 while pos>=tipnode_cnvs_pos_changes[tipnode][0][0]:
                     local_ploidy+=tipnode_cnvs_pos_changes[tipnode].pop(0)[1]
                 tipnode_snv_refs[tipnode][pos]=local_ploidy-tipnode_snv_alts[tipnode][pos]
-
         return nodes_vars,tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs
 
     def tree2nhx(self,with_lens=False,attrs=None):
