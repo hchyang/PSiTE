@@ -88,7 +88,7 @@ class TargetAction(argparse.Action):
 
 def check_program(value):
     if value == "capgem":
-        progs = ['bowtie2-build', 'bowtie2', 'samtools', 'capsim']
+        progs = ['bowtie2-build', 'bowtie2', 'samtools']
         for prog in progs:
             if shutil.which(prog) is None:
                 raise argparse.ArgumentTypeError(
@@ -103,7 +103,8 @@ def check_program(value):
         try:
             import package
         except:
-            pip.main(['install', package])
+            raise argparse.ArgumentTypeError(
+                "Cannot find package '{}'. Please ensure that you have installed it!".format(package))
     else:
         pass
     return value
@@ -757,6 +758,11 @@ def main(progname=None):
         if os.path.exists(os.path.join(capgem_dir, 'bin')):
             os.environ['PATH'] += os.pathsep + os.path.join(capgem_dir, 'bin')
         os.environ['PATH'] += os.pathsep + os.path.join(capgem_dir, 'src')
+        # Ensure that capsim is installed
+        prog = 'capsim'
+        if shutil.which(prog) is None:
+            raise argparse.ArgumentTypeError(
+                "Cannot find program '{}'. Please ensure that you have installed it!".format(prog))
     assert os.path.isfile(
         snake_file), 'Cannot find Snakefile {} under the program directory:\n'.format(snake_file)
 
