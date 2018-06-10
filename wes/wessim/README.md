@@ -12,7 +12,10 @@ For ease of use, we revised the source code of WesSim2 and include it in our CSi
 
 Major changes:
 1. Replace gfServer and gfClient with blat for mapping probes to the genome
-2. Remove the dependencies on  Python2                                                                                                                                                      
+2. Remove the dependencies on Python2   
+3. Change the selection procedure of probes from uniform choice to weighted choice based on the number of matched regions. A probe with more matches is more likely to be selected.
+This revision is due to bias of wessim in simulating reads from genomes with duplicated regions, such as whole genome duplication (WGD). Wessim firstly selects a probe randomly and then selects a matched region of this probe based on alignment score. In case of duplications, after a probe is chosen, only one matched region can be selected and hence not enough reads are generated from the duplicated regions.
+
 
 #### Install
 Several additional packages are required to run WesSim, including:

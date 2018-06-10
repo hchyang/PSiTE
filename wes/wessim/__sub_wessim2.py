@@ -120,7 +120,8 @@ def main(argv):
     verbose = args.v
 
     matchdic = {}
-    countdic = {}
+    countdic = {}   # Not used
+    mcountdic = {}  # The number of matches for each probe
     f1 = open(probefile)
     f2 = open(alignfile)
     if not reffile.endswith(".meta"):
@@ -199,9 +200,12 @@ def main(argv):
             matchdic[seqid] = [(pslscore, pslchrom, pslstart, pslend)]
             first = False
         line2 = f2.readline()
+    totalmatches = 0
     for seqid in matchdic.keys():
         match = matchdic[seqid]
         matchno = len(match)
+        totalmatches  += matchno
+        mcountdic[seqid] = matchno
         if matchno in countdic.keys():
             count = countdic[matchno]
             count += 1
@@ -211,7 +215,14 @@ def main(argv):
     totalmatched = len(matchdic.keys())
     countdic[0] = totalseq - totalmatched
     matchkeys = list(matchdic.keys())
-
+    selprobs_cumb = [] # The probability of selecting a probe
+    totalprob = 0.0
+    for seqid in matchdic.keys():
+        prob = mcountdic[seqid]/totalmatches
+        totalprob += prob
+        selprobs_cumb.append(totalprob)
+    # print(selprobs_cumb)
+    # assert abs(selprobs_cumb[-1]-1)<1e-6
     if paired:
         mx1, mx2, insD1, insD2, delD1, delD2, intervals, gQualL, bQualL, iQualL, mates, rds, rdLenD = parseModel(
             model, paired, readlength)
@@ -286,7 +297,7 @@ def main(argv):
 
     mvnTable = readmvnTable()
 
-    gcVector = getFragmentUniform(fref, matchkeys, matchdic, isize, 1000, bind)
+    gcVector = getFragmentUniform(fref, matchkeys, matchdic, selprobs_cumb, isize, 1000, bind)
 #       print gcVector
 #       u1, u2, newSD, m1, m2 = generateMatrices(isd, isize, gcVector)
     gcSD = numpy.std(gcVector)
@@ -298,7 +309,7 @@ def main(argv):
     seq = ""
     seqgenome = "g1"
     while i < readend + 1:
-        key = pickonekey(matchkeys)
+        key = pickonekey(matchkeys, selprobs_cumb)
         fragment = getFragment(matchdic, key, isize, newSD, imin, bind)
 
         fragment_chrom = fragment[0]
@@ -387,10 +398,14 @@ def main(argv):
         wread2.close()
 
 
-def pickonekey(matchkeys):
-    r = int(random.uniform(0, len(matchkeys) - 1))
+def pickonekey(matchkeys, selprobs_cumb):
+    # Use weighted choice based on number of matches for each probe
+    ran = random.random()
+    r = bisect.bisect_left(selprobs_cumb, ran)
+    # print('selprobs_cumb {}'.format(selprobs_cumb))
+    # r = int(random.uniform(0, len(matchkeys) - 1))
     if not len(matchkeys)>0:
-        raise Exception("Unable to generate short reads from the segments!") 
+        raise Exception("Unable to generate short reads from the segments!")
     key = matchkeys[r]
     return key
 
@@ -423,13 +438,13 @@ def getFragment(matchdic, key, mu, sigma, lower, bind):
     return pickedfragment
 
 
-def getFragmentUniform(fref, matchkeys, matchdic, mu, total, bind):
+def getFragmentUniform(fref, matchkeys, matchdic, selprobs_cumb, mu, total, bind):
     result = []
     ins = mu
     i = 0
     seq = ""
     while i < 1000:
-        key = pickonekey(matchkeys)
+        key = pickonekey(matchkeys, selprobs_cumb)
         match = matchdic[key]
         pickedproberegion = pickproberegion(match)
         pickedfragment = pickFragment(pickedproberegion, ins, bind)
@@ -458,9 +473,10 @@ def pickproberegion(match):
     scores = []
     for m in match:
         scores.append(int(m[0]))
-    reprobs_cumul = scoretoprob(scores, 0.7)
+    reprobs, reprobs_cumul = scoretoprob(scores, 0.7)
     ran = random.random()
     ind = bisect.bisect_left(reprobs_cumul, ran)
+    # ind = numpy.random.choice(len(match), p=reprobs)
     pickedmatch = match[ind]
     return pickedmatch
 
@@ -488,6 +504,7 @@ def scoretoprob(scores, r):
     for score in scores:
         mismatch = maxscore - score
         rescore = 1.0 * pow(r, mismatch)
+        # rescore = 1.0 * pow(mismatch, r)
         rescores.append(rescore)
         totalscore += rescore
     totalprob = 0.0
@@ -496,7 +513,9 @@ def scoretoprob(scores, r):
         totalprob += reprob
         reprobs.append(reprob)
         reprobs_cumul.append(totalprob)
-    return reprobs_cumul
+    # print('reprobs: {}'.format(reprobs))
+    # print('reprobs_cumul: {}'.format(reprobs_cumul))
+    return reprobs, reprobs_cumul
 
 
 def getGCCount(seq):

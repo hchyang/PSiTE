@@ -101,7 +101,7 @@ def check_program(value):
                     "Cannot find program '{}'. Please ensure that you have installed it!".format(prog))
         package = "pysam"
         try:
-            import package
+            import pysam
         except:
             raise argparse.ArgumentTypeError(
                 "Cannot find package '{}'. Please ensure that you have installed it!".format(package))
@@ -170,7 +170,7 @@ def merge_normal_sample(args, outdir):
         prefix = '{}/{}_reads/normal.parental_[01]/normal_normal.parental_[01]*_'.format(
             outdir, args.simulator)
         source = glob.glob(prefix + suffix)
-        print(source)
+        # print(source)
         if len(source):
             target_dir = os.path.join(outdir, 'merged')
             if not os.path.exists(target_dir):
@@ -178,7 +178,7 @@ def merge_normal_sample(args, outdir):
             target = '{}/{}_normal_{}'.format(target_dir,
                                               args.simulator, suffix)
             source.sort()
-            print(target)
+            # print(target)
             sample_fq_files.append([target, source, False])
 
     pool = multiprocessing.Pool(processes=args.cores)
@@ -232,7 +232,7 @@ def merge_tumor_sample(args, sectors, outdir):
                 prefix = '{}/{}_reads/*.parental_[01]/{}_*.parental_[01]*_'.format(
                     outdir, args.simulator, sector)
                 source = glob.glob(prefix + suffix)
-                print(source)
+                # print(source)
                 if len(source):
                     target_dir = os.path.join(outdir, 'merged')
                     if not os.path.exists(target_dir):
@@ -241,7 +241,7 @@ def merge_tumor_sample(args, sectors, outdir):
                     target = '{}/{}_{}_{}'.format(target_dir,
                                                   args.simulator, sector, suffix)
                     source.sort()
-                    print(target)
+                    # print(target)
                     sample_fq_files.append([target, source, False])
 
     pool = multiprocessing.Pool(processes=args.cores)
