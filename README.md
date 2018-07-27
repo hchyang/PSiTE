@@ -1,205 +1,204 @@
-# Coalescent Simulator for Tumor Evolution (CSiTE)
+#Coalescent Simulator for Tumor Evolution (CSiTE)
 
-CSiTE is a Python program for simulating short reads for tumor samples.
-It takes a coalescent tree (in the newick format) and jointly simulates Single 
-Nucleotide Variants (SNVs) and Copy Number Variants (CNVs) along the history of 
-the genealogy. By integrating those somatic variants into the normal genome, 
-perturbed genome of each tumor cell can be built, which are then piped to ART to 
-simulate NGS short reads. Germline variants can also be integrated to the genome 
-to make the data more realistic. With those charactors, CSiTE can be used to 
-generate benchmark data for both bulk and single cell sample of tumor.
+CSiTE is a coalescent simulator for tumor evolution. It first simulates somatic 
+variants (Single Nucleotide Variants (SNVs) and Copy Number Variants (CNVs)) 
+along the history of tumor evolution and then generates Next Generation 
+Sequencing (NGS) data for tumor samples. CSiTE can simulate a wide range of 
+tumor data including single sector, multi-sectoring bulk tumor as well single 
+cell data. It provides a powerful approach simulating tumor evolution with 
+different demographic histories and allows efficient benchmarking of methods 
+for clonality analysis.
 
-## 1. Installing
+## 1. Installation
 
-CSiTE is written in Python3 (>=3.5), and requires numpy, pyfaidx and yaml. 
-[ART](https://www.niehs.nih.gov/research/resources/software/biostatistics/art/index.cfm) 
-is also required if you want to simulate short reads with CSiTE.
+CSiTE is written in Python3 (>=3.5). It requires three python libraries: numpy, 
+pyfaidx and PyYAML. In order to simulate whole genome sequencing (WGS) data, 
+ART is also needed. We recommend using the latest version of ART (MountRainier 
+or later), since older versions introduce high levels of sequencing errors. If 
+users would like to simulate whole exome sequencing (WES) data, please refer to 
+section 2.5 for the additional requirements.
 
 CSiTE can be downloaded from github:
 
     git clone https://github.com/hchyang/CSiTE.git
 
-## 2. Running CSiTE
+## 2. Usage
 
-There are five modules in CSiTE. 
+There are six modules in CSiTE.
 
-    Program: csite.py (a Coalescent Simulator for Tumor Evolution)
-    Version: 0.9.0
+Program: csite.py (a Coalescent Simulator for Tumor Evolution)
+Version: 0.9.0
 
     Usage:   csite.py <command> [options]
 
-    Command: vcf2fa     build normal genome from input (germline) vcf file
-             phylovar   simulate somatic variations on a phylogeny
-             chain2fa   build tumor genomes from somatic mutations (chain file)
-             fa2ngs     simulate short reads from normal and tumor fasta
-             allinone   a wrapper for short reads simulation
+    Command: vcf2fa     build the normal genome from the germline vcf file
+             phylovar   simulate somatic variations along a phylogeny
+             chain2fa   build tumor genomes from somatic variants (encoded in chain files)
+             fa2wgs     simulate WGS reads from normal and tumor genomes 
+             fa2wes 	simulate WES reads from normal and tumor genomes 
+             allinone   a wrapper for NGS reads simulation by combining all individual steps
 
-### 2.1 Module vcf2fa 
+CSiTE starts the simulation by generating the personal (diploid) genome of an 
+individual using the input VCF file (Module 1: vcf2fa). Subsequently, by taking 
+the evolutionary history of the sample (For example, using coalescent 
+simulations from Population Genetic modeling) and a set of user specified rate 
+parameters of somatic events (e.g. SNV and CNV rates), CSiTE stimulates somatic 
+variants of a sample along its evolutionary history (Module 2: phylovar). At 
+the end of the second module, the simulated somatic variants will be stored in 
+a special file format called chain file, which records all the somatic events 
+from the root of the tree to focal clone. In the third step, CSiTE integrates 
+simulated somatic variants (stored in the chain file) into the personal genome 
+of the individual and builds the genomes of tumor clones (possibly down to 
+individual cells) (Module 3: chain2fa). In the last step, users can use ART to 
+simulate WGS reads from cancer genomes of different clones, taking into account 
+their relative proportions in the tumor (Module 4: fa2wgs). Alternatively, users 
+can use a similar module to simulate WES data (Module 5: fa2wes). In order to 
+facilitate the simulation, CSiTE also provides a wrapper module (Module 6: 
+allinone), which allows users to execute all previous steps in one command. 
 
-The module `vcf2fa` can be used to build the genome sequences of normal cells. 
-It takes a reference genome in fasta format (e.g. hg19.fa) and a list of SNPs 
-in VCF format as input (only SNPs are acceptable). 
-For the fasta file, only the chromosomes which will be simulated later 
-should be included. For example, if you want to simulate short reads for human 
-chromosome 1-5, all other chromosomes should not appear in the fasta file. 
-For the VCF file, there should be only one sample's genotype information in it 
-and the genotypes should be phased. 
+### 2.1 vcf2fa (module 1)
 
-After the running of `vcf2fa`, two fasta files will be generated. Each contains 
-the sequences of all chromosomes of that haplotype, and the variants loci are 
-replaced by according alleles.
-By default, each chromosome will be treated as autosome and has one copy in 
-each haplotype's fasta. User should explicitly specify sex chromosomes by 
-`--sex_chr` if needed. For example, for simulating a male's genome, user should 
-use `--sex_chr X,Y`. And for simulating a female's genome, user should use 
-`--sex_chr X,X` or without any setting for `--sex_chr`. (Note: X,Y should be 
-exactly the same string as in the fasta file.) 
+Given a reference genome (in FASTA format) and a list of phased germline SNVs 
+(in VCF format), vcf2fa will build the genomes of normal cells (in FASTA 
+format). 
 
-### 2.2 Module phylovar
+#### 2.1.1 Input files
 
-This module is the core module of CSiTE. It jointly simulates SNVs and CNVs of 
-a sample of tumor cells along the history of a genealogy.
-To run the module, a coalescent tree which captures the ancestral relationships
-of the tumor cells in a sample is required. The input tree file should be in the
-newick format, which can be generated by the [ms
-program](http://home.uchicago.edu/rhudson1/source/mksamples.html) with the `-T`
-option. ms program has the full-assemblage of the options needed to generate
-complex demographic histories of the sample. 
+##### Reference file (-r/--reference)
 
-With `--name`, users can specify the name of the sequence to simulate. 
-And with `--length`, users can set the length of the sequence to simulate. 
-The two most important parameters in the simulation are the mutation rates of 
-SNVs (`--snv_rate`) and CNVs (`--cnv_rate`). These two parameters specify the 
-rates of the whole sequence, no matter how long it is. The mutational events 
-in CSiTE are simulated according to a Poisson process with parameters specified 
-by user (see [Notes](https://github.com/hchyang/CSiTE#notes) for extra 
-discussions).  
+The reference genome (e.g. hg19.fa, in FASTA format) is specified via 
+`-r/--reference`. Note that this file should contain all the chromosomes of 
+interest. If a user wants to simulate a female individual, all the autosomes 
+and chromosome X should be included in this file). 
 
-Other than the rate of SNVs, `--tstv` also affects the simulation of SNVs. This
-parameter specifies the ratio of transition/transversion of SNVs. For
-`phylovar`, the variants are in conceptual. So we use 0/1/2 to represent SNVs.
-0 stands for transition and 1/2 stand for transversions. Those SNVs will be 
-translated to concrete nucleotides by the module `chain2fa`. The map of the 
-translation is:
+##### VCF file (-v/--vcf)
 
-reference | 0 | 1 | 2
-----------|---|---|---
- N | N | N | N
- A | G | C | T
- G | A | C | T
- C | T | A | G
- T | C | A | G
+A list of phased germline SNVs in the VCF format is specified via `-v/--vcf`. 
+The variants in this file will be spiked into the reference genome to build the 
+germline genome of an individual. Only SNVs are acceptable. CSiTE expects phased 
+genotype data for the cancer individual. To be more precise, the VCF file should 
+contain only one sample's genotype information and two alleles at each locus 
+should be separated by '|' in the GT field of the VCF file. 
 
-Except for the rate of CNVs, there are five other parameters guiding CNVs
-simulation. 
+#### 2.1.2 Output files 
 
-`--cnv_length_beta` can be used to specify the beta/mean parameter of the
-exponential distribution (We assume the length of CNVs follows an exponential
-distribution. This parameter specifies the mean length of the CNV events).
+##### Output (-o/--output)
 
-`--cnv_length_max` can be used to set the upper limit of CNVs' length (This will
-effectively truncate the exponential distribution at this limit). 
+The directory that stores the output of vcf2fa is specified via `-o/--output`. 
+After running vcf2fa, two FASTA files will be generated. They are named as 
+normal.parental_0.fasta and normal.parental_1.fasta respectively (see 
+`--parental` option under 2.2.3 for more details). Each file contains a 
+haploid genome created by replacing the reference alleles with germline variants 
+of the corresponding haplotype. 
 
-`--del_prob` A CNV event can be a deletion or an amplification. Using this
-parameter, we can specify the probability that a CNV event is a deletion.
+#### 2.1.3 Options
 
-`--copy_max` can be used to set the upper bound of an amplification event.  When
-an amplification event happens, it will randomly pick a copy number according to
-a geometric like distribution with Pr(n+1)=p\*Pr(n). The p parameter can be
-specified by `-c/--copy_parameter`. The overall distribution will be normalized,
-s.t. the total probability is 1. 
+##### -a/--autosomes and -s/--sex_chr
 
-Chromosome level aneuploidy is widespread in tumor cells. In order to simulate 
-this phenomenon of tumor genome, `phylovar` supplies `--parental` parameter. The 
-default value of this parameter is '01', which tells `phylovar` to simulate two 
-copies of the chromosome, one copy from each of the normal haplotypes. With the 
-value of '001', `phylovar` can simulate a tumor chromosome with 3 haplotypes, 
-and two of them are based on the haploype '0' of the normal chromosome, and the 
-third one are based on the haplotype '1' of the normal chromosome.  
+These two options allow users to specify the set of chromosomes to simulate. In 
+the `--autosomes` option, the chromosomes should be separated by comma 
+(e.g. '1,2,3,4,5'). To avoid long names, users can also use two dots to 
+represent a continuous block of chromosomes. For example, 'chr1..4,chr7' is 
+equivalent to 'chr1,chr2,chr3,chr4,chr7'. In vcf2fa, it is required to specify 
+the values for `--autosomes`, following which vcf2fa generates two parental 
+copies for all the specified autosomes. The parameter `--sex_chr` is optional. 
+`--sex_chr X,Y` and `--sex_chr X,X` will specify a male and a female individual 
+respectively. (Note that users should be careful about the chromosome names. 
+Chromosome names not found in the reference file will lead to the early 
+termination of the program.) 
 
-All of the previous parameters can be set in a config file (`--config`). This 
-is quite convenient if you want to simulate variants in a genome, which 
-contains multiple chromosomes. The format of the config file will be described 
-in the following section.
+### 2.2 phylovar (module 2)
 
-The coalescent tree only describes the polymorphic part of the sample. You can
-also simulate the truncal part of the tumor evolution (tumorigenesis) through
-two different approaches: a) specify the trunk length e.g. using
-`--trunk_length`. `--trunk_length` accepts a single float number that can be
-used as the branch length leading to the root of the coalescent tree.  b)
-specify the events on the trunk explicitly in a file through `--trunk_vars
-filename`. The format of the trunk variants file is described in the later
-section.
+phylovar is the core module of CSiTE. It can jointly simulate SNVs and CNVs of 
+a tumor sample along the history of a cell lineage tree (i.e. phylogenetic 
+tree). Phylovar can be used either in a standalone mode or in an integrated 
+mode to simulate NGS data of a tumor sample together with other modules in CSiTE.  
 
-When the number of simulated cells is very large, the computational load can be
-very heavy. Given the fact that most of the mutational events are extremely
-rare, we implemented a pruning algorithm to trim the tree using `--prune` and
-`--prune_proportion` options. For example, if you want to simulate the somatic
-variants for a population containing 1,000,000 cells, after you setting `--prune
-10000` or `--prune_proportion 0.01`, all subtrees with <=10,000 tips will be
-trimmed into a tip node, which means there will be no polymorphic variants on
-those subtrees with <=10,000 tips. So the tips belonging to the same subtree 
-(with <=10,000 tips) will show the same genotypes.
-
-The `phylovar` module of CSiTE can be used alone to simulte the conceptual somatic 
-variants, or be used with other modules to simulate the concrete short reads of 
-the tumor samples. To accomplish the first mode, `phylovar` accepts the 
-`-D/--depth` and `-P/--purity` parameters. With these setting, `phylovar` simulates 
-the read depth on each somatic variant sites and the frequency of the mutant 
-allele. Those information will be saved in SNVs file, which will be described in 
-the later section. 
-
-###### Notes
-By default, the branch length from the ms program is measured in 4N
-generations. `phylovar` will simulate SNVs/CNVs events following a Poisson 
-process. For example, if we set -r to 100 in `phylovar` (CSiTE), this is 
-equivalent to set the population rescaled parameter -t to 100 in ms (see ms 
-manual for details). 
-
-#### 2.2.1 Input files
+#### 2.2.1 Input files 
 
 ##### Tree file (-t/--tree)
 
-Tree file should be in newick format, for example:
+To run the module, a cell lineage tree (i.e. coalescent tree in the Newick 
+format) which captures the ancestral relationship of the tumor cells is 
+required. The [ms](http://home.uchicago.edu/rhudson1/source/mksamples.html) 
+program is recommended to generate the tree (with `-T` option in ms), and it has 
+the full-assemblage of options needed to generate complex demographic histories 
+of the sample from Population Genetics.
+
+A typical tree is as follows:
 
     ((2:0.083,4:0.083):0.345,(5:0.322,(1:0.030,3:0.030):0.292):0.105);
 
-##### Trunk variants file (--trunk\_vars)
+##### Trunk variants file (--trunk_vars)
 
-You can simulate truncal variants by specify `--trunk_length`, or import trunk
-variants directly using `--trunk_vars` option.  The file format of truncal
-variants is like:
-    
-    #chr hap start end var
+This file contains known trunk variants, specified by `--trunk_vars`. The 
+truncal variants can also be simulated randomly using the `--trunk_length` 
+option (see Section 2.2.3).
+
+The format of this file is shown below:
+
+    #chr hap start end var focal_cp
     1 0 364645 364646 0
     1 1 464646 466646 +3
+    1 1 464650 464651 1
+    1 1 464660 464661 1 0
+    1 1 464670 464671 1 2,3
     2 0 465636 465637 1 
     2 1 468637 472633 -1
 
-- **chr**:       the chromosome of the variant
-- **hap**:       which haplotype the variant locates in
-- **start**:     the start position of the variant (0-based, inclusive)
-- **end**:       the end position of the variant (0-based, exclusive)
-- **var**:       the type of the variant. 0/1/2: SNV, -1: deletion, 
-+int: amplification
+- **chr**:      The chromosome on which the variant locates.
+- **hap**:      The haplotype copy of the chromosome on which the somatic 
+variant resides on. The specified haplotype should match what is given in the 
+option `--parental`  (see Section 2.2.3). For example, if '0011' is specified 
+via `--parental` for a given chromosome, the hap column allows users to specify 
+the truncal events to be on one of the four haplotypes (0/1/2/3).  
+- **start**:    The starting position of the variant (0-based, inclusive).
+- **end**:      The end position of the variant (0-based, exclusive).
+- **var**:      The type of the variant. 0/1/2: SNV, -1: deletion, 
++N: amplification. 0/1/2 represent different types of base substitutions (see 
+section `--tstv` option under section 2.2.3).
+- **focal_cp**: The copy of the segment that carries this variant. This column 
+is optional and is only relevant when the focal variant is SNV. If a SNV is 
+covered by an amplification with N new copies, the value in this column can be 
+either an integer in the range of [0,N], or a list of numbers separated by 
+commas representing multiple copies carrying this mutation. If there is no value 
+in this column, the focal SNV is assumed to occur early (i.e. if there are 
+overlapping CNV events, SNVs are assumed to be earlier than the CNV event). In 
+this case, all the new copies of the amplification will carry the SNV. In 
+addition to this default setting, users can also specify alternative scenarios 
+using this column. For example:
 
-P.S. start and end are 0 based. And the region of each variant is similar to the
-bed file (inclusive on the left, but exclusive on the right end,
-i.e.\[start,end)).
+    #chr hap start end var focal_cp
+    1 1 464646 466646 +3
+    1 1 464650 464651 1
+    1 1 464660 464661 1 0
+    1 1 464670 464671 1 2,3
 
-##### Configure file (--config)
+In this example, there is an amplification in the region 1:464646-466646 
+covering all the three SNVs, which corresponds to the following three scenarios: 
 
-The command line paramaters are only suitable for simulating a single sequence.
-When simulate multiple sequences, e.g. all chromosomes in a genome, user can 
-supply a configure file. A typical contains two sections, genome section and 
-chromosomes section. In the genome section, user can specify genome-wide 
-variants settings. And in chromsomes section, user can customise the variants 
-settings for each chromosome. It's very flexible. Different chromosomes can have 
-different lengths, different SNV/CNV muations rates, and even different haplotype 
-composition. 
+1. The original copy and all the amplified copies will carry the first SNV 
+(1:464650-464651). 
+2. Only the original copy (before amplification) carries the second SNV 
+(1:464660-464661).
+3. Only the second and the third new copies carry the third SNV 
+(1:464670-464671).
 
-The configure file should be specified in YAML format. Here is an example of the 
-configure file:
+##### Configuration file (--config)
+
+The configuration file, specified by `--config`, enables users to specify 
+mutation parameters for the whole genome or individual chromosome. A typical 
+configuration file contains two sections: the genome section and chromosome 
+section. In the genome section, users can specify the default parameters shared 
+across all chromosomes. In the chromosome section, users can customize 
+parameters specific to an individual chromosome. The local/chromosome 
+parameters will overwrite the global/genome parameters. Separate parameter 
+sections provide a flexible way to simulate somatic variants across the genome 
+with different mutation rates.
+
+The configuration file should be specified in the [YAML](http://yaml.org/) 
+format. Here is an example of the configuration file (for parameters listed in 
+the YAML file, please see section 2.3.3 for further details).
 
     genome:
         snv_rate: 2.0
@@ -220,272 +219,1014 @@ configure file:
             snv_rate: 2.0
             length: 9000
 
-All of the parameters under genome section have to be specified in the configure 
-file. The snv\_rate/cnv\_rate/length in the genome section, is the sum of those 
-values of all chromosomes. The parental and the name of each chromosome should be 
-quoted to make them in the type of string.
+In a configuration file, all the parameters under the genome section must be 
+specified. The parameters specified under snv_rate, cnv_rate as well as length 
+in the genome section must be the sum of corresponding values across all the 
+chromosomes. The parental value and the chromosome names should be quoted with 
+quotation marks.
+
+##### Affiliation file (--affiliation)
+
+By default, phylovar simulates the genomic profile of a single sample. Using 
+this option, phylovar can simulate multi-sector tumor samples. In the 
+affiliation file, users should designate the sample affiliation of the tumor 
+cells to different sectors. An example affiliation file is shown below:
+
+    #sector purity prune_p cells
+    sector1 0.6 0.05 1,2,3,4..5000
+    sector2 0.6 0.05 5001..10000
+
+- **sector**: The id of the sector. 
+- **purity**: The purity of each sector (the proportion of cells that is tumor 
+cells in each sector) .
+- **prune_p**: The pruning proportion for the focal sector. Subtrees that have 
+descendants fewer than the specified proportion will be trimmed away (see 2.2.3 
+--prune for details).
+- **cells**: The list of cells in the focal sector. It can be specified as a 
+list of cell names separated by commas or a continuous block of cells separated 
+by two dots (e.g. 'cell1..4,cell7' is equivalent to 
+'cell1,cell2,cell3,cell4,cell7').
 
 #### 2.2.2 Output files
 
-##### SNVs file (-S/--snv)
+Module phylovar can output multiple files to facilitate benchmarking of methods 
+used in cancer genomics. Since the evolutionary history of the sample can be 
+very complex, outputting all the files can be quite resource intensive. Phylovar 
+allows user to toggle different options for outputting the mutational 
+information. Output files that are not foremost will be labelled as optional. 
 
-This file contains the frequency information of simulated SNVs. There are six 
-columns in this file. 
-- **chr**:         the chromosome of SNVs
-- **pos**:         the position (0-based) of SNVs
-- **form**:        the form of SNVs (0/1/2)
-- **true\_freq**:  the true frequency of alternative allele across the cell 
-population
-- **sim\_dp**:     the simulated total coverage of tumor and normal cells in 
-the tumor sample at the position of SNV
-- **sim\_freq**:   the observed frequency of alternative allele across the cell 
-population
+##### SNV files (-S/--snv)
 
-P.S. Do not mix the information of simulated depth and frequency here up with 
-the coverage and frequency of simulated short reads. They are two independent 
-processes.
+This option specifies the directory to store the SNV files across all sectors. 
+The SNV file contains the frequency information of simulated SNVs in each 
+sector. In addition to the SNV file for each sector, there is also a SNV file 
+for the whole tumor sample named 'tumor.snv' under this folder. There are five
+columns in the SNV file.
 
-##### CNVs file (-V/--cnv)
+- **chr**: The chromosome on which the SNV locates.
+- **start**: The start position of the SNV (0-based, inclusive).
+- **end**: The end position of the SNV (0-based, exclusive).
+- **form**: The type of base substitution (0 is transition, 1 and 2 are two 
+types of transversions, see the details for option --tstv under section 2.2.3).
+- **frequency**: The frequency of the alternative allele in tumor sample (taking 
+into account tumor purity).
 
-This file contains the information of simulated CNVs. There are five columns in
-this file. 
-- **chr**:         the chromosome of CNVs
-- **start**:       the start position of CNVs (0-based, inclusive)
-- **end**:         the end position of CNVs (0-based, exclusive)
-- **copy**:        the copy changes of CNVs
-- **carrier**:     the number of tumor cells in the sample carring the CNVs
+##### CNV files (-V/--cnv) 
 
-##### CNV profile file (--cnv\_profile)
+This option specifies the directory to store the CNV files across all sectors. 
+It contains the information of all simulated CNVs. In addition to the CNV file 
+for each sector, there is also a CNV file for the whole tumor sample named 
+'tumor.cnv' under this folder. There are five columns in the CNV files.
 
-This file contains the CNV profile across each chromosome. There are four 
-columns in this file. 
-- **chr**:         the chromosome of regions
-- **start**:       the start position of regions (0-based, inclusive)
-- **end**:         the end position of regions (0-based, exclusive)
-- **local\_cp**:   the copy number of the local region
+- **chr**: The chromosome on which the CNV locates.
+- **start**: The start position of the CNV (0-based, inclusive).
+- **end**: The end position of the CNV (0-based, exclusive).
+- **copy**: The copy changes of the CNV (e.g. -1 stands for deletion, +N stands 
+for an amplification with N new copies).	
+- **carrier**: The number of tumor cells within the sample carrying the CNV
 
-##### Nodes variants file (-N/--nodes\_vars)
+##### SNV genotype file (--snv_genotype) (optional)
 
-`phylovar` can output the variants (SNVs/CNVs) occured on the branch leading 
-to each node. There are six columns in this file:
-- **node**:        the id of nodes (we name each node in the format 'nodeXXX', 
-in which XXX is an integer starting from 1)
-- **chr**:         the chromosome of the variant
-- **hap**:         the haplotype the variant locates in
-- **start**:       the start position of the variant (0-based, inclusive)
-- **end**:         the end position of the variant (0-based, exclusive)
-- **var**:         the type of the variant. 0/1/2: SNV, -1: deletion, 
-+int: amplification
+The output file specified by `--snv_genotype` contains the genotype information 
+of each tumor cell. Each SNV has one record in this file. The first three 
+columns are the coordinates of the SNV. The fourth column is the form of the SNV 
+event (transition or transversion, see section 2.2.3). Subsequently, there is 
+one column (genotype) per tumor cell. The SNV genotype is in the form of 'M:N', 
+in which M denotes the number of alternative alleles and N denotes the number of 
+reference alleles. The columns are: 
 
-##### Variants tree file (-T/--vars\_tree)
+- **chr**: The chromosome of the SNV.
+- **start**: The start position of the SNV (0-based, inclusive).
+- **end**: The end position of the SNV (0-based, exclusive).
+- **form**: The mutational type of the SNV (0 is transition, 1 and 2 are two 
+types of transversions, see section 2.2.3).
+- **cell1**: The genotype of cell 1.
+- **cell2**: The genotype of cell 2.
+- **etc**
 
-`phylovar` can output a [NHX
-file](https://sites.google.com/site/cmzmasek/home/software/forester/nhx) with
-each node's id and all variants attached. The variants are encoded in the form 
-of 'chr#hap#start#end#var'. As the 'var' cloumn in nodes variants file, 0/1/2 stand 
-for SNV, -1 stands for deletion and +int stands for amplification.
+Users should be careful whether to toggle this option since the output of this 
+option can be very large. 
 
-##### SNV genotype file (--snv\_genotype)
+##### CNV genotype file (--ind_cnvs) (optional)
 
-This file contains the snv\_genotype of each tumor cell at SNV loci. Each SNV
-has one record. The first two column are the coordinate of the SNV. 
-Subsequently, there is one column for each tumor cell, which encodes the 
-genotype of each tumor cells. The snv genotype is in the form of ‘M:N’. M 
-denotes the number of alternative allele and N denotes the number of reference 
-allele.
-- **chr**:         the chromosome of SNVs
-- **pos**:         the position (0-based) of SNVs
-- **form**:        the form of SNVs (0/1/2)
-- **cell1**:       the genotype of cell 1
-- **cell2**:       the genotype of cell 2
-- **...**:         ...
+The output file specified by `--ind_cnvs` contains the CNVs on each parental 
+copy of each cell in the sample.
 
-##### Individual CNVs file (--ind\_cnvs)
+    #cell parental chr start     end       copy
+    1       0      1   7912422   7930111   +2
+    1       1      1   43110140  43341629  +1
+    2       0      1   2255734   2299608   -1
+    2       0      2   22660687  22788472  -1
+    2       1      2   59756841  61142076  +3
 
-This file contains the CNVs on each parental copy of each single cell in the
-sample. There are six columns in this file:
-    
-    #cell parental  start     end       copy
-    1       0       7912422   7930111   2
-    1       1       43110140  43341629  1
-    2       0       2255734   2299608   -1
-    2       0       22660687  22788472  -1
-    2       1       59756841  61142076  3
+There are six columns in this file:
 
-- **cell**:        the id of cells in the sample
-- **chr**:         the chromosome of SNVs
-- **parental**:    which parental copy the variant locates in (0 means one 
-of the parental copy, 1 means another copy, 2 means the third copy if your 
-sample is triploid...)
-- **start**:       the start position of the CNV
-- **end**:         the end position of the CNV
-- **copy**:        an integer. -1: deletion; positive integer: amplification
+- **cell**: The id of the cell in the sample.
+- **parental**: The parental copy in which the variant locates (0 means one of 
+the parental copy, and 1 means the other copy).
+- **chr**: The chromosome on which the CNV locates.
+- **start**: The start position of the CNV (0-based, inclusive).
+- **end**: The end position of the CNV (0-based, exclusive).
+- **copy**: The copy number of the CNV. -1: deletion; +N amplification.
+Users should be careful whether to toggle this option since the output of this 
+option can be very large. 
 
-P.S. start and end are 0 based. And the region of each variant is similar to the
-bed file (inclusive on the left, but exclusive on the right end,
-i.e.\[start,end)).
+##### Total CNV profile file (--cnv_profile) (optional)
 
-##### parental copy file (--parental\_copy)
+The output file specified by `--cnv_profile` contains the total CNV profile 
+across the whole tumor sample. It outputs a step function of copy numbers across 
+the genome. There are four columns in this file:
 
-This file contains the information of parental copy for each SNV. The first two
-columns are the coordinate of the SNV, and followed by N columns if the ploidy 
-is N.
+- **chr**: The chromosome of the segment
+- **start**: The start position of the region (0-based, inclusive).
+- **end**: The end position of the region (0-based, exclusive).
+- **local_cp**: The copy number of the local region. For example, if there are 
+1000 cells in the tumor sample, the local copy number for most regions is 2000 
+as cells are diploid. For a genome region whose parental 0 copy are lost in 200 
+cells, the local copy number will be 1800. 
 
-##### chain file and nodes profile file (--chain)
+##### Variant tree file (--nhx/--NHX) (optional)
 
-There will be two kind of files generated under the folder specified by this
-parameter. One is chain file and the other is nodes profile file.
+The variant tree file (in NHX format) outputs locations of the somatic variants 
+on the phylogenetic tree.  The NHX format contains IDs of all the nodes in the 
+coalescence tree and somatic variants along all the branches. This allows users 
+to reconstruct the entire history of somatic events in tumor evolution. If users 
+specify the option with `--nhx`, phylovar will output the pruned version of the 
+tree (see `--prune` option under 2.2.3 for details) together with all somatic 
+variants. If users specify the option with `--NHX`, the output contains the 
+original tree (before pruning) together with all the somatic variants. In the 
+file, the somatic variants are represented in the format of 'chr#start#end#var'. 
+Here, entry 'var' has the same format as column 'var' in the trunk variant file 
+(see section 2.2.1).
 
-There is a chain file for each tip node. This file contains the information of 
-perturbed genome of simulated tumor cell. Each haplotype of each chromosome of 
-the tumor genome will have a block in the chain file. Each block has a header 
-section and a body section. For example:
+##### Node variant file (--nodes_vars) (optional)
 
-    >1_Haplotype0 parental:0
-    1       0       33      ref
-    1       33      55      -1
-    1       55      99      ref
-    1       55      100000  ref
+The node variant file, specified by `--nodes_vars`, contains the somatic 
+variants (SNVs/CNVs) occurring on the branch leading to each node in the 
+coalescent tree. This is the collapsed version of the variant tree file where 
+the phylogenetic information is simply replaced with the node information. 
+There are six columns in this file:
 
-The first line, which starts with '>' is the header line. There are two fields 
-in the header line. The first is the sequence name and the second is the parental 
-copy of that sequence. And then there four columns in the body section: 
-- **chr**:         the chromosome of SNVs
-- **start**:       the start position of the variant (0-based, inclusive)
-- **end**:         the end position of the variant (0-based, exclusive)
-- **var**:         the type of the variant. 0/1/2: SNV, -1: deletion, 'ref': 
-reference
+- **node**: The ID of the focal node. Each node has the format 'nodeX', in which 
+X is an integer starting from 1.
+- **chr**: The chromosome on which the variant locates.
+- **hap**: The haplotype copy of the chromosome on which the somatic variant 
+locates. (see `--trunk_vars` option under section 2.2.1) 
+- **start**: The start position of the variant (0-based, inclusive).
+- **end**: The end position of the variant (0-based, exclusive).
+- **var**: The type of the variant. 0/1/2: SNV, -1: deletion, +int: amplification 
+(see `--trunk_vars` option under section 2.2.1).
 
-P.S. There is no +int in the fourth column of body section to indicate a CNV event.
-Instead, the amplified regions will have multiple record to represent that event.
-e.g. the last two lines in the example, indicate there a amplification in region 
-1:55-59 in that sequence.
+##### Chain file (--chain) (optional)
 
-There are three columns in a nodes profile file:
-- **node**:        the id of tip nodes (after pruning if the tree is pruned)
-- **l\_count**:    the count of original leaves under this node 
-- **l\_name**:     the names of original leaves under this node 
+The chain files store somatic events of the focal clone. If specified with the 
+`--chain` option, phylovar will output the chain files to a folder. The chain 
+files are required by module chain2fa to convert the normal genome into tumor 
+genomes. The chain file contains mutational events from the root of the tree to 
+each individual tip node (corresponding to tumor clones or single cells). There 
+is one chain file per tip node. Below is an example of the chain file:
+
+    >1_Hap0 parental:0
+    1   	0   	33  	REF
+    1   	33  	55  	DEL 	-1
+    1   	55  	99  	AMP 	+1
+    1   	55  	99  	REF
+    1   	55  	100000  REF
+    >1_Hap1 parental:0
+    1   	0   	33  	REF
+    1   	33  	34  	SNV 	1
+    1   	34  	100000  REF
+
+In the chain file, there is one block for each haplotype of a chromosome. Within 
+each block, there is a header line and a body section. Lines which start with 
+'>' are header lines. All other lines are components of the body section.
+
+There are two fields in a header line. The first is the haplotype name and the 
+second is the parental copy of that haplotype. Each haplotype is in the format 
+of '{chrName}\_Hap{index}'. For example, if a user simulates three copies of 
+sequence 1 with parental 001, there will be another block with header 
+'>1_Hap2 parental:1' in addition to the two blocks in this example.
+
+There are five columns in the body section:
+
+- **chr**:  The chromosome on which the segment locates.
+- **start**: The start position of the segment (0-based, inclusive).
+- **end**: The end position of the segment (0-based, exclusive).
+- **type**: The type of the segment (SNV: single nucleotide variation, AMP: 
+amplification, DEL: deletion, REF: reference). The amplified regions are 
+represented by multiple overlapping records. For example, line 4 and 5 in the 
+example chain file indicate that there is an amplification in region 1:55-99.
+- **var**: The type of the variant. 0/1/2: SNV, -1: deletion, +int: amplification.
+
+##### Tipnode map file (--map) (optional)
+
+The tipnode map file is stored in the folder specified by `--map`. It contains 
+the descendant information of each tip node (corresponding to a tumor clone). 
+These files will be used later by module fa2wgs/fa2wes to compute the sequencing 
+coverage for each tumor genome. If multi-sector samples are simulated, there 
+will be one tipnode map file for each sector. They will be named as 
+'{sectorname}.tipnode.map'. By default (single sector), there will be only one 
+map file in the folder, named 'tumor.tipnode.map'. 
+
+There are three columns in a node map file:
+
+- **tip_node**: The id of the tip node in the coalescence tree. If pruning 
+option is turned on, the tip node refers to the leaves after the pruning step.
+- **cell_count**: The number of cells (i.e. number of leaves) descending from 
+this node.
+- **cells**: Names of the cells (i.e. names of leaves) descending from this node.
+
+##### Log file (-g/--log) 
+
+The log file, specified by `-g/--log`, contains the log information including 
+commands to call phylovar and the random seed. Users can use the information in 
+this file to repeat the simulation.
+
+#### 2.2.3 Options
+
+##### --name
+
+This option specifies the name of the simulated sequence (e.g. chromosome name).
+
+##### --length
+
+This option specifies the length of the simulated sequence. 
+
+##### --snv_rate and --cnv_rate
+These two options set two most important parameters in the simulation: the 
+mutation rates of SNVs (specified by `--snv_rate`) and CNVs (specified by 
+`--cnv_rate`) along the history of tumor evolution. Note that these rates 
+represent the total mutation rate of the target segment. The mutational events 
+are then simulated according to a Poisson process with user-specified rates 
+(see Notes for extra discussions).
+
+##### --tstv
+
+This option allows users to specify the rate of transitions to transversions.  
+phylovar only simulates somatic events (before referring to the reference 
+genome). It uses 0/1/2 to represent different types of substitutions. 0 stands 
+for transition. 1 and 2 stand for two types of transversions. After linking 
+somatic changes to the reference genome, these SNVs will later be translated to 
+actual nucleotides in the module chain2fa. The rules of translating 0/1/2 to 
+nucleotide changes are summarized in the following table. 
+
+reference | 0 | 1 | 2
+----------|---|---|---
+ N | N | N | N
+ A | G | C | T
+ G | A | C | T
+ C | T | A | G
+ T | C | A | G
+
+##### --cnv_length_beta
+
+This option specifies the mean length (parameter beta or mean of the exponential 
+distribution) of the simulated CNV events. Note that phylovar assumes the length 
+of CNVs follows an exponential distribution.
+
+##### --cnv_length_max
+
+This option sets the upper limit of CNVs' length. Setting an upper bound will 
+effectively truncate the exponential distribution at this limit. The probability 
+distribution will be renormalized taking into account the truncated probability.
+
+##### --del_prob 
+
+A CNV event can be either a deletion or an amplification. Through this option, 
+users can specify the probability that a CNV event is a deletion.
+
+##### --copy_max 
+
+This option sets the upper bound of the copy number of an amplification event. 
+
+##### --copy_parameter
+
+When an amplification event happens, phylovar randomly picks a copy number 
+according to a geometric-like distribution with Pr(n+1)=p\*Pr(n). The parameter 
+p is specified by '-c/--copy_parameter'. The overall distribution will be 
+normalized so that the total probability is  1.
+
+##### --parental 
+
+Since aneuploidy at the chromosomal level is widespread in tumor cells, phylovar 
+allows users to specify the local ploidy of a cancer genome via --parental. The 
+default value of this option is '01', with which phylovar simulates two copies 
+of the chromosome (one copy from each of the normal haploid genomes). '001' 
+specifies two copies from the first haploid genome ('0') and one copy from the 
+second haploid genome ('1'). Note that aneuploidies are simulated as truncal 
+events shared among all tumor cells.
+
+All of the above parameters of phylovar can be specified in the configuration 
+file (`--config`). This is quite convenient if you want to simulate somatic 
+variants in a genome, which contains multiple chromosomes. The format of the 
+config file is described in section 2.2.1 Input files (Configuration file).
+
+##### --trunk_length/--trunk_vars 
+
+The coalescent tree only describes the polymorphic part of the sample. Users can 
+also simulate the truncal part of tumor evolution (tumorigenesis) through two 
+different approaches: a) specifying the trunk length using `--trunk_length`.  
+b) specify the events on the trunk in a file through `--trunk_vars` (see section 
+2.2.2). Option `--trunk_length` accepts a single float number that represents 
+the length of the branch from the root of the coalescent tree to the most common 
+ancestor of the sample. 
+
+##### --prune
+
+When the number of simulated cells is very large, computational load can be very 
+heavy. Given the fact that mutational events on terminal branches are extremely 
+rare, a pruning algorithm is implemented to trim the tree. The parameters of the 
+algorithm are specified via `--prune`. Given a tree for a population of 
+1,000,000 cells, all subtrees with <10,000 tips will be trimmed away after 
+setting `--prune 0.01`. This means that there will be no polymorphic variants on 
+subtrees with <10,000 tips. Namely, terminal cells belonging to the same subtree 
+with <10,000 tips will have the same genome. 
+
+##### -s/--sex_chr
+
+This is the same option as option `--sex_chr` in module vcf2fa. Setting this 
+parameter will affect the ploidy of the sex chromosomes.
+
+##### --purity
+
+This option specifies the proportion of tumor cells in the sample. With this 
+option, phylovar can output true frequencies of each variant in the sample by 
+taking into account tumor purity (section 2.2.2 output file: SNVs file). 
+
+##### --random_seed
+
+This option sets the seed for the random number generator. This random seed 
+should be an integer between 0 and 2\*\*31-1. 
+
+##### --loglevel [DEBUG, INFO]
+
+This option specified the verbosity level of the log file. If the level is 
+DEBUG, the steps in the simulation will be written to the log file with higher 
+verbosity.
+
+#### Notes
+
+By default, the branch length of trees generated from the ms program is measured 
+in 4N generations. If we set `-r` to 100 in phylovar (CSiTE), this is equivalent 
+to setting the population rescaled parameter -t to 100 in ms (see ms manual for 
+details).
+
+### 2.3 chain2fa (module 3)
+
+After generating genomes of normal cells with vcf2fa and chain files of tumor 
+cells with phylovar, chain2fa then builds the genome sequences for each tumor 
+cell (or clone). 
+
+#### 2.3.1 Input files
+
+##### Normal fasta (-n/--normal)
+
+The genomes of an individual (with two parental haplotypes) are specified via 
+`-n/--normal`. These genomes are generated by module vcf2fa using the germline 
+variants. In other words, they serve as  the genetic background of the 
+individual. Two haploid genomes of the normal cell should be specified as a list 
+separated by comma, such as, `--normal normal.parental_0.fa,normal.parental_1.fa`.  
+Here, the order of the fasta files is important. The first fasta will always be 
+treated as parental 0, and the second one will be treated as parental 1. In the 
+example given above, normal.parental_0.fa will be used to build the tumor 
+haplotype corresponding to parental haplotype 0 and normal.parental_1.fa will be 
+used to build the tumor haplotype from parental haplotype 1.
+
+##### Chain file (-c/--chain)
+
+The directory which contains all the chain files is specified by option 
+`-c/--chain`. All the chain files named as 'node\*.chain' within this folder 
+will be used to build genomes of tumor clones or single cells.
+ 
+#### 2.3.2 Output files 
+
+##### Output (-o/--output)
+
+The folder storing simulated tumor genomes is specified via option 
+`-o/--output`. By default, there are two FASTA files (corresponding to parental 
+0 and parental 1 respectively) per chain file. They are named as 
+'node\*.parental\*.fa'. 
+
+#### 2.3.3 Options
+
+##### --width
+
+This option specifies the per line width of the genome sequence. Setting this 
+to be 100 will output the genome sequences in chunks of 100 bp. 
+
+##### --cores
+
+This option specifies the number of cores used to run this module.
+
+### 2.4 fa2wgs (module 4)
+
+After running the first three modules (vcf2fa, phylovar and chain2fa), CSiTE 
+have generated the genomes of normal/tumor clones (cells). Module fa2wgs then calls 
+[ART](https://www.niehs.nih.gov/research/resources/software/biostatistics/art/index.cfm) 
+to simulate whole-genome sequencing data from these genomes. fa2wgs first 
+computes the sequencing coverage of each genome according to its proportion in 
+the tumor sample and then calls ART to simulate short reads from each genome. 
+
+#### 2.4.1 Input files
+
+##### Normal fasta (-n/--normal) and tumor fasta (-t/--tumor)
+
+The folder containing the FASTA files of normal genomes is specified by 
+`-n/--normal`. The corresponding tumor folder is specified by `-t/--tumor`. 
+fa2wgs expects two fasta files (normal.parental_0.fa/normal.parental_1.fa) under 
+the normal fasta folder and two fasta files 
+(node\*.parental_0.fa/node\*.parental_1.fa) for each tip node under the tumor 
+fasta folder.
+
+##### Tipnode map files (-m/--map)
+
+The folder containing the tip node map files is specified via `-m/--map`. Each 
+file contains the compositional information of a tip node, including the number 
+of cells in the sample that have the same tumor genome represented by the node. 
+Please see the 'Tipnode map files' under 2.2.2 for more details.
+
+##### Sector file (--sectors)
+
+The sector file is specified by `--sectors`. In this file, users can set 
+different purity and sequencing depth for different tumor sectors. WGS data will 
+be simulated only for sectors listed in this file. An example of the sectors 
+file is shown below:
+
+    #sector purity depth
+    sector1 0.6 100
+    sector2 0.6 110
+
+There are three columns in a sectors file:
+
+- **sector**: The ID of the focal sector. 
+- **purity**: The purity of sectors (the cancer cell proportion in a sector).
+- **depth**:  The depth of WGS data for sectors to simulate.
+
+When the sector file is supplied, fa2wgs will ignore options `-d/--tumor_depth` 
+and `-p/--purity`. Without this option, fa2wgs will simulate WGS data for all 
+the sectors which has a map file in the folder specified by `-m/--map`. In this 
+case, the purity and sequencing depth for each sector are taken from 
+`-p/--purity` and `-d/--tumor_depth`. In addition to the sectors specified in 
+the affiliation file, users can also specify 'tumor' in the sectors file to make 
+fa2wgs to simulate the WGS data for the whole tumor sample.
+
+#### 2.4.2 Output files
+
+##### Output folder (-o/--output)
+
+The folder containing the short reads generated by ART is specified by 
+`-o/--output`. The FASTQ files of tumor sample are stored in a subfolder called 
+'tumor'. The FASTQ files of normal sample are stored in a subfolder called 
+'normal'. 
 
 ##### Log file (-g/--log)
 
-This file contains logging information, e.g. the command line parameters and the
-random seed used. You can use these information to replicate the simulation.
-After setting the `--loglevel` as DEBUG, `phylovar` will output detailed information
-of the simulation process. 
+For each simulation, fa2wgs calls ART multiple times to simulate NGS reads from 
+individual tumor clone (i.e. cancer genome). This file, specified by `-g/--log`, 
+stores command settings of each command and can be used to replicate the 
+simulation process.
 
-##### all options of module phylovar
+#### 2.4.3 Options
 
-Will be filled later.
+##### -d/--tumor_depth
 
-### 2.3 Module chain2fa
+This option specifies the mean depth of the tumor sample. 
 
-After generating genomes of normal cells with `vcf2fa` and chain files of tumor
-cells with `phylovar`, we can build the genome sequences for each tumor cell. 
-This work is done by the module `chain2fa`. And the genomes of tumor cells and 
-normal cells can then be used by ART to simulate short reads. For the 
-`--reference` parameter, all reference fasta files should list sequentially and
-seperated by comma, like `--reference normal_hap0.fa,normal_hap1.fa`.  
+##### -D/--normal-depth
 
-### 2.4 Module fa2ngs
+For most of the cancer genomic analysis, paired normal sample is also needed. 
+This option specifies the mean depth of normal sample.
 
-After the running of previous three modules, we will get the genome sequences of 
-normal/tumor cells generated. By supplying the purity and depth settings we want 
-to simulate, module `fa2ngs` will figure out the fold of covarge for each genome 
-to simulate and employ ART to simulate the short reads for the genomes in the 
-tumor sample. `fa2ngs` uses an very flexible way to cooperate with ART. You can
-pass all parameters to ART by `--art` except the fcov, in, out, id, and rndSeed
-parameters of ART, as those parameters are handled by `ngs2fa` itself. For 
-example, you can use `--art '/path/to/ART/art_illumina --noALN --quiet --paired 
---len 100 --mflen 500 --sdev 20'` if ART are not installed system-wild. Or you 
-can use `--art 'echo art_illumina --noALN --quiet --paired --len 100 --mflen 
-500 --sdev 20'` if you just want the `ngs2fa` print out the art command it used.
+##### -p/--purity 
 
-This module will also generate a meta file for Wessim, which is a targeted 
-re-sequencing simulator that generates synthetic exome sequencing reads from a 
-given sample genome. With this file and probe information, Wessim can simulate 
-the exome-sequencing data of the simulated tumor sample.
+This option specifies the purity of tumor samples. Purity refers to the 
+percentage of cells that are tumor cells. 
 
-### 2.5 Module allinone
+##### --rlen
 
-This is a convenient wrapper for simulating reads for tumor sample. It calls the
-module `vcf2fa` to build the genome of normal cells, and calls the modules 
-`phylovar` and `chain2fa` to build the genomes of tumor cells. And then according 
-the purity and coverage settings customised by user, `fa2ngs` are called to 
-simulate short reads for the tumor sample. Besides the short reads for tumor 
-sample, `allinone` will also simulate the short reads for nomal sample.
+This option specifies the length of the simulated short reads.
 
-Most of the parameters of this module will be passed to specific modules, except 
-the parameters `-o/--output`, `-g/--log` and `--start`. `--output` takes a string
-as the ouput folder name, and all output of the simulation will be put in this 
-folder. `allinone` will create 4 subfolders under that folder. These subfolders 
-are `normal_fa`, `tumor_chain`, `tumor_fa` and `art_reads`, and their content 
-should be self-explantory. The `--log` parameter specify the name of log file, 
-which will records the random seed and all of the sub-commands and their 
-parameters called by `allinone`. Sometimes, `allinone` will fail in the middle 
-if user specified an inappropriate parameter. In this case, user can use the 
-`--start` parameter to skip some steps which are finished appropriately. Only 
-1-4 are acceptable:
+##### --art
 
-- **1**:     vcf2fa
-- **2**:     phylovar
-- **3**:     chain2fa
-- **4**:     fa2ngs
+This option specifies the command to call ART. fa2wgs provides a very flexible 
+way to call ART. Users can pass all parameters to ART by `--art` except 
+parameters handled by fa2wgs itself (rlen, fcov, in, out, id, and rndSeed). For 
+example, users can use `--art '/path/to/ART/art_illumina --noALN --quiet 
+--paired --mflen 500 --sdev 20'` if ART is not installed system-wide. Users can 
+also use `--art 'echo art_illumina --noALN --quiet --paired--mflen 500 --sdev 
+20'` to just print out the command to call ART.
 
-## 3. Examples
+##### --cores
 
-* Simulate the coalescent tree of a sample of 1000 tumor cells, which are
-sampled from a exponetially growing tumor. 
-(consult the manual of ms for more information)
+This option specifies the number of cores used to run fa2wgs. With this option, 
+users can use multiple CPUs to reduce simulation time.
 
-    `ms 1000 1 -T -G 1 |tail -n1 > ms_tree.txt`
+##### --separate
 
-* Simulate the somatic SNVs of this sample. We assume the sequencing depth is
-60, and the purity of the sample is 0.8, which means there are 250 normal
-cells other than these 1000 tumor cells. Other settings are: 
-a) the mutation rate of SNVs and CNVs are 10 and 0.1 respectively; 
-b) the sequence length is 135534747 (chr10 of hg19); 
-c) the cells of the sample are diploid. We save the
-frequncy of the simulated SNVs to file 'snvs\_freq.txt'.
+By default, fa2wgs merges the simulated NGS data of all tumor genomes into one 
+file. This option allows fa2wgs to store the individual fastq files separately. 
 
-    `csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S
-    snvs_freq.txt`
+##### --single
+The option indicates NGS simulation will be in single cell mode. After 
+specifying this option, the value of `--tumor_depth` is the depth of each tumor 
+cell (not the total depth of tumor sample anymore).
 
-* There are no truncal muations in the simulation above. If you want to simulate
-truncal muations, use the option `--trunk_length`.
+##### -s/--random_seed
 
-    `csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S
-    snvs_freq.txt --trunk_length 2.0`
+This option sets the seed for random number generator. This number is passed to 
+ART (i.e. `--rndSeed` option in ART) to initiate the simulation of short reads.
 
-* If you want to ignore the variants with the frequency <=0.01, you can use
-`--prune 20` or `--prune_proportion 0.02` (we use `--prune 20` instead of
-`--prune 10` for the cells are diploid in the our simulation). These two
-options can be used to accelerate the simulation when your tree is huge.
+### 2.5 fa2wes (module 5)
 
-    `csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S
-    snvs_freq.txt --trunk_length 2.0 --prune 20`
+In addition to simulating WGS data, CSiTE can also simulate WES data (Illumina) 
+by running module fa2wes. Similar to module fa2wgs, fa2wes first computes 
+sequencing coverage (or read number) for each genome in the tumor/normal sample 
+and then calls a WES simulator to simulate short reads. 
 
-    or
+To avoid reinventing the wheel, we integrate two popular WES simulators: 
+[WesSim](http://sak042.github.io/Wessim) and 
+[CapSim](https://github.com/Devika1/capsim). Both of them simulate shorts reads 
+by combining all the three stages of capture sequencing: fragmentation, fragment 
+capture and in silico sequencing. WesSim uses an existing NGS simulator 
+[GemSim](https://sourceforge.net/projects/gemsim) to generate short reads. 
+CapSim simulates reads by copying from captured fragments with random errors 
+introduced and fixed quality scores. The coverage distribution of reads 
+generated by CapSim has been found to resemble real exome capture data. To get 
+realistic quality values for the short reads, we created a hybrid simulator 
+CapGem by combining the first two steps of CapSim (fragmentation and fragment 
+capture) with the last step of WesSim (sequencing by GemSim). Specifically, the 
+probe-based version of WesSim (WesSim2) and CapGem are supported in fa2wes. 
 
-    `csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S
-    snvs_freq.txt --trunk_length 2.0 --prune_proportion 0.02`
+Most options for module fa2wes are similar to those for the module fa2wgs. 
 
-* If you want to save the SNVs genotypes for each single cell for exactly the
-same simulation as above, use the options `--snv_genotype` and
-`--random_seed`.
+#### 2.5.0 Requirements
 
-    `csite.py -t ms_tree.txt -P 0.8 --length 135534747 -r 10 -R 0.1 -D 60 -S
-    snvs_freq.txt --trunk_length 2.0 --prune_proportion 0.02 --snv_genotype
-    snvs_genotype.txt --random_seed xxxx`
+Due to the complexity of simulating exome data, this module requires the 
+installation of the following software.
 
-    P.S. The random seed xxxx can be found in the log file of the previous
-    simulation.
+##### Snakemake
+Unlike WGS simulation, there are often several steps for simulating WES data. 
+To create a smooth workflow, we use 
+[snakemake](http://snakemake.readthedocs.io/en/latest/) (version >= 3.8), 
+a scalable workflow management system.  
+
+There are several ways to install snakemake. Please follow the instructions 
+[here](http://snakemake.readthedocs.io/en/latest/getting_started/installation.html).
+
+##### WesSim
+
+For ease of use, we revised the source code of WesSim2 (probe-based version) and 
+include it in our CSiTE package.  
+
+Several additional packages are required to run WesSim:
+	- [pysam](http://code.google.com/p/pysam/)
+	- [samtools](http://samtools.sourceforge.net/)
+	- [faToTwoBit](http://hgdownload.cse.ucsc.edu/admin/exe/)
+	- [blat](http://hgdownload.cse.ucsc.edu/admin/exe/)
+
+##### CapGem
+
+CapGem requires a Java Runtime Environment (Java Runtime Environment >=1.8). 
+Several additional packages are required to use CapGem for simulation:
+	- [bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
+	- [samtools](http://samtools.sourceforge.net/) (version >= 1.5)
+
+To install CapGem, one can navigate to the folder containing the source code of 
+CapGem (CSiTE/wes/capgem) and then run `make`. 
+
+A sample command is `make install INSTALL_DIR=./ MXMEM=8000m SERVER=true`. If 
+`INSTALL_DIR` is specified to be a directory other than './', this directory 
+should be added to environment variable PATH. After installation, user can also 
+adjust the maximum memory used by Java by adding `export _JAVA_OPTIONS="-Xmx12g"` 
+to the file .bashrc under home directory.
+
+Due to the dependence on samtools to build index for tumor genomes, CapGem can 
+only be used for genomes with longest chromosome being less than 512 M.
+
+##### Computing resources 
+
+The module fa2wes is computationally intensive, since it includes several steps: 
+building index, mapping probes, and simulating reads. The process can be 
+accelerated by using multiple cores in a single computer or using multiple 
+cluster nodes. 
+
+The computational resources used by different simulators are quite different. 
+Given a haploid genome and a computer with 8 GB memory, WesSim (with default 
+parameters in the configure file) takes about 10 minutes (1 GB memory, 700 MB 
+disk space) to build an index and about 40 minutes (4 GB memory, 70 MB disk 
+space) to map probe sequences onto the genome, whereas CapGem (with default 
+parameters in the configure file) takes about 5 hours (7.8 GB memory, 4 GB disk 
+space) to build an index and about 30 minutes (7 GB memory, 900 MB disk space) 
+to map probe sequences. The time used for simulating reads will dependent on the 
+number of reads to simulate. In our experiences, WesSim is often much faster 
+than CapGem in generating short reads. 
+
+In principle, one can specify the read depth/number for tumor and normal samples 
+in a single command. To save time, one can simulate tumor and normal samples in 
+parallel by running two fa2wes commands at the same time, with one command 
+specifying the read number of tumor (normal) sample to be zero while simulating 
+normal (tumor) sample.
+
+#### 2.5.1 Input files 
+
+Similar to module fa2wgs, this module requires the FASTA files of normal and 
+tumor genomes as well as  tumor chain files. Additionally, a probe file and a 
+target file are required.
+
+##### FASTA files of normal genomes (-n/--normal)
+
+These fasta files for the normal genomes are specified via `-n/--normal`. 
+There should be two FASTA files (normal.parental_0.fa/normal.parental_1.fa) 
+under this folder.
+
+##### FASTA files of tumor genomes (-t/--tumor)
+
+These fasta files for the tumor genomes are specified via `-t/--tumor`. 
+There should be two FASTA files (node\*.parental_0.fa/node\*.parental_1.fa) 
+for each tumor genome under this folder.
+
+##### Tipnode map files (-m/--map)
+
+These files are specified via `-m/--map`. Each file contains the compositional 
+information of a tumor genome (i.e. which cell belongs to this tumor 
+clone/genome). Please see the 'Tipnode map file' under 2.2.3 for more details of 
+this file.
+
+##### Probe file (--probe)
+
+The probe file (FASTA format) is specified via `--probe`. This file contains the 
+probe sequences for target capture. Probe files for different sequencing 
+platforms can be obtained from the respective vendor's website. For example, the 
+probe sequences for Agilent's SureSelect platforms can be downloaded from 
+[here](https://earray.chem.agilent.com/suredesign/) (One has to register and log 
+in the website for downloading). The download option can be found in the menu by 
+first clicking 'Find Designs' and then 'SureSelect DNA', followed by clicking 
+'Agilent Catalog Designs'. To obtain a FASTA file from the downloaded TXT file, 
+user can use the script probe2fa.py provided in our CSiTE package (under 
+directory wes/util/). 
+
+##### Target file (--target)
+
+The target file (BED format) is specified via `--target`. This file contains the 
+positions of target regions along the genome. Similar to the probe file, Target 
+files for different sequencing platforms can also be obtained from vendor's 
+website.
+
+##### Sector file (--sectors)
+
+The sector file is specified via `--sectors`. This file contains purity and 
+depth of WES data for different tumor sectors. Please see the 'Sector file 
+(--sectors)' under 2.4.1 for more details of this file. 
+
+#### 2.5.2 Output files
+
+##### Output of WES simulator (-o/--output)
+
+A WES simulator typically generates many files corresponding to different tumor 
+genomes. These files are under the folder specified via `-o/--output`. There can 
+be multiple subfolders generated under this folder. If the simulation is only 
+done for the tumor or normal sample, there will be an additional folder 'tumor' 
+or 'normal' which contains similar hierarchies of subfolders. 
+
+In each subfolder, there are several subfolders that contain the intermediate 
+and final (underlined) results in simulation:
+
+- **config**: This folder contains the configuration files of snakemake for 
+running different simulators. Users can change the parameters of tools used in 
+simulation directly in the respective configuration file for specific needs.
+- **genome_index**: This folder contains the index of reference genomes. 
+- **mapping**: This folder contains the results of mapping the probe sequence to 
+the reference genomes. 
+- **wessim_reads/capgem_reads**: This folder contains simulated short reads for 
+different genomes in the sample. 
+- **frags**: This folder contains the sequencing fragments captured by CapGem.
+- **merged**: This folder contains the simulated short reads for the 
+tumor/normal sample. For the tumor sample, multiple tumor genomes (i.e. clones) 
+are merged to represent the tumor sample. 
+- **separate**: This folder contains simulated short reads for each genome (i.e. 
+tumor clone) in the sample. It is generated when using option `--separate` 
+or `--single` (see section 2.5.3). When multi-sector data are simulated, there 
+will be a subfolder for each sector under this folder.
+
+All the other subfolders contain intermediate results and can be deleted, 
+including 'log' which store files indicating the completeness of snakemake 
+tasks, 'stdout' which stores the standard output and standard errors of 
+snakemake commands, and '.snakemake' which stores the files generated by 
+snakemake.
+
+To simulate short reads with different parameters without changing the 
+underlying genomes, one can delete all the subfolders except 'config', 
+'genome_index' and 'mapping', before rerunning fa2wes.
+
+##### Log file (-g/--log)
+
+The log file is specified via '-g/--log`. It stores the commands for calling the 
+WES simulator, which can be used to replicate the simulation process.
+
+#### 2.5.3 Options 
+ 
+##### -p/--purity 
+
+This option specifies the purity of the tumor sample.
+
+##### --ontarget_ratio 
+
+This option specifies the percentage of simulated reads that are expected to be 
+from the target regions. Because of off-target effect in exome capture 
+sequencing, this option is used to adjust the read number such that the we can 
+obtain the desired number of on-target reads. This option is specific to each 
+capture probe/target region. Users need to be careful changing this option. 
+
+##### --read_length 
+
+This option specifies the length of simulated short reads. 
+
+##### --single_end
+
+This option allows users to simulate single-end reads (instead of paired-end 
+reads).
+
+##### -d/--tumor_rdepth 
+
+This option specifies the mean depth of the tumor sample. The number of 
+generated short reads is computed by the following formula: 
+(target_size*rdepth)/(rlen*ontarget_ratio). Here, 'target_size' is the size of 
+target regions specified in the target file; 'rlen' is the simulated read length 
+for the short reads (single-end or pair-end sequencing); 'target_ratio' is the 
+percentage of on-target reads and specified by '--target_ratio`.
+
+##### -r/--tumor_rnum
+
+Instead of specifying the coverage of the target region, fa2wes also allows user 
+to directly specify the number of simulated reads. This option specifies the 
+number of short reads to simulate for tumor sample. 
+
+##### -D/--normal_rdepth 
+
+This option specifies the mean depth of the normal sample. In principle, one can 
+specify the mean depth for tumor and normal samples in a single command. To save 
+time, one can simulate tumor and normal samples in parallel by running two 
+fa2wes commands at the same time, with one command specifying the depth of tumor 
+(normal) sample to be 0 when simulating normal (tumor) sample.
+
+##### -R/--normal_rnum 
+
+This option allows users to specify the number of short reads to simulate for 
+the normal sample. 
+
+##### --simulator 
+
+This option specifies the WES simulator to use. Available choices of the WES 
+simulators include: wessim (default) and capgem.
+
+##### --error_model
+
+This option specifies the file containing the empirical error model for NGS 
+sequencing generated by GemErr.py (please see wes/util/README.md for details). 
+GemErr.py was adapted from the GemSim package and it can tabulate an error model 
+from real sequencing data. With the error model learned from the real data, 
+users can simulate more realistic short reads. Users can use a default error 
+model provided under wes folder of CSiTE package 
+(wes/example/RMNISTHS_30xdownsample_chr22_p.gzip).
+
+##### --snakemake
+
+This option specifies the snakemake command used to call an external WES 
+simulator. Users can pass all parameters to a selected simulator by revising the 
+Snakefile of the corresponding simulator (under directory wes/config/), except 
+the option specifying read length. To accelerate the simulation process, users 
+can submit each job to a cluster. For example, one can use the following option 
+to submit the jobs to a Univa Grid Engine queuing system: `--snakemake 
+'snakemake --rerun-incomplete -k --latency-wait 120 --cluster-config 
+config/cluster.yaml --cluster "qsub -V -l 
+mem_free={cluster.mem},h_rt={cluster.time} -pe OpenMP {cluster.n} -o stdout/ 
+-e stdout/"'`. 
+
+##### --cores
+
+This option specifies the number of cores used to run the program (including 
+snakemake). If `--cores` or `--jobs` or `-j` is specified in the options of 
+snakemake command, the value specified by `--cores` here will be ignored when 
+snakemake is called. Because WES simulation involves multiple steps, it is 
+recommended to use a larger number of cores to save time.
+
+##### --single
+
+With this option, WES simulation will be in single cell mode, which simulates 
+single cell exome sequencing. Specifically, the value of --tumor_depth 
+(--tumor_rnum) refers to the depth (read number) of each tumor cell. 
+
+##### --separate
+
+With this option, fa2wes will keep the short reads of each genome separately 
+(instead of mixing them together to create the tumor sample). 
+
+##### --out_level [0,1,2]
+
+This option specifies the level used to indicate how many intermediate output 
+files are kept. 
+
+- **Level 0**: keep all the files.  
+- **Level 1**: keep files that are necessary for rerunning simulation ('config', 
+'genome_index', 'mapping', 'merged', and 'separate'). 
+- **Level 2**: keep only final results ('merged' and 'separate' folders).
+
+### 2.6 allinone (module 6)
+
+allinone is a convenient wrapper for simulating NGS reads for the normal and 
+tumor sample in one command. It first calls module vcf2fa to construct the 
+germline genome. Subsequently, it calls module phylovar and chain2fa to build 
+the genomes of tumor cells. At the end, it calls module fa2wgs or fa2wes to 
+simulate short reads for the normal and tumor sample. 
+
+#### 2.6.1 Input files
+
+##### Reference file (-r/--reference) and VCF file (-v/--vcf)
+
+These two files will be passed to module vcf2fa to construct the germline genome 
+of an individual.  Check section 2.1 for details.
+
+##### Tree file (-t/--tree), configuration file (-c/--config) and affiliation file (--affiliation)
+
+These three files will be passed to module phylovar to simulate somatic variants 
+along the evolutionary history of the sample. Check section 2.2 for details.
+
+##### Sectors file (--sectors)
+
+This file will be passed to module fa2wgs and fa2wes. Check section 2.4 for details. 
+
+#### 2.6.2 Output files
+
+##### Output (--output)
+
+The output folder is specified via `--output`. All files generated in the 
+simulation will be placed in this folder. allinone will create four or five 
+subfolders under this folder: normal_fa, tumor_chain, tumor_fa, wgs_reads and/or 
+wes_reads. They contain normal FASTA files, tumor chain files, tumor FASTA files 
+and short reads for normal/tumor samples respectively. 
+
+##### Log file (-g/--log)
+
+The log file is specified via `-g/--log`, which records random seeds and all the 
+sub-commands, along with their parameters. 
+
+#### 2.6.3 Options
+
+##### --autosomes/--sex_chr
+
+These two options will be passed to module vcf2fa. Check section 2.1 for details.
+
+##### --trunk_vars/--trunk_length/--prune
+
+These four options will be passed to module phylovar. Check section 2.2 for 
+details.
+
+##### --cores
+
+This option will be passed to module chain2fa, fa2wgs and fa2wes. Check section 
+2.3, 2.4 and 2.5 for details.
+
+##### --purity/--rlen/--separate/--single
+
+These options will be passed to module fa2wgs or fa2wes. Check section 2.4 and 
+2.5 for details.
+
+##### --art/--tumor_depth/--normal_depth
+
+These options will be passed to module fa2wgs. Check section 2.4 for details.
+
+##### --probe/--tumor_rdepth/--tumor_rnum/--normal_rdepth/--normal_rnum/--simulator/--error_model/--snakemake/--out_level
+
+These options will be passed to module fa2wes. Check section 2.5 for details.
+
+##### --random_seed
+
+This option specifies the seed used for random number generation. The generated 
+random number will be used as a random seed by module phylovar, fa2wgs and 
+fa2wes.
+
+##### --start
+
+The option `--start step_ID` allows users to skip some of the steps which have 
+been finished already. The program will carry out the simulation from the 
+step_ID th step. The step_ID (inclusive) can be an integer number from 1 to 4.
+
+- **1**: vcf2fa
+- **2**: phylovar
+- **3**: chain2fa
+- **4**: fa2wgs/fa2wes
+
+## 3. Tutorial
+
+In this section, we will demonstrate how to use CSiTE.
+
+1. At first, several input files have to be prepared with the following steps.
+
+  - Simulate the coalescent tree of 1000 tumor cells, which are sampled from an 
+  exponentially growing tumor. (Please check the manual of ms for more 
+  information)
+
+    ms 1000 1 -T -G 1 |tail -n1 > ms_tree.txt
+
+  - Download the fasta file of human reference genome from the website of 1000 
+  genomes.
+
+    wget http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/human_g1k_v37.fasta.gz
+    gunzip human_g1k_v37.fasta.gz
+
+  - Download variants data of NA12878 (Genome in a bottle consortium) from NCBI.
+
+    wget -O NA12878.raw.vcf.gz ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/release/NA12878_HG001/latest/GRCh37/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.vcf.gz
+
+  - Filter the raw variants to get the phased SNPs as the germline variants of the 
+  sample to simulate.
+
+    zcat NA12878.raw.vcf.gz |awk '/^#/ || ($NF~/^[01]\|[01]/ && length($4)==1 && length($5)==1)' |gzip -c > NA12878.phased_snp.vcf.gz
+  
+2. Next, vcf2fa simulates the (normal) germline genomes of a female individual, 
+by integrating germline SNPs into the human reference genome.
+
+    csite.py vcf2fa -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz --autosomes 1..22 --sex_chr X,X -o normal_fa
+
+3. Subsequently, phylovar simulates somatic variants of the sample. There are 
+multiple options in phylovar that allow a flexible simulation, as shown below.
+
+  - Simulate variants based on a configuration file. Check 
+  cfg_template_female.yaml in CSiTE package (under folder example_doc)  for 
+  detailed settings.
+
+    csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml --purity 0.8 --sex_chr X,X
+
+  - With the option --trunk_length, we can simulate truncal mutations of the 
+  tumor sample.
+
+    csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml --purity 0.8 --sex_chr X,X --trunk_length 2.0
+
+  - The above two phylovar commands will simulate somatic variants of 1000 tumor 
+  genomes. The fasta files of these genomes can consume a lot of space, because 
+  we need to store the genomes of every individual cell. Since most low 
+  frequency variants are not informative, users can employ `--prune` to trim the 
+  infrequent lineages.
+
+    csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml --purity 0.8 --sex_chr X,X --trunk_length 2.0 --prune 0.05
+
+  - When running phylovar, users can choose to generate chain files and map 
+  files with option `--chain` and `--map` respectively. The command will 
+  generate the chain files for each tip node under the folder tumor_chain. These 
+  two files can then be used for generating genomes of tumor cells and the 
+  sequencing data from those cells.
+
+    csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml --purity 0.8 --sex_chr X,X --trunk_length 2.0 --prune 0.05 --chain tumor_chain --map map 
+
+4. With the chain files generated by phylovar, chain2fa can then build the 
+genomes of tumor cells in the sample. 
+
+    csite.py chain2fa -c tumor_chain -n normal_fa/normal.parental_0.fa,normal_fa/normal.parental_1.fa -o tumor_fa --cores 8
+
+5. After generating the tumor genomes, NGS reads can be simulated by calling 
+fa2wgs or fa2wes. Below are several examples showing how to generate different types of NGS reads.
+  - Simulate the NGS reads of a tumor sample with the purity of 0.8 and the 
+  coverage of 50X. At the same time, generate the paired normal sample at 
+  coverage 30X. Use 8 CPUs to run the simulation.
+
+    csite.py fa2wgs -n normal_fa -t tumor_fa -m map --purity 0.8 --tumor_depth 50 --normal_depth 30  -o wgs_reads --cores 8 
+
+  - Simulate the WES reads of a tumor sample with the purity of 0.8 and the 
+  coverage of 100X as well as the paired normal sample with 100X coverage. Use 
+  wessim and 8 CPUs to run the simulation. The probe file, target file and error 
+  model file used in this command can be found under directory wes/example of 
+  CSiTE package.
+
+    csite.py fa2wes -n normal_fa -t tumor_fa -m map --probe probe/S03723314_Probes.fa --target probe/S03723314_Covered_c3.bed --error_model ErrModel/RMNISTHS_30xdownsample_chr22_p.gzip --purity 0.8 --tumor_rdepth 100 --normal_rdepth 100 --simulator wessim -o wes_reads --cores 8 
+
+  - Simulate the WES reads of a tumor sample with the purity of 0.8 and the 
+  coverage of 100X. Use capgem and clusters to run the simulation. Please ensure 
+  that there are enough memory and disk space to run capgem (see section 2.5.0 
+  for the requirements).
+
+    csite.py fa2wes -n normal_fa -t tumor_fa -m map --probe example/S03723314_Probes.fa --target example/S03723314_Covered_c3.bed --error_model example/RMNISTHS_30xdownsample_chr22_p.gzip --purity 0.8 --tumor_rdepth 100 --normal_rdepth 0 -o wes_reads --simulator capgem --snakemake 'snakemake -j 200 --rerun-incomplete -k --latency-wait 120 --cluster "qsub -V -l mem_free={cluster.mem},h_rt={cluster.time} -pe OpenMP {cluster.n} -o wes_reads/stdout/ -e wes_reads/stdout/"'   
+
+6. Finally, users can just use a single allinone command to run the whole 
+pipeline to generate the WGS or WES data. 
+
+  - Run the whole pipeline to generate the WGS data.
+
+    csite.py allinone -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz -t ms_tree.txt -c cfg_template_female.yaml -o output --autosomes 1..22 --sex_chr X,X --trunk_length 2.0 -d 50 -D 30 -p 0.8 -x 0.05 --cores 8
+    
+  - Run the whole pipeline to generate the WES data.
+
+    csite.py allinone --type WES -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz -t ms_tree.txt -c cfg_template_female.yaml -o output --autosomes 1..22 --sex_chr X,X --trunk_length 2.0 -p 0.8 -x 0.05 --probe probe/S03723314_Probes.fa --target probe/S03723314_Covered_c3.bed --error_model ErrModel/RMNISTHS_30xdownsample_chr22_p.gzip --rlen 150 --tumor_rdepth 100 --normal_rdepth 100 --simulator wessim --cores 16 
+
+  - Run the whole pipeline to generate both WGS and WES data.
+    csite.py allinone --type BOTH -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz -t ms_tree.txt -c cfg_template_female.yaml -o output --autosomes 1..22 --sex_chr X,X -p 0.8 -x 0.05 -d 50 -D 30 --probe probe/S03723314_Probes.fa --target probe/S03723314_Covered_c3.bed --error_model ErrModel/RMNISTHS_30xdownsample_chr22_p.gzip --rlen 150 --tumor_rdepth 100 --normal_rdepth 100 --simulator wessim --cores 16 
 
 ## Authors
 
 * [Hechuan Yang](https://github.com/hchyang)
+* [Bingxin Lu](https://github.com/icelu)
 
 ## License
 
-This project is licensed under the GNU GPLv3 License - see the
-[LICENSE](LICENSE) file for details.
+This project is licensed under the GNU GPLv3 License - see the 
+[LICENSE](LICENSE) file for details.
 
