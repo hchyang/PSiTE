@@ -157,7 +157,7 @@ the truncal events to be on one of the four haplotypes (0/1/2/3).
 - **var**:      The type of the variant. 0/1/2: SNV, -1: deletion, 
 +N: amplification. 0/1/2 represent different types of base substitutions (see 
 section `--tstv` option under section 2.2.3).
-- **focal_cp**: The copy of the segment that carries this variant. This column 
+- **focal\_cp**: The copy of the segment that carries this variant. This column 
 is optional and is only relevant when the focal variant is SNV. If a SNV is 
 covered by an amplification with N new copies, the value in this column can be 
 either an integer in the range of [0,N], or a list of numbers separated by 
@@ -167,7 +167,6 @@ overlapping CNV events, SNVs are assumed to be earlier than the CNV event). In
 this case, all the new copies of the amplification will carry the SNV. In 
 addition to this default setting, users can also specify alternative scenarios 
 using this column. For example:
-
 
     #chr hap start  end    var focal_cp
     1    1   464646 466646 +3
@@ -234,8 +233,8 @@ affiliation file, users should designate the sample affiliation of the tumor
 cells to different sectors. An example affiliation file is shown below:
 
     #sector purity prune_p cells
-    sector1 0.6 0.05 1,2,3,4..5000
-    sector2 0.6 0.05 5001..10000
+    sector1 0.6    0.05    1,2,3,4..5000
+    sector2 0.6    0.05    5001..10000
 
 - **sector**: The id of the sector. 
 - **purity**: The purity of each sector (the proportion of cells that is tumor 
@@ -282,8 +281,8 @@ for each sector, there is also a CNV file for the whole tumor sample named
 - **chr**: The chromosome on which the CNV locates.
 - **start**: The start position of the CNV (0-based, inclusive).
 - **end**: The end position of the CNV (0-based, exclusive).
-- **copy**: The copy changes of the CNV (e.g. -1 stands for deletion, +N stands 
-for an amplification with N new copies).	
+- **copy**: The copy changes of the CNV (e.g. -1 stands for deletion, +N stands
+for an amplification with N new copies).    
 - **carrier**: The number of tumor cells within the sample carrying the CNV
 
 ##### SNV genotype file (--snv_genotype) (optional)
@@ -303,7 +302,7 @@ reference alleles. The columns are:
 types of transversions, see section 2.2.3).
 - **cell1**: The genotype of cell 1.
 - **cell2**: The genotype of cell 2.
-- **etc**
+- **etc ...**
 
 Users should be careful whether to toggle this option since the output of this 
 option can be very large. 
@@ -388,15 +387,15 @@ each individual tip node (corresponding to tumor clones or single cells). There
 is one chain file per tip node. Below is an example of the chain file:
 
     >1_Hap0 parental:0
-    1   	0   	33  	REF
-    1   	33  	55  	DEL 	-1
-    1   	55  	99  	AMP 	+1
-    1   	55  	99  	REF
-    1   	55  	100000  REF
+    1       0       33      REF
+    1       33      55      DEL     -1
+    1       55      99      AMP     +1
+    1       55      99      REF
+    1       55      100000  REF
     >1_Hap1 parental:0
-    1   	0   	33  	REF
-    1   	33  	34  	SNV 	1
-    1   	34  	100000  REF
+    1       0       33      REF
+    1       33      34      SNV     1
+    1       34      100000  REF
 
 In the chain file, there is one block for each haplotype of a chromosome. Within 
 each block, there is a header line and a body section. Lines which start with 
@@ -780,17 +779,19 @@ For ease of use, we revised the source code of WesSim2 (probe-based version) and
 include it in our CSiTE package.  
 
 Several additional packages are required to run WesSim:
-	- [pysam](http://code.google.com/p/pysam/)
-	- [samtools](http://samtools.sourceforge.net/)
-	- [faToTwoBit](http://hgdownload.cse.ucsc.edu/admin/exe/)
-	- [blat](http://hgdownload.cse.ucsc.edu/admin/exe/)
+
+- [pysam](http://code.google.com/p/pysam/)
+- [samtools](http://samtools.sourceforge.net/)
+- [faToTwoBit](http://hgdownload.cse.ucsc.edu/admin/exe/)
+- [blat](http://hgdownload.cse.ucsc.edu/admin/exe/)
 
 ##### CapGem
 
 CapGem requires a Java Runtime Environment (Java Runtime Environment >=1.8). 
 Several additional packages are required to use CapGem for simulation:
-	- [bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
-	- [samtools](http://samtools.sourceforge.net/) (version >= 1.5)
+
+- [bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
+- [samtools](http://samtools.sourceforge.net/) (version >= 1.5)
 
 To install CapGem, one can navigate to the folder containing the source code of 
 CapGem (CSiTE/wes/capgem) and then run `make`. 
@@ -1127,27 +1128,28 @@ In this section, we will demonstrate how to use CSiTE.
   exponentially growing tumor. (Please check the manual of ms for more 
   information)
 
-    ms 1000 1 -T -G 1 |tail -n1 > ms_tree.txt
+    `ms 1000 1 -T -G 1 |tail -n1 > ms_tree.txt`
 
   - Download the fasta file of human reference genome from the website of 1000 
   genomes.
 
-    wget http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/human_g1k_v37.fasta.gz
-    gunzip human_g1k_v37.fasta.gz
+    `wget http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/human_g1k_v37.fasta.gz`
+
+    `gunzip human_g1k_v37.fasta.gz`
 
   - Download variants data of NA12878 (Genome in a bottle consortium) from NCBI.
 
-    wget -O NA12878.raw.vcf.gz ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/release/NA12878_HG001/latest/GRCh37/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.vcf.gz
+    `wget -O NA12878.raw.vcf.gz ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/release/NA12878_HG001/latest/GRCh37/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.vcf.gz`
 
   - Filter the raw variants to get the phased SNPs as the germline variants of the 
   sample to simulate.
 
-    zcat NA12878.raw.vcf.gz |awk '/^#/ || ($NF~/^[01]\|[01]/ && length($4)==1 && length($5)==1)' |gzip -c > NA12878.phased_snp.vcf.gz
+    `zcat NA12878.raw.vcf.gz |awk '/^#/ || ($NF~/^[01]\|[01]/ && length($4)==1 && length($5)==1)' |gzip -c > NA12878.phased_snp.vcf.gz`
   
 2. Next, vcf2fa simulates the (normal) germline genomes of a female individual, 
 by integrating germline SNPs into the human reference genome.
 
-    csite.py vcf2fa -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz --autosomes 1..22 --sex_chr X,X -o normal_fa
+    `csite.py vcf2fa -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz --autosomes 1..22 --sex_chr X,X -o normal_fa`
 
 3. Subsequently, phylovar simulates somatic variants of the sample. There are 
 multiple options in phylovar that allow a flexible simulation, as shown below.
@@ -1156,12 +1158,12 @@ multiple options in phylovar that allow a flexible simulation, as shown below.
   cfg_template_female.yaml in CSiTE package (under folder example_doc)  for 
   detailed settings.
 
-    csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml --purity 0.8 --sex_chr X,X
+    `csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml --purity 0.8 --sex_chr X,X`
 
   - With the option --trunk_length, we can simulate truncal mutations of the 
   tumor sample.
 
-    csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml --purity 0.8 --sex_chr X,X --trunk_length 2.0
+    `csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml --purity 0.8 --sex_chr X,X --trunk_length 2.0`
 
   - The above two phylovar commands will simulate somatic variants of 1000 tumor 
   genomes. The fasta files of these genomes can consume a lot of space, because 
@@ -1169,7 +1171,7 @@ multiple options in phylovar that allow a flexible simulation, as shown below.
   frequency variants are not informative, users can employ `--prune` to trim the 
   infrequent lineages.
 
-    csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml --purity 0.8 --sex_chr X,X --trunk_length 2.0 --prune 0.05
+    `csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml --purity 0.8 --sex_chr X,X --trunk_length 2.0 --prune 0.05`
 
   - When running phylovar, users can choose to generate chain files and map 
   files with option `--chain` and `--map` respectively. The command will 
@@ -1177,12 +1179,12 @@ multiple options in phylovar that allow a flexible simulation, as shown below.
   two files can then be used for generating genomes of tumor cells and the 
   sequencing data from those cells.
 
-    csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml --purity 0.8 --sex_chr X,X --trunk_length 2.0 --prune 0.05 --chain tumor_chain --map map 
+    `csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml --purity 0.8 --sex_chr X,X --trunk_length 2.0 --prune 0.05 --chain tumor_chain --map map`
 
 4. With the chain files generated by phylovar, chain2fa can then build the 
 genomes of tumor cells in the sample. 
 
-    csite.py chain2fa -c tumor_chain -n normal_fa/normal.parental_0.fa,normal_fa/normal.parental_1.fa -o tumor_fa --cores 8
+    `csite.py chain2fa -c tumor_chain -n normal_fa/normal.parental_0.fa,normal_fa/normal.parental_1.fa -o tumor_fa --cores 8`
 
 5. After generating the tumor genomes, NGS reads can be simulated by calling 
 fa2wgs or fa2wes. Below are several examples showing how to generate different types of NGS reads.
@@ -1190,7 +1192,7 @@ fa2wgs or fa2wes. Below are several examples showing how to generate different t
   coverage of 50X. At the same time, generate the paired normal sample at 
   coverage 30X. Use 8 CPUs to run the simulation.
 
-    csite.py fa2wgs -n normal_fa -t tumor_fa -m map --purity 0.8 --tumor_depth 50 --normal_depth 30  -o wgs_reads --cores 8 
+    `csite.py fa2wgs -n normal_fa -t tumor_fa -m map --purity 0.8 --tumor_depth 50 --normal_depth 30  -o wgs_reads --cores 8`
 
   - Simulate the WES reads of a tumor sample with the purity of 0.8 and the 
   coverage of 100X as well as the paired normal sample with 100X coverage. Use 
@@ -1198,28 +1200,29 @@ fa2wgs or fa2wes. Below are several examples showing how to generate different t
   model file used in this command can be found under directory wes/example of 
   CSiTE package.
 
-    csite.py fa2wes -n normal_fa -t tumor_fa -m map --probe probe/S03723314_Probes.fa --target probe/S03723314_Covered_c3.bed --error_model ErrModel/RMNISTHS_30xdownsample_chr22_p.gzip --purity 0.8 --tumor_rdepth 100 --normal_rdepth 100 --simulator wessim -o wes_reads --cores 8 
+    `csite.py fa2wes -n normal_fa -t tumor_fa -m map --probe probe/S03723314_Probes.fa --target probe/S03723314_Covered_c3.bed --error_model ErrModel/RMNISTHS_30xdownsample_chr22_p.gzip --purity 0.8 --tumor_rdepth 100 --normal_rdepth 100 --simulator wessim -o wes_reads --cores 8`
 
   - Simulate the WES reads of a tumor sample with the purity of 0.8 and the 
   coverage of 100X. Use capgem and clusters to run the simulation. Please ensure 
   that there are enough memory and disk space to run capgem (see section 2.5.0 
   for the requirements).
 
-    csite.py fa2wes -n normal_fa -t tumor_fa -m map --probe example/S03723314_Probes.fa --target example/S03723314_Covered_c3.bed --error_model example/RMNISTHS_30xdownsample_chr22_p.gzip --purity 0.8 --tumor_rdepth 100 --normal_rdepth 0 -o wes_reads --simulator capgem --snakemake 'snakemake -j 200 --rerun-incomplete -k --latency-wait 120 --cluster "qsub -V -l mem_free={cluster.mem},h_rt={cluster.time} -pe OpenMP {cluster.n} -o wes_reads/stdout/ -e wes_reads/stdout/"'   
+    `csite.py fa2wes -n normal_fa -t tumor_fa -m map --probe example/S03723314_Probes.fa --target example/S03723314_Covered_c3.bed --error_model example/RMNISTHS_30xdownsample_chr22_p.gzip --purity 0.8 --tumor_rdepth 100 --normal_rdepth 0 -o wes_reads --simulator capgem --snakemake 'snakemake -j 200 --rerun-incomplete -k --latency-wait 120 --cluster "qsub -V -l mem_free={cluster.mem},h_rt={cluster.time} -pe OpenMP {cluster.n} -o wes_reads/stdout/ -e wes_reads/stdout/"'` 
 
 6. Finally, users can just use a single allinone command to run the whole 
 pipeline to generate the WGS or WES data. 
 
   - Run the whole pipeline to generate the WGS data.
 
-    csite.py allinone -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz -t ms_tree.txt -c cfg_template_female.yaml -o output --autosomes 1..22 --sex_chr X,X --trunk_length 2.0 -d 50 -D 30 -p 0.8 -x 0.05 --cores 8
+    `csite.py allinone -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz -t ms_tree.txt -c cfg_template_female.yaml -o output --autosomes 1..22 --sex_chr X,X --trunk_length 2.0 -d 50 -D 30 -p 0.8 -x 0.05 --cores 8`
     
   - Run the whole pipeline to generate the WES data.
 
-    csite.py allinone --type WES -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz -t ms_tree.txt -c cfg_template_female.yaml -o output --autosomes 1..22 --sex_chr X,X --trunk_length 2.0 -p 0.8 -x 0.05 --probe probe/S03723314_Probes.fa --target probe/S03723314_Covered_c3.bed --error_model ErrModel/RMNISTHS_30xdownsample_chr22_p.gzip --rlen 150 --tumor_rdepth 100 --normal_rdepth 100 --simulator wessim --cores 16 
+    `csite.py allinone --type WES -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz -t ms_tree.txt -c cfg_template_female.yaml -o output --autosomes 1..22 --sex_chr X,X --trunk_length 2.0 -p 0.8 -x 0.05 --probe probe/S03723314_Probes.fa --target probe/S03723314_Covered_c3.bed --error_model ErrModel/RMNISTHS_30xdownsample_chr22_p.gzip --rlen 150 --tumor_rdepth 100 --normal_rdepth 100 --simulator wessim --cores 16`
 
   - Run the whole pipeline to generate both WGS and WES data.
-    csite.py allinone --type BOTH -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz -t ms_tree.txt -c cfg_template_female.yaml -o output --autosomes 1..22 --sex_chr X,X -p 0.8 -x 0.05 -d 50 -D 30 --probe probe/S03723314_Probes.fa --target probe/S03723314_Covered_c3.bed --error_model ErrModel/RMNISTHS_30xdownsample_chr22_p.gzip --rlen 150 --tumor_rdepth 100 --normal_rdepth 100 --simulator wessim --cores 16 
+
+    `csite.py allinone --type BOTH -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz -t ms_tree.txt -c cfg_template_female.yaml -o output --autosomes 1..22 --sex_chr X,X -p 0.8 -x 0.05 -d 50 -D 30 --probe probe/S03723314_Probes.fa --target probe/S03723314_Covered_c3.bed --error_model ErrModel/RMNISTHS_30xdownsample_chr22_p.gzip --rlen 150 --tumor_rdepth 100 --normal_rdepth 100 --simulator wessim --cores 16`
 
 ## Authors
 
