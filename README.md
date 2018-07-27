@@ -1,4 +1,4 @@
-#Coalescent Simulator for Tumor Evolution (CSiTE)
+# Coalescent Simulator for Tumor Evolution (CSiTE)
 
 CSiTE is a coalescent simulator for tumor evolution. It first simulates somatic 
 variants (Single Nucleotide Variants (SNVs) and Copy Number Variants (CNVs)) 
@@ -35,7 +35,7 @@ Version: 0.9.0
              phylovar   simulate somatic variations along a phylogeny
              chain2fa   build tumor genomes from somatic variants (encoded in chain files)
              fa2wgs     simulate WGS reads from normal and tumor genomes 
-             fa2wes 	simulate WES reads from normal and tumor genomes 
+             fa2wes     simulate WES reads from normal and tumor genomes 
              allinone   a wrapper for NGS reads simulation by combining all individual steps
 
 CSiTE starts the simulation by generating the personal (diploid) genome of an 
@@ -167,12 +167,11 @@ overlapping CNV events, SNVs are assumed to be earlier than the CNV event). In
 this case, all the new copies of the amplification will carry the SNV. In 
 addition to this default setting, users can also specify alternative scenarios 
 using this column. For example:
-
-    #chr hap start end var focal_cp
-    1 1 464646 466646 +3
-    1 1 464650 464651 1
-    1 1 464660 464661 1 0
-    1 1 464670 464671 1 2,3
+    #chr hap start  end    var focal_cp
+    1    1   464646 466646 +3
+    1    1   464650 464651 1
+    1    1   464660 464661 1 0
+    1    1   464670 464671 1 2,3
 
 In this example, there is an amplification in the region 1:464646-466646 
 covering all the three SNVs, which corresponds to the following three scenarios: 
