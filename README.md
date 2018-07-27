@@ -167,6 +167,8 @@ overlapping CNV events, SNVs are assumed to be earlier than the CNV event). In
 this case, all the new copies of the amplification will carry the SNV. In 
 addition to this default setting, users can also specify alternative scenarios 
 using this column. For example:
+
+
     #chr hap start  end    var focal_cp
     1    1   464646 466646 +3
     1    1   464650 464651 1
