@@ -1304,10 +1304,11 @@ types of NGS reads.
 
   - Simulate the WES reads of a tumor sample with the purity of 0.8 and the 
   coverage of 100X as well as the paired normal sample with 100X coverage. Use 
-  wessim and 16 CPUs to run the simulation. The probe file, target file and error 
-  model file used in this command can be found under directory wes/example of 
-  CSiTE package (**Note:** The probe file CSiTE/wes/example/S03723314_Probes.fa
-  is compressed in '.gz' format when distributing. Users should extract it first).
+  wessim and 16 CPUs to run the simulation. The probe file, target file and 
+  error model file used in this command can be found under directory 
+  wes/example of CSiTE package (**Note:** The probe file 
+  CSiTE/wes/example/S03723314_Probes.fa is compressed in '.gz' format when 
+  distributing. Users should extract it before using).
 
     ```
     csite.py fa2wes -n normal_fa -t tumor_fa -m map \
