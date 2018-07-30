@@ -1130,7 +1130,9 @@ In this section, we will demonstrate how to use CSiTE.
   exponentially growing tumor. (Please check the manual of ms for more 
   information)
 
-    `ms 1000 1 -T -G 1 |tail -n1 > ms_tree.txt`
+    ```
+    ms 1000 1 -T -G 1 |tail -n1 > ms_tree.txt
+    ```
 
   - Download the fasta file of human reference genome from the website of 1000 
   genomes.
@@ -1143,7 +1145,7 @@ In this section, we will demonstrate how to use CSiTE.
   - Download variants data of NA12878 (Genome in a bottle consortium) from NCBI.
 
     ```
-    wget -O NA12878.raw.vcf.gz ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/release/NA12878_HG001/latest/GRCh37/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.vcf.gz`
+    wget -O NA12878.raw.vcf.gz ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/release/NA12878_HG001/latest/GRCh37/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.vcf.gz
     ```
 
   - Filter the raw variants to get the phased SNPs as the germline variants of the 
