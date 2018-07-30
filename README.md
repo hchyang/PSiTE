@@ -67,7 +67,7 @@ for clonality analysis.
 
 [**4. Authors**](#4-authors)
 
-[**5. License**](#5-License)
+[**5. License**](#5-license)
 
 ## 1. Installation
 
