@@ -49,6 +49,8 @@ for clonality analysis.
 
 [**....2.5. fa2wes (module 5)**](#25-fa2wes-module-5)
 
+[........2.5.0. Requirements](#250-requirements)
+
 [........2.5.1. Input files](#251-input-files)
 
 [........2.5.2. Output files](#252-output-files)
@@ -1372,6 +1374,6 @@ pipeline to generate the WGS or WES data.
 
 ## 5. License
 
-This project is licensed under the GNU GPLv3 License - see the 
+This project is licensed under the GNU GPLv3 License - see the 
 [LICENSE](LICENSE) file for details.
 
