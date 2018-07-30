@@ -9,6 +9,66 @@ cell data. It provides a powerful approach simulating tumor evolution with
 different demographic histories and allows efficient benchmarking of methods 
 for clonality analysis.
 
+## Table of Contents
+
+[**1. Installation**](#1-installation)
+
+[**2. Usage**](#2-usage)
+
+[**....2.1. vcf2fa (module 1)**](#2-1-vcf2fa-module-1-)
+
+[........2.1.1. Input files](#2-1-1-input-files)
+
+[........2.1.2. Output files](#2-1-2-output-files)
+
+[........2.1.3. Options](#2-1-3-options)
+
+[**....2.2. phylovar (module 2)**](#2-2-phylovar-module-2-)
+
+[........2.2.1. Input files](#2-2-1-input-files)
+
+[........2.2.2. Output files](#2-2-2-output-files)
+
+[........2.2.3. Options](#2-2-3-options)
+
+[**....2.3. chain2fa (module 3)**](#2-3-chain2fa-module-3-)
+
+[........2.3.1. Input files](#2-3-1-input-files)
+
+[........2.3.2. Output files](#2-3-2-output-files)
+
+[........2.3.3. Options](#2-3-3-options)
+
+[**....2.4. fa2wgs (module 4)**](#2-4-fa2wgs-module-4-)
+
+[........2.4.1. Input files](#2-4-1-input-files)
+
+[........2.4.2. Output files](#2-4-2-output-files)
+
+[........2.4.3. Options](#2-4-3-options)
+
+[**....2.5. fa2wes (module 5)**](#2-5-fa2wes-module-5-)
+
+[........2.5.1. Input files](#2-5-1-input-files)
+
+[........2.5.2. Output files](#2-5-2-output-files)
+
+[........2.5.3. Options](#2-5-3-options)
+
+[**....2.6. allinone (module 6)**](#2-6-allinone-module-6-)
+
+[........2.6.1. Input files](#2-6-1-input-files)
+
+[........2.6.2. Output files](#2-6-2-output-files)
+
+[........2.6.3. Options](#2-6-3-options)
+
+[**3. Tutorial**](#3-tutorial)
+
+[**4. Authors**](#4-authors)
+
+[**5. License**](#5-License)
+
 ## 1. Installation
 
 CSiTE is written in Python3 (>=3.5). It requires three python libraries: numpy, 
@@ -1305,12 +1365,12 @@ pipeline to generate the WGS or WES data.
         --simulator wessim --cores 16
     ```
 
-## Authors
+## 4. Authors
 
 * [Hechuan Yang](https://github.com/hchyang)
 * [Bingxin Lu](https://github.com/icelu)
 
-## License
+## 5. License
 
 This project is licensed under the GNU GPLv3 License - see the 
 [LICENSE](LICENSE) file for details.
