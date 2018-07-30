@@ -169,11 +169,11 @@ addition to this default setting, users can also specify alternative scenarios
 using this column. For example:
 
 ```
-    #chr hap start  end    var focal_cp
-    1    1   464646 466646 +3
-    1    1   464650 464651 1
-    1    1   464660 464661 1 0
-    1    1   464670 464671 1 2,3
+#chr hap start  end    var focal_cp
+1    1   464646 466646 +3
+1    1   464650 464651 1
+1    1   464660 464661 1 0
+1    1   464670 464671 1 2,3
 ```
 
 In this example, there is an amplification in the region 1:464646-466646 
