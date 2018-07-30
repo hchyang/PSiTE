@@ -15,7 +15,7 @@ for clonality analysis.
 
 [**2. Usage**](#2-usage)
 
-[**....2.1. vcf2fa (module 1)**](#21-vcf2fa-module-1-)
+[**....2.1. vcf2fa (module 1)**](#21-vcf2fa-module-1)
 
 [........2.1.1. Input files](#211-input-files)
 
@@ -23,7 +23,7 @@ for clonality analysis.
 
 [........2.1.3. Options](#213-options)
 
-[**....2.2. phylovar (module 2)**](#22-phylovar-module-2-)
+[**....2.2. phylovar (module 2)**](#22-phylovar-module-2)
 
 [........2.2.1. Input files](#221-input-files)
 
@@ -31,7 +31,7 @@ for clonality analysis.
 
 [........2.2.3. Options](#223-options)
 
-[**....2.3. chain2fa (module 3)**](#23-chain2fa-module-3-)
+[**....2.3. chain2fa (module 3)**](#23-chain2fa-module-3)
 
 [........2.3.1. Input files](#231-input-files)
 
@@ -39,7 +39,7 @@ for clonality analysis.
 
 [........2.3.3. Options](#233-options)
 
-[**....2.4. fa2wgs (module 4)**](#24-fa2wgs-module-4-)
+[**....2.4. fa2wgs (module 4)**](#24-fa2wgs-module-4)
 
 [........2.4.1. Input files](#241-input-files)
 
@@ -47,7 +47,7 @@ for clonality analysis.
 
 [........2.4.3. Options](#243-options)
 
-[**....2.5. fa2wes (module 5)**](#25-fa2wes-module-5-)
+[**....2.5. fa2wes (module 5)**](#25-fa2wes-module-5)
 
 [........2.5.1. Input files](#251-input-files)
 
@@ -55,7 +55,7 @@ for clonality analysis.
 
 [........2.5.3. Options](#253-options)
 
-[**....2.6. allinone (module 6)**](#26-allinone-module-6-)
+[**....2.6. allinone (module 6)**](#26-allinone-module-6)
 
 [........2.6.1. Input files](#261-input-files)
 
