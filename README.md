@@ -26,17 +26,19 @@ CSiTE can be downloaded from github:
 
 There are six modules in CSiTE.
 
+```
 Program: csite.py (a Coalescent Simulator for Tumor Evolution)
 Version: 0.9.0
 
-    Usage:   csite.py <command> [options]
+Usage:   csite.py <command> [options]
 
-    Command: vcf2fa     build the normal genome from the germline vcf file
-             phylovar   simulate somatic variations along a phylogeny
-             chain2fa   build tumor genomes from somatic variants (encoded in chain files)
-             fa2wgs     simulate WGS reads from normal and tumor genomes 
-             fa2wes     simulate WES reads from normal and tumor genomes 
-             allinone   a wrapper for NGS reads simulation by combining all individual steps
+Command: vcf2fa     build normal genome from input germline vcf file
+         phylovar   simulate somatic variations along a phylogeny
+         chain2fa   build tumor genomes from somatic variants (encoded in chain files)
+         fa2wgs     simulate WGS reads from normal and tumor genomes (in fasta format)
+         fa2wes     simulate WES reads from normal and tumor genomes (in fasta format)
+         allinone   a wrapper for NGS reads simulation by combining all individual steps
+```
 
 CSiTE starts the simulation by generating the personal (diploid) genome of an 
 individual using the input VCF file (Module 1: vcf2fa). Subsequently, by taking 
