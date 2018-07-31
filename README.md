@@ -67,10 +67,6 @@ for clonality analysis.
 
 [**3. Tutorial**](#3-tutorial)
 
-[**4. Authors**](#4-authors)
-
-[**5. License**](#5-license)
-
 ## 1. Installation
 
 CSiTE is written in Python3 (>=3.5). It requires three python libraries: numpy, 
@@ -1199,88 +1195,89 @@ In this section, we will demonstrate how to use CSiTE.
 
 1. At first, several input files have to be prepared with the following steps.
 
-  - Simulate the coalescent tree of 1000 tumor cells, which are sampled from an 
-  exponentially growing tumor. (Please check the manual of ms for more 
-  information)
-
-    ```
-    ms 1000 1 -T -G 1 |tail -n1 > ms_tree.txt
-    ```
-
-  - Download the fasta file of human reference genome from the website of 1000 
-  genomes.
-
-    ```
-    wget http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/human_g1k_v37.fasta.gz
-    gunzip human_g1k_v37.fasta.gz
-    ```
-
-  - Download variants data of NA12878 (Genome in a bottle consortium) from NCBI.
-
-    ```
-    wget -O NA12878.raw.vcf.gz ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/release/NA12878_HG001/latest/GRCh37/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.vcf.gz
-    ```
-
-  - Filter the raw variants to get the phased SNPs as the germline variants of the 
-  sample to simulate.
-
-    ```
-    zcat NA12878.raw.vcf.gz \
-        |awk '/^#/ || ($NF~/^[01]\|[01]/ && length($4)==1 && length($5)==1)' \
-        |gzip -c > NA12878.phased_snp.vcf.gz
-    ```
+    - Simulate the coalescent tree of 1000 tumor cells, which are sampled from 
+    an exponentially growing tumor. (Please check the manual of ms for more 
+    information)
   
+        ```
+        ms 1000 1 -T -G 1 |tail -n1 > ms_tree.txt
+        ```
+  
+    - Download the fasta file of human reference genome from the website of 1000 
+    genomes.
+  
+        ```
+        wget http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/human_g1k_v37.fasta.gz
+        gunzip human_g1k_v37.fasta.gz
+        ```
+  
+    - Download variants data of NA12878 (Genome in a bottle consortium) from 
+    NCBI.
+  
+        ```
+        wget -O NA12878.raw.vcf.gz ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/release/NA12878_HG001/latest/GRCh37/HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.vcf.gz
+        ```
+  
+    - Filter the raw variants to get the phased SNPs as the germline variants of 
+    the sample to simulate.
+  
+        ```
+        zcat NA12878.raw.vcf.gz \
+            |awk '/^#/ || ($NF~/^[01]\|[01]/ && length($4)==1 && length($5)==1)' \
+            |gzip -c > NA12878.phased_snp.vcf.gz
+        ```
+    
 2. Next, vcf2fa simulates the (normal) germline genomes of a female individual, 
 by integrating germline SNPs into the human reference genome.
 
-    ```
-    csite.py vcf2fa -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz \
-        --autosomes 1..22 --sex_chr X,X -o normal_fa
-    ```
+      ```
+      csite.py vcf2fa -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz \
+          --autosomes 1..22 --sex_chr X,X -o normal_fa
+      ```
 
 3. Subsequently, phylovar simulates somatic variants of the sample. There are 
 multiple options in phylovar that allow a flexible simulation, as shown below.
 
-  - Simulate variants based on a configuration file. Check 
-  cfg_template_female.yaml in CSiTE package (under folder example_doc)  for 
-  detailed settings.
-
-    ```
-    csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
-        --purity 0.8 --sex_chr X,X
-    ```
-
-  - With the option --trunk_length, we can simulate truncal mutations of the 
-  tumor sample.
-
-    ```
-    csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
-        --purity 0.8 --sex_chr X,X --trunk_length 2.0
-    ```
-
-  - The above two phylovar commands will simulate somatic variants of 1000 tumor 
-  genomes. The fasta files of these genomes can consume a lot of space, because 
-  we need to store the genomes of every individual cell. Since most low 
-  frequency variants are not informative, users can employ `--prune` to trim the 
-  infrequent lineages.
-
-    ```
-    csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
-        --purity 0.8 --sex_chr X,X --trunk_length 2.0 --prune 0.05
-    ```
-
-  - When running phylovar, users can choose to generate chain files and map 
-  files with option `--chain` and `--map` respectively. The command will 
-  generate the chain files for each tip node under the folder tumor_chain. These 
-  two files can then be used for generating genomes of tumor cells and the 
-  sequencing data from those cells.
-
-    ```
-    csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
-        --purity 0.8 --sex_chr X,X --trunk_length 2.0 --prune 0.05 \
-        --chain tumor_chain --map map
-    ```
-
+    - Simulate variants based on a configuration file. Check 
+    cfg_template_female.yaml in CSiTE package (under folder example_doc)  for 
+    detailed settings.
+  
+        ```
+        csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
+            --purity 0.8 --sex_chr X,X
+        ```
+  
+    - With the option --trunk_length, we can simulate truncal mutations of the 
+    tumor sample.
+  
+        ```
+        csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
+            --purity 0.8 --sex_chr X,X --trunk_length 2.0
+        ```
+  
+    - The above two phylovar commands will simulate somatic variants of 1000 
+    tumor genomes. The fasta files of these genomes can consume a lot of space, 
+    because we need to store the genomes of every individual cell. Since most 
+    low frequency variants are not informative, users can employ `--prune` to 
+    trim the infrequent lineages.
+  
+        ```
+        csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
+            --purity 0.8 --sex_chr X,X --trunk_length 2.0 --prune 0.05
+        ```
+  
+    - When running phylovar, users can choose to generate chain files and map 
+    files with option `--chain` and `--map` respectively. The command will 
+    generate the chain files for each tip node under the folder tumor_chain. 
+    These two files can then be used for generating genomes of tumor cells and 
+    the sequencing data from those cells.
+  
+        ```
+        csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
+            --purity 0.8 --sex_chr X,X --trunk_length 2.0 --prune 0.05 \
+            --chain tumor_chain --map map
+        ```
+  
 4. With the chain files generated by phylovar, chain2fa can then build the 
 genomes of tumor cells in the sample. 
 
@@ -1293,98 +1290,98 @@ genomes of tumor cells in the sample.
 5. After generating the tumor genomes, NGS reads can be simulated by calling 
 fa2wgs or fa2wes. Below are several examples showing how to generate different 
 types of NGS reads.
-  - Simulate the NGS reads of a tumor sample with the purity of 0.8 and the 
-  coverage of 50X. At the same time, generate the paired normal sample at 
-  coverage 30X. Use 16 CPUs to run the simulation.
-
-    ```
-    csite.py fa2wgs -n normal_fa -t tumor_fa -m map --purity 0.8 \
-        --tumor_depth 50 --normal_depth 30  -o wgs_reads --cores 16
-    ```
-
-  - Simulate the WES reads of a tumor sample with the purity of 0.8 and the 
-  coverage of 100X as well as the paired normal sample with 100X coverage. Use 
-  wessim and 16 CPUs to run the simulation. The probe file, target file and 
-  error model file used in this command can be found under directory 
-  wes/example of CSiTE package (**Note:** The probe file 
-  CSiTE/wes/example/S03723314_Probes.fa is compressed in '.gz' format when 
-  distributing. Users should extract it before using).
-
-    ```
-    csite.py fa2wes -n normal_fa -t tumor_fa -m map \
-        --probe CSiTE/wes/example/S03723314_Probes.fa \
-        --target CSiTE/wes/example/S03723314_Covered_c3.bed \
-        --error_model CSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
-        --purity 0.8 --tumor_rdepth 100 --normal_rdepth 100 \
-        --simulator wessim -o wes_reads --cores 16
-    ```
-
-  - Simulate the WES reads of a tumor sample with the purity of 0.8 and the 
-  coverage of 100X. Use capgem and clusters to run the simulation. Please ensure 
-  that there are enough memory and disk space to run capgem (see section 2.5.0 
-  for the requirements).
-
-    ```
-    csite.py fa2wes -n normal_fa -t tumor_fa -m map \
-        --probe CSiTE/wes/example/S03723314_Probes.fa \
-        --target CSiTE/wes/example/S03723314_Covered_c3.bed \
-        --error_model CSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
-        --purity 0.8 --tumor_rdepth 100 --normal_rdepth 0 \
-        --simulator capgem -o wes_reads \
-        --snakemake 'snakemake -j 200 --rerun-incomplete -k --latency-wait 120 \
-        --cluster "qsub -V -l mem_free={cluster.mem},h_rt={cluster.time} \
-        -pe OpenMP {cluster.n} -o wes_reads/stdout/ -e wes_reads/stdout/"' 
-    ```
-
+    - Simulate the NGS reads of a tumor sample with the purity of 0.8 and the 
+    coverage of 50X. At the same time, generate the paired normal sample at 
+    coverage 30X. Use 16 CPUs to run the simulation.
+  
+        ```
+        csite.py fa2wgs -n normal_fa -t tumor_fa -m map --purity 0.8 \
+            --tumor_depth 50 --normal_depth 30  -o wgs_reads --cores 16
+        ```
+  
+    - Simulate the WES reads of a tumor sample with the purity of 0.8 and the 
+    coverage of 100X as well as the paired normal sample with 100X coverage. 
+    Use wessim and 16 CPUs to run the simulation. The probe file, target file 
+    and error model file used in this command can be found under directory 
+    wes/example of CSiTE package (**Note:** The probe file 
+    CSiTE/wes/example/S03723314_Probes.fa is compressed in '.gz' format when 
+    distributing. Users should extract it before using).
+  
+        ```
+        csite.py fa2wes -n normal_fa -t tumor_fa -m map \
+            --probe CSiTE/wes/example/S03723314_Probes.fa \
+            --target CSiTE/wes/example/S03723314_Covered_c3.bed \
+            --error_model CSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
+            --purity 0.8 --tumor_rdepth 100 --normal_rdepth 100 \
+            --simulator wessim -o wes_reads --cores 16
+        ```
+  
+    - Simulate the WES reads of a tumor sample with the purity of 0.8 and the 
+    coverage of 100X. Use capgem and clusters to run the simulation. Please ensure 
+    that there are enough memory and disk space to run capgem (see section 2.5.0 
+    for the requirements).
+  
+        ```
+        csite.py fa2wes -n normal_fa -t tumor_fa -m map \
+            --probe CSiTE/wes/example/S03723314_Probes.fa \
+            --target CSiTE/wes/example/S03723314_Covered_c3.bed \
+            --error_model CSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
+            --purity 0.8 --tumor_rdepth 100 --normal_rdepth 0 \
+            --simulator capgem -o wes_reads \
+            --snakemake 'snakemake -j 200 --rerun-incomplete --latency-wait 120 \
+            -k --cluster "qsub -V -l mem_free={cluster.mem},h_rt={cluster.time} \
+            -pe OpenMP {cluster.n} -o wes_reads/stdout/ -e wes_reads/stdout/"' 
+        ```
+  
 6. Finally, users can just use a single allinone command to run the whole 
 pipeline to generate the WGS or WES data. 
 
-  - Run the whole pipeline to generate the WGS data.
+    - Run the whole pipeline to generate the WGS data.
+  
+        ```
+        csite.py allinone \
+            -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz \
+            -t ms_tree.txt -c cfg_template_female.yaml -o output \
+            --autosomes 1..22 --sex_chr X,X --trunk_length 2.0 \
+            -d 50 -D 30 -p 0.8 -x 0.05 --cores 16
+        ```
+      
+    - Run the whole pipeline to generate the WES data.
+  
+        ```
+        csite.py allinone --type WES \
+            -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz \
+            -t ms_tree.txt -c cfg_template_female.yaml -o output \
+            --autosomes 1..22 --sex_chr X,X --trunk_length 2.0 \
+            -p 0.8 -x 0.05 \
+            --probe CSiTE/wes/example/S03723314_Probes.fa \
+            --target CSiTE/wes/example/S03723314_Covered_c3.bed \
+            --error_model CSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
+            --rlen 150 --tumor_rdepth 100 --normal_rdepth 100 \
+            --simulator wessim --cores 16
+        ```
+  
+    - Run the whole pipeline to generate both WGS and WES data.
+  
+        ```
+        csite.py allinone --type BOTH \
+            -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz \
+            -t ms_tree.txt -c cfg_template_female.yaml -o output \
+            --autosomes 1..22 --sex_chr X,X --trunk_length 2.0 \
+            -d 50 -D 30 -p 0.8 -x 0.05 \
+            --probe CSiTE/wes/example/S03723314_Probes.fa \
+            --target CSiTE/wes/example/S03723314_Covered_c3.bed \
+            --error_model CSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
+            --rlen 150 --tumor_rdepth 100 --normal_rdepth 100 \
+            --simulator wessim --cores 16
+        ```
 
-    ```
-    csite.py allinone \
-        -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz \
-        -t ms_tree.txt -c cfg_template_female.yaml -o output \
-        --autosomes 1..22 --sex_chr X,X --trunk_length 2.0 \
-        -d 50 -D 30 -p 0.8 -x 0.05 --cores 16
-    ```
-    
-  - Run the whole pipeline to generate the WES data.
-
-    ```
-    csite.py allinone --type WES \
-        -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz \
-        -t ms_tree.txt -c cfg_template_female.yaml -o output \
-        --autosomes 1..22 --sex_chr X,X --trunk_length 2.0 \
-        -p 0.8 -x 0.05 \
-        --probe CSiTE/wes/example/S03723314_Probes.fa \
-        --target CSiTE/wes/example/S03723314_Covered_c3.bed \
-        --error_model CSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
-        --rlen 150 --tumor_rdepth 100 --normal_rdepth 100 \
-        --simulator wessim --cores 16
-    ```
-
-  - Run the whole pipeline to generate both WGS and WES data.
-
-    ```
-    csite.py allinone --type BOTH \
-        -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz \
-        -t ms_tree.txt -c cfg_template_female.yaml -o output \
-        --autosomes 1..22 --sex_chr X,X --trunk_length 2.0 \
-        -d 50 -D 30 -p 0.8 -x 0.05 \
-        --probe CSiTE/wes/example/S03723314_Probes.fa \
-        --target CSiTE/wes/example/S03723314_Covered_c3.bed \
-        --error_model CSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
-        --rlen 150 --tumor_rdepth 100 --normal_rdepth 100 \
-        --simulator wessim --cores 16
-    ```
-
-## 4. Authors
+## Authors
 
 * [Hechuan Yang](https://github.com/hchyang)
 * [Bingxin Lu](https://github.com/icelu)
 
-## 5. License
+## License
 
 This project is licensed under the GNU GPLv3 License - see the 
 [LICENSE](LICENSE) file for details.
