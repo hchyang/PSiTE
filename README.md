@@ -999,7 +999,7 @@ underlying genomes, one can delete all the subfolders except 'config',
 
 ##### Log file (-g/--log)
 
-The log file is specified via '-g/--log`. It stores the commands for calling the 
+The log file is specified via `-g/--log`. It stores the commands for calling the 
 WES simulator, which can be used to replicate the simulation process.
 
 #### 2.5.3 Options 
@@ -1029,10 +1029,10 @@ reads).
 
 This option specifies the mean depth of the tumor sample. The number of 
 generated short reads is computed by the following formula: 
-(target_size*rdepth)/(rlen*ontarget_ratio). Here, 'target_size' is the size of 
+(target_size\*rdepth)/(rlen\*ontarget_ratio). Here, 'target_size' is the size of 
 target regions specified in the target file; 'rlen' is the simulated read length 
 for the short reads (single-end or pair-end sequencing); 'target_ratio' is the 
-percentage of on-target reads and specified by '--target_ratio`.
+percentage of on-target reads and specified by `--target_ratio`.
 
 ##### -r/--tumor_rnum
 
