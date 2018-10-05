@@ -276,7 +276,7 @@ def main(progname=None):
         prog=prog)
     group1=parser.add_argument_group('Input arguments')
     group1.add_argument('-t','--tree',required=True,metavar='FILE',
-        help='a file containing ONE tree in newick format')
+        help='a file containing !!!ONE!!! tree in newick format')
     default=None
     group1.add_argument('--trunk_vars',type=str,default=default,metavar='FILE',
         help='a file containing truncal variants predefined by user [{}]'.format(default))
@@ -360,6 +360,9 @@ def main(progname=None):
     default=None
     group4.add_argument('--nodes_vars',type=str,default=default,metavar='FILE',
         help='the output file to save SNVs/CNVs on each node [{}]'.format(default))
+    default=None
+    group4.add_argument('--nodes_ccf',type=str,default=default,metavar='FILE',
+        help='the output file to save CCF (Cancer Cell Fraction) of each node in each sector [{}]'.format(default))
     default=None
     group4.add_argument('--cnv_profile',type=str,default=default,metavar='FILE',
         help='the file to save CNVs profile across the cell population of the sample [{}]'.format(default))
@@ -465,6 +468,21 @@ def main(progname=None):
     logging.info(' Start pruning ...')
     mytree.prune(sectors=sectors)
     mytree.collect_sectors_nodes(sectors=sectors)
+
+##### get the ccf of each node in each sector
+    if args.nodes_ccf:
+        sectors_size={}
+        for sector,info in sectors.items():
+            sectors_size[sector]=len(info['members'])/info['purity']
+        nodes_ccf={}
+        mytree.nodes_ccf(sectors_size=sectors_size,nodes_ccf=nodes_ccf)
+        with open(args.nodes_ccf,'w') as output:
+            ordered_sectors=sorted(set(sectors_size)-set([WHOLET]))
+            ordered_sectors.append(WHOLET)
+            output.write('#node\t{}\n'.format('\t'.join(ordered_sectors)))
+            for node in sorted(nodes_ccf):
+                ordered_ccf=[nodes_ccf[node][sector] for sector in ordered_sectors]
+                output.write('{}\t{}\n'.format(node,'\t'.join([str(x) for x in ordered_ccf])))
 
 ######
     tipnode_leaves=mytree.tipnode_leaves

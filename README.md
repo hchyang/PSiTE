@@ -439,6 +439,25 @@ locates. (see `--trunk_vars` option under section 2.2.1)
 - **var**: The type of the variant. 0/1/2: SNV, -1: deletion, +int: amplification 
 (see `--trunk_vars` option under section 2.2.1).
 
+##### Node CCF file (--nodes_ccf) (optional)
+
+The node CCF file, specified by `--nodes_ccf`, contains the Cancer Cell 
+Fraction (CCF) information of each node (all the nodes after pruning) in each 
+sector. For example, for a sector containing 1 million cells, if its purity is 
+0.6, the tumor cells in the whole sector is 600,000. Then, if an inner node, nodeX,
+in the tree have 200,000 leaves belong to this sector. The CCF of nodeX in this
+sector is 0.2.
+
+There are number_of_sectors+2 columns in this file:
+
+- **node**: The ID of the focal node. Each node has the format 'nodeX', in which 
+X is an integer starting from 1.
+- **sector1**: The CCF of the focal node in sector 1.
+- **sector2**: The CCF of the focal node in sector 2.
+- **...**
+- **sectorX**: The CCF of the focal node in sector X.
+- **tumor**: The CCF of the focal node in the whole tumor sample.
+
 ##### Chain file (--chain) (optional)
 
 The chain files store somatic events of the focal clone. If specified with the 

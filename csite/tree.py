@@ -320,7 +320,7 @@ class Tree:
 #Those snvs do not locate on the current node, let's remove them.
                         if tmp.get(self.nodeid) and cnv['pre_snvs'][i+1]:
                             for snv in cnv['pre_snvs'][i+1]:
-                                if snv in self.top.accumulated_snvs:
+                                if self.top and snv in self.top.accumulated_snvs:
                                     var='#'.join([str(x) for x in [chroms,snv['start'],snv['end'],snv['mutation']]])
                                     tmp[self.nodeid].discard(var)
                         nodes_vars=merge_two_dict_set(nodes_vars,tmp)
@@ -391,11 +391,11 @@ class Tree:
     def collect_leaves_and_trim(self,tipnode_leaves=None,sectors=None):
         '''
         NOTE: For a Tree object, you should run the leaves_counting() method on it before running this method.
-        1) Prune all branches with LESS than the number of tips specified by the prune_n in each sector.
+        1) Prune all branches with LESS than the number of leaves specified by the prune_n in each sector.
         For a node, if node.left.leaves_count<cutoff and node.right.leaves_count<cutoff, prune it into a tip node.
         If node.left.leaves_count<cutoff and node.right.leaves_count>=cutoff, just prune node.left into a tip node,
         and then check the node.right's left and right nodes.
-        2) Mark a tip nodes with sim=False, if its leaves_count is less than the cutoffs of ALL sectors. 
+        2) Mark a tipnode with sim=False, if its leaves_count is less than the cutoffs of ALL sectors. 
         3) In order to uniform the names in --nhx output, we rename each tipnode with its nodeid.
         4) Add a dictionary to each node to save the sector information. The structure of this dictionary is:
         {sector1:number_of_sector1_cells_in_all_leaves_of_this_node,
@@ -438,6 +438,20 @@ class Tree:
                     self.sectors[sector]=len(focal_cells)
                     if self.sim==False and len(focal_cells)>=cutoff:
                         self.sim=True
+
+    def nodes_ccf(self,sectors_size=None,nodes_ccf=None):
+        '''
+        NOTE: For a Tree object, you should run the prune() method on it before running this method.
+        Calculate the CCF (cancer cell fraction) of each node in each sector.
+        '''
+        nodes_ccf[self.nodeid]={}
+        for sector in sectors_size:
+            ncells=self.sectors[sector]
+            nodes_ccf[self.nodeid][sector]=ncells/sectors_size[sector]
+        if self.left!=None:
+            self.left.nodes_ccf(sectors_size=sectors_size,nodes_ccf=nodes_ccf)
+        if self.right!=None:
+            self.right.nodes_ccf(sectors_size=sectors_size,nodes_ccf=nodes_ccf)
 
     def collect_sectors_nodes(self,sectors=None):
         '''
