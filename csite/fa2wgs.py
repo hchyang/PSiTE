@@ -231,7 +231,6 @@ def main(progname=None):
     for sector in sorted(sectors.keys()):
         if sectors[sector]['depth']>0:
 #compute coverage and run ART
-#FIXME: cell number: float? int?
             sector_dir=os.path.join(args.output,sector)
             try:
                 os.mkdir(sector_dir,mode=0o755)

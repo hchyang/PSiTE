@@ -127,7 +127,6 @@ class Tree:
                     new_cnvs=[[cnv_start,cnv_end]]
                     logging.debug('New CNV: %s',str(new_cnvs))
                     logging.debug('Previous deletions: %s',str([[cnv['start'],cnv['end']] for cnv in self.accumulated_cnvs if cnv['type']=='DEL']))
-#TODO: check here very carefully.
 #We need to modify new_cnvs in place. Let's sort cnvs in accumulated_cnvs first.
 #After the sorting, all deletions in accumulated_cnvs should be ordered and without overlapping regions.
 #Without this, there will be problems.
@@ -319,13 +318,11 @@ class Tree:
                         tmp=cp.nodes_vars_collect(chroms=chroms)
 #For each new copy of amplification, its self.snvs contains previous snvs.
 #Those snvs do not locate on the current node, let's remove them.
-#FIXME: Acutually, this is not true. If in one branch, SNV, amplificatoin and deletion occure sequentially,
-#and they overlap each other, the new SNV will not captured by the current node on main tree, but
-#still captured by current node on the new copy, and will be eliminated as it's in the set pre_snvs.
                         if tmp.get(self.nodeid) and cnv['pre_snvs'][i+1]:
                             for snv in cnv['pre_snvs'][i+1]:
-                                var='#'.join([str(x) for x in [chroms,snv['start'],snv['end'],snv['mutation']]])
-                                tmp[self.nodeid].discard(var)
+                                if snv in self.top.accumulated_snvs:
+                                    var='#'.join([str(x) for x in [chroms,snv['start'],snv['end'],snv['mutation']]])
+                                    tmp[self.nodeid].discard(var)
                         nodes_vars=merge_two_dict_set(nodes_vars,tmp)
         if self.left!=None:
             nodes_vars=merge_two_dict_set(nodes_vars,self.left.nodes_vars_collect(chroms=chroms))
@@ -533,7 +530,7 @@ class Tree:
 #######################################
 #In order to build haplotype for each tipnode efficiently, I will
 # 1. Store more information of each SNV in a dictionary, and collect all of the SNVs
-#    on the lineage leading to each tipnode in accumulated_SNVs
+#    on the lineage leading to each tipnode in accumulated_snvs
 # 2. Collect all of the SNVs on the lineage leading to each tipnode in accumulated_CNVs
 # 3. Traverse the whole haplotype tree and add one more pair of key:value to each CNV dictionary.
 #    The key is 'haplotypes', and the value is a list of dictionaries, each dictionary is:
@@ -916,7 +913,6 @@ def output_tipnode_hap(tipnode_hap=None,directory=None,chroms=None,haplotype=Non
             retrieve_tip_vars(tip_vars=tipnode_hap,tip=tipnode,out_file=chain_file,chroms=chroms)
 
 def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
-#FIXME: output AMPs explicitly
     '''
     The data structure of tip_vars is:
     {'start':start,'end':end,'vars':{'tip_node1':[SNVs+CNVs],'tip_node2':[SNVs+CNVs],...}}

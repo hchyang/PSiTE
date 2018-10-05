@@ -168,7 +168,7 @@ def check_config_file(config=None):
                     'in the section of chromosome {} in your config file!'.format(chroms))
             for parameter in chroms_cfg.keys():
                 assert isinstance(chroms_cfg[parameter],cfg_params[parameter]),\
-                    "'{}' in of chromosome {} in config file should be a {}!".format(parameter,chroms_n,cfg_params[parameter].__name__)
+                    "'{}' of chromosome {} in config file should be a {}!".format(parameter,chroms_n,cfg_params[parameter].__name__)
             if 'length' not in chroms_cfg:
                 raise ConfigFileError("Couldn't find the length of chromosome:{}.".format(chroms_n))
             total_chroms_length+=chroms_cfg['length']
@@ -438,7 +438,6 @@ def main(progname=None):
     numpy.random.seed(seed)
 
 ###### build tree from newick string
-#TODO: We should do make sure the newick string is valided before processing it.
     newick=''
     with open(args.tree) as input:
         for line in input:
@@ -447,11 +446,10 @@ def main(progname=None):
     if args.trunk_length:
         mytree.lens=args.trunk_length
 
-#################original_tree
+###### original_tree
     original_tree=copy.deepcopy(mytree)
 
-
-######In order to get the mytree.tipnode_leaves, we will prune the tree in any situation.
+###### In order to get the mytree.tipnode_leaves, we will prune the tree in all situation.
     leaves_number=mytree.leaves_counting()
     leaves_names=mytree.leaves_naming()
     sectors={}
@@ -644,7 +642,6 @@ def main(progname=None):
 #        expands_snps_file.close()
 #        expands_segs_file.close()
 
-#FIXME: right now, it does not consider the deletion effect on pre_snvs.
     if args.nhx:
         mytree.attach_info(attr='vars',info=all_nodes_vars)
         with open(args.nhx,'w') as tree_data_file:
