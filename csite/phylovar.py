@@ -109,6 +109,39 @@ def cn_dist(copy_max=None,copy_parameter=None):
     cn_dist_cfg['prob']=[(w*copy_parameter**x)/scale for x in range(copy_max)]
     return cn_dist_cfg
 
+def read_cnvl_dist(cfg_f=None):
+    with open(cfg_f) as input:
+        header=next(input)
+        if not header.startswith('#'):
+            raise CnvDistFileError('The format of your CNV distribution file is not right!')
+        header=header.lstrip('#')
+        header=header.rstrip()
+        header=header.split()
+        if header!=['low','high','prob']:
+            raise CnvDistFileError('The format of your CNV distribution file is not right!')
+        i=0
+        sum_prob=0
+        cnvl_dist={'index':[],'bins':[],'prob':[]}
+        for line in input:
+            line=line.rstrip()
+            cols=line.split()
+            if len(cols)!=3:
+                raise CnvDistFileError('The format of your CNV distribution file is not right!')
+            low=int(cols[0])
+            high=int(cols[1])
+            prob=float(cols[2])
+            if not (low>0 and high>0 and high>low and 0<prob<=1):
+                raise CnvDistFileError('Check the record below of your CNV distribution file:\n'
+                    +'{}\n'.format(line))
+            sum_prob+=prob
+            cnvl_dist['index'].append(i)
+            cnvl_dist['bins'].append([low,high])
+            cnvl_dist['prob'].append(prob)
+            i+=1
+        if sum_prob!=1:
+            raise CnvDistFileError('The sum of all the probability in your CNV distribution file is not 1')
+        return cnvl_dist
+
 def tstv_dist(tstv=None):
     '''
     For a SNV:
@@ -203,6 +236,9 @@ class ConfigFileError(Exception):
 class AffiliationFileError(Exception):
     pass
 
+class CnvDistFileError(Exception):
+    pass
+
 def read_affiliation(affiliation_f=None):
     '''
     Check the format of affiliation file and dump the data into the sectors dictionary.
@@ -287,6 +323,9 @@ def main(progname=None):
     default=None
     group1.add_argument('--affiliation',type=str,default=default,metavar='FILE',
         help='a file containing sector affiliation of the cells in the sample [{}]'.format(default))
+    default=None
+    group1.add_argument('--cnvl_dist',type=str,default=default,metavar='FILE',
+        help="a file containing the distribution profile of CNVs' length [{}]".format(default))
     group2=parser.add_argument_group('Simulation arguments (can be set in config YAML)')
     default='1'
     group2.add_argument('-n','--name',type=str,default=default,metavar='STR',
@@ -553,6 +592,11 @@ def main(progname=None):
 #        expands_segs_file=open(args.expands+'.segs','w')
 #        expands_segs_file.write("chr\tstartpos\tendpos\tCN_Estimate\n")
 
+###### cnvl_dist
+    cnvl_dist=None
+    if args.cnvl_dist:
+        cnvl_dist=read_cnvl_dist(args.cnvl_dist)
+
 ###### simulate variants for each chroms
     sex_chrs=set()
     if args.sex_chr:
@@ -560,8 +604,9 @@ def main(progname=None):
     all_nodes_vars={}
     for chroms in final_chroms_cfg['order']:
         chroms_cfg=final_chroms_cfg[chroms]
-        check_cnv_length_cfg(chroms=chroms,cnv_length_beta=chroms_cfg['cnv_length_beta'],
-            cnv_length_max=chroms_cfg['cnv_length_max'],chr_length=chroms_cfg['length'])
+        if not args.cnvl_dist:
+            check_cnv_length_cfg(chroms=chroms,cnv_length_beta=chroms_cfg['cnv_length_beta'],
+                cnv_length_max=chroms_cfg['cnv_length_max'],chr_length=chroms_cfg['length'])
         cn_dist_cfg=cn_dist(copy_max=chroms_cfg['copy_max'],copy_parameter=chroms_cfg['copy_parameter'])
         tstv_dist_cfg=tstv_dist(tstv=chroms_cfg['tstv'])
         logging.info(' Start the simulation for chromosome: %s',chroms)
@@ -594,6 +639,7 @@ def main(progname=None):
                 chroms=chroms,
                 sectors=sectors,
                 wholeT=WHOLET,
+                cnvl_dist=cnvl_dist,
             )
         snvs_freq=sectors[WHOLET]['snvs_alt_freq']
         cnvs=sectors[WHOLET]['cnvs']

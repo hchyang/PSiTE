@@ -45,7 +45,7 @@ class Tree:
     #@profile
     def add_snv_cnv(self,start=None,end=None,inherent_snvs=None,inherent_cnvs=None,
                     snv_rate=None,cnv_rate=None,del_prob=None,cnv_length_beta=None,
-                    cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None):
+                    cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,cnvl_dist=None):
         '''
         Randomly put SNVs and CNVs on a phylogenetic tree.
         For amplifications, we will build a new tree for every new copy and use this method to add SNVs/CNVs on the new tree.
@@ -117,9 +117,7 @@ class Tree:
 #if the new cnv overlap with accumulated_dels, compare it with the accumulated dels 
 #and only keep those new regions.
                     cnv_start=pos
-                    cnv_length=round(numpy.random.exponential(cnv_length_beta))
-                    if cnv_length>cnv_length_max:
-                        cnv_length=cnv_length_max
+                    cnv_length=get_cnv_length(cnvl_dist=cnvl_dist,cnvl_beta=cnv_length_beta,cnvl_max=cnv_length_max)
                     cnv_end=cnv_start+cnv_length
                     if cnv_end>end:
                         cnv_end=end
@@ -227,18 +225,18 @@ class Tree:
                     segment.add_snv_cnv(start=cnv['start'],end=cnv['end'],inherent_snvs=cnv['pre_snvs'][i+1],
                                         snv_rate=snv_rate*scale,cnv_rate=cnv_rate*scale,del_prob=del_prob,
                                         cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
-                                        cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg)
+                                        cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist)
 #only root node have inherent_snvs and inherent_cnvs
         if self.left != None:
             self.left.add_snv_cnv(start=start,end=end,inherent_snvs=[],inherent_cnvs=[],
                                   snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
                                   cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
-                                  cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg)
+                                  cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist)
         if self.right != None:
             self.right.add_snv_cnv(start=start,end=end,inherent_snvs=[],inherent_cnvs=[],
                                    snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
                                    cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
-                                   cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg)
+                                   cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist)
 
     def all_cnvs_collect(self,sector=None):
         '''
@@ -606,8 +604,8 @@ class Tree:
     #@profile
     def snvs_freq_cnvs_profile(self,parental=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,
-                               trunk_snvs=None,trunk_cnvs=None,length=None,
-                               normal_dosage=None,chain=None,chroms=None,sectors=None,wholeT=None):
+                               trunk_snvs=None,trunk_cnvs=None,length=None,normal_dosage=None,
+                               chain=None,chroms=None,sectors=None,wholeT=None,cnvl_dist=None):
         '''
         Produce the true frequency of SNVs in the samples.
         It's a warpper for generating SNVs/CNVs on a tree and summarize their frequency.
@@ -641,7 +639,8 @@ class Tree:
             hap_tree.add_snv_cnv(start=0,end=length,inherent_snvs=hap_trunk_snvs,
                 inherent_cnvs=hap_trunk_cnvs,snv_rate=snv_rate,
                 cnv_rate=cnv_rate,del_prob=del_prob,cnv_length_beta=cnv_length_beta,
-                cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg)
+                cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg,
+                tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist)
 
 #Update the dictionary all_snvs_alt_counts here
 #There will not be two snps occure on the same position of different haplotype,
@@ -773,6 +772,18 @@ def waiting_times(span=None,rate=None):
             if elapse<span:
                 waiting_times.append(elapse)
     return waiting_times
+
+def get_cnv_length(cnvl_dist=None,cnvl_beta=None,cnvl_max=None):
+    cnvl=None
+    if cnvl_dist:
+        index=numpy.random.choice(cnvl_dist['index'],p=cnvl_dist['prob'])
+        low,high=cnvl_dist['bins'][index]
+        cnvl=numpy.random.randint(low,high)
+    else:
+        cnvl=numpy.random.exponential(cnvl_beta)
+        if cnvl>cnvl_max:
+            cnvl=cnvl_max
+    return cnvl
 
 def merge_two_all_alt_count(dict1=None,dict2=None):
     '''

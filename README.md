@@ -309,6 +309,29 @@ list of cell names separated by commas or a continuous block of cells separated
 by two dots (e.g. 'cell1..4,cell7' is equivalent to 
 'cell1,cell2,cell3,cell4,cell7').
 
+##### CNV length distribution file (--cnvl_dist)
+
+By default, phylovar simulates the CNVs whose length are get from an exponential
+distribution (check --cnv_length_beta in section 2.2.3). By this option, users 
+can speficify a file, which conatins an empirical distribution of the length 
+of simulated CNVs. An example of this input file is shown below:
+
+    #low high prob
+    10000 20000 0.2
+    20000 80000 0.6
+    80000 100000 0.2
+
+- **low**: The lower boundary of the bin (inclusive)
+- **high**: The upper boundary of the bin (exclusive)
+- **prob**: The probability of a simulated CNV with the length in the range of
+[low,high).
+
+Each record is about a bin. In each bin the length of CNVs follows uniform 
+distribution. And the sum of the probability of all bins should be 1. This
+CNV length setting will override other settings of CNVs' length (i.e. 
+cnv_length_beta and cnv_length_max settings in command line or in the 
+configuration file).
+
 #### 2.2.2 Output files
 
 Module phylovar can output multiple files to facilitate benchmarking of methods 
