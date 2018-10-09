@@ -780,7 +780,7 @@ def get_cnv_length(cnvl_dist=None,cnvl_beta=None,cnvl_max=None):
         low,high=cnvl_dist['bins'][index]
         cnvl=numpy.random.randint(low,high)
     else:
-        cnvl=numpy.random.exponential(cnvl_beta)
+        cnvl=round(numpy.random.exponential(cnvl_beta))
         if cnvl>cnvl_max:
             cnvl=cnvl_max
     return cnvl
