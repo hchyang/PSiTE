@@ -38,7 +38,7 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
         header=header.lstrip('#')
         header=header.rstrip()
         header=header.split()
-        if header!=['chr','hap','start','end','var','focal_cp'] or \
+        if header!=['chr','hap','start','end','var','focal_cp'] and \
             header!=['chr','hap','start','end','var']:
             raise TrunkVarError('The format of your trunk variants file is not right!')
         for line in input:

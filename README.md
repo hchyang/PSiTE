@@ -486,8 +486,8 @@ The node CCF file, specified by `--nodes_ccf`, contains the Cancer Cell
 Fraction (CCF) information of each node (all the nodes after pruning) in each 
 sector. For example, for a sector containing 1 million cells, if its purity is 
 0.6, the tumor cells in the whole sector is 600,000. Then, if an inner node, 
-nodeX, in the tree has 200,000 descendants (leaf nodes) belonging to this 
-sector. The CCF of nodeX in this sector is 0.2.
+nodeX, in the tree has 150,000 descendants (leaf nodes) belonging to this 
+sector. The CCF of nodeX in this sector is 0.25.
 
 There are number_of_sectors+2 columns in this file:
 

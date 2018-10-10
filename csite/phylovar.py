@@ -542,7 +542,7 @@ def main(progname=None):
     if args.nodes_ccf:
         sectors_size={}
         for sector,info in sectors.items():
-            sectors_size[sector]=len(info['members'])/info['purity']
+            sectors_size[sector]=len(info['members'])
         nodes_ccf={}
         mytree.nodes_ccf(sectors_size=sectors_size,nodes_ccf=nodes_ccf)
         with open(args.nodes_ccf,'w') as output:
