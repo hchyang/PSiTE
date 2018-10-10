@@ -604,7 +604,7 @@ class Tree:
     #@profile
     def snvs_freq_cnvs_profile(self,parental=None,snv_rate=None,cnv_rate=None,del_prob=None,
                                cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,
-                               trunk_snvs=None,trunk_cnvs=None,length=None,normal_dosage=None,
+                               trunk_snvs=None,trunk_cnvs=None,length=None,
                                chain=None,chroms=None,sectors=None,wholeT=None,cnvl_dist=None):
         '''
         Produce the true frequency of SNVs in the samples.
@@ -613,7 +613,6 @@ class Tree:
         all_cnvs={}
         nodes_vars={}
         all_snvs_alt_counts={}
-        all_snvs_alt_freq=[]
 #tipnode_snv_alts is a hash of hash, {tipnode1:{pos1:genotype,pos2:genotype...},tipnode2:{pos1:genotype,pos2:genotype...},...}
         tipnode_snv_alts={}
         tipnode_cnvs={}
@@ -684,14 +683,15 @@ class Tree:
             sector_cnv_profile=pos_changes2region_profile(sector_cnvs_pos_changes)
             sector_normal_dosage=info['normal_dosage']
             sector_local_tumor_dosage=0
-            sector_snvs_alt_freq=[]
+            sector_snvs_alt_total=[]
             for pos in sector_snvs_pos:
                 while pos>=sector_cnvs_pos_changes[0][0]:
                     sector_local_tumor_dosage+=sector_cnvs_pos_changes.pop(0)[1]
-                sector_snvs_alt_freq.append([pos,
+                sector_snvs_alt_total.append([pos,
                     sector_snvs_alt_counts[pos]['mutation'],
-                    sector_snvs_alt_counts[pos]['alt_count']/(sector_normal_dosage+sector_local_tumor_dosage)])
-            info['snvs_alt_freq']=sector_snvs_alt_freq
+                    sector_snvs_alt_counts[pos]['alt_count'],
+                    sector_normal_dosage+sector_local_tumor_dosage])
+            info['snvs_alt_total']=sector_snvs_alt_total
             info['cnvs']=sector_cnvs
             info['cnv_profile']=sector_cnv_profile
 

@@ -79,6 +79,13 @@ def check_purity(value=None):
             "It should be a float number in the range of (0,1].")
     return fvalue
 
+def check_depth(value=None):
+    fvalue=float(value)
+    if fvalue<=0:
+        raise argparse.ArgumentTypeError("{} is an invalid value for --depth. ".format(value)+
+            "It should be a positive float number.")
+    return fvalue
+
 def check_folder(directory=None):
     good_charactors=re.compile('^[0-9a-zA-Z/_\-.]+$')
     if not good_charactors.match(directory):
@@ -131,7 +138,7 @@ def read_cnvl_dist(cfg_f=None):
             high=int(cols[1])
             prob=float(cols[2])
             if not (low>0 and high>0 and high>low and 0<prob<=1):
-                raise CnvDistFileError('Check the record below of your CNV distribution file:\n'
+                raise CnvDistFileError('Check the record below from your CNV distribution file:\n'
                     +'{}\n'.format(line))
             sum_prob+=prob
             cnvl_dist['index'].append(i)
@@ -139,7 +146,7 @@ def read_cnvl_dist(cfg_f=None):
             cnvl_dist['prob'].append(prob)
             i+=1
         if sum_prob!=1:
-            raise CnvDistFileError('The sum of all the probability in your CNV distribution file is not 1')
+            raise CnvDistFileError('The sum of all the probability in your CNV distribution file is not 1!')
         return cnvl_dist
 
 def tstv_dist(tstv=None):
@@ -245,21 +252,29 @@ def read_affiliation(affiliation_f=None):
     There should be 3 columns in the affiliation file.
     1. sector id
     2. purity
-    3. prune proportion of the sector
-    4. tumor cells in the sector
+    3. depth
+    4. prune proportion of the sector
+    5. tumor cells in the sector
     '''
     sectors={}
     with open(affiliation_f) as input:
+        header=next(input)
+        if not header.startswith('#'):
+            raise AffiliationFileError('The format of your affiliation file is not right!')
+        header=header.lstrip('#')
+        header=header.rstrip()
+        header=header.split()
+        if header!=['sector','purity','depth','prune_p','cells']:
+            raise AffiliationFileError('The format of your affiliation file is not right!')
         for line in input:
-            if line.startswith('#'):
-                continue
             line=line.rstrip()
             cols=line.split()
-            if len(cols)!=4:
+            if len(cols)!=5:
                 raise AffiliationFileError("The format of your affiliation file is not right!")
             sector=cols[0]
             purity=float(cols[1])
-            prune_p=float(cols[2])
+            depth=cols[2]
+            prune_p=float(cols[3])
             if sector==WHOLET:
                 raise AffiliationFileError(
                     "Please do not use '{}' as a sector name. In CSiTE, I use it to stand for the whole tumor sample.".format(WHOLET))
@@ -267,12 +282,20 @@ def read_affiliation(affiliation_f=None):
                 raise AffiliationFileError(
                     "The purity {} for sector {} is not valid in your affiliation file.\n".format(prune_p,sector)+\
                     "It should be a float number in the range of [0,1]")
+            if depth=='-':
+                depth=None
+            else:
+                try:
+                    depth=float(depth)
+                except ValueError:
+                    raise AffiliationFileError(
+                        "'{}' is an invalide value for depth in your affiliation file.".format(depth))
             if not 0<=prune_p<=1:
                 raise AffiliationFileError(
                     "The prune proportion {} for sector {} is not valid in your affiliation file.\n".format(prune_p,sector)+\
                     "It should be a float number in the range of [0,1]")
             cells=[]
-            for i in cols[3].split(','):
+            for i in cols[4].split(','):
                 n=i.count('..')
                 if n==0:
                     cells.append(i)
@@ -297,7 +320,7 @@ def read_affiliation(affiliation_f=None):
                 else:
                     sectors[sector]['members'].extend(cells)
             else:
-                sectors[sector]={'purity':purity,'prune_p':prune_p,'members':cells}
+                sectors[sector]={'purity':purity,'depth':depth,'prune_p':prune_p,'members':cells}
     for sector in sectors:
         sectors[sector]['members']=set(sectors[sector]['members'])
     return sectors
@@ -377,6 +400,13 @@ def main(progname=None):
     default=0.6
     group3.add_argument('--purity',type=check_purity,default=default,metavar='FLOAT',
         help='the proportion of tumor cells in simulated tumor sample [{}]'.format(default))
+    default=None
+    group3.add_argument('--depth',type=check_depth,default=default,metavar='FLOAT',
+        help='the sequencing depth of the whole tumor sample for read count simulation [{}]'.format(default))
+#Actually, the depth here and the depth in the affiliation file is the not the mean depth of the whole genome.
+#It's impossible to get that without calculating the size of all the genomes in sample. 
+#Here we set all the diploid part of the genome with this depth. And the depth of other part will be caculated 
+#according this.
     group4=parser.add_argument_group('Output arguments')
     default='phylovar_snvs'
     group4.add_argument('-S','--snv',type=str,default=default,metavar='DIR',
@@ -501,7 +531,7 @@ def main(progname=None):
             invalid=set(sectors[sector]['members'])-set(leaves_names)
             if invalid:
                 raise AffiliationFileError("Can not find the cells below on your tree:\n{}".format(','.join([str(x) for x in invalid])))
-    sectors[WHOLET]={'purity':args.purity,'prune_p':args.prune,'members':set(mytree.leaves_naming())}
+    sectors[WHOLET]={'purity':args.purity,'depth':args.depth,'prune_p':args.prune,'members':set(mytree.leaves_naming())}
     for sector in sectors:
         sectors[sector]['prune_n']=sectors[sector]['prune_p']*len(sectors[sector]['members'])
     logging.info(' Start pruning ...')
@@ -566,7 +596,11 @@ def main(progname=None):
     os.mkdir(sectors_cnvs_dir,mode=0o755)
     for sector,info in sectors.items():
         info['snv_file']=open(os.path.join(sectors_snvs_dir,'{}.snv'.format(sector)),'w')
-        info['snv_file'].write('#chr\tstart\tend\tform\tfrequency\n')
+        info['snv_file'].write('#chr\tstart\tend\tform\tfrequency')
+        if info['depth']!=None:
+            info['snv_file'].write('\trcount\trfreq\n')
+        else:
+            info['snv_file'].write('\n')
         info['cnv_file']=open(os.path.join(sectors_cnvs_dir,'{}.cnv'.format(sector)),'w')
         info['cnv_file'].write('#chr\tstart\tend\tcopy\tcarrier\n')
 
@@ -604,22 +638,21 @@ def main(progname=None):
     all_nodes_vars={}
     for chroms in final_chroms_cfg['order']:
         chroms_cfg=final_chroms_cfg[chroms]
-        if not args.cnvl_dist:
+        if cnvl_dist==None:
             check_cnv_length_cfg(chroms=chroms,cnv_length_beta=chroms_cfg['cnv_length_beta'],
                 cnv_length_max=chroms_cfg['cnv_length_max'],chr_length=chroms_cfg['length'])
         cn_dist_cfg=cn_dist(copy_max=chroms_cfg['copy_max'],copy_parameter=chroms_cfg['copy_parameter'])
         tstv_dist_cfg=tstv_dist(tstv=chroms_cfg['tstv'])
         logging.info(' Start the simulation for chromosome: %s',chroms)
-#I need use normal_dosage to adjust the frequency of snv under under different purity
-        normal_dosage=leaves_number*2*(1-args.purity)/args.purity
-        if chroms in sex_chrs and len(sex_chrs)==2:
-            normal_dosage=leaves_number*1*(1-args.purity)/args.purity
-
+#I need the normal_dosage to adjust the frequency of snv under under different purity
         for sector,info in sectors.items():
             if chroms in sex_chrs and len(sex_chrs)==2:
-                info['normal_dosage']=len(info['members'])*1*(1-info['purity'])/info['purity']
+                n=1
             else:
-                info['normal_dosage']=len(info['members'])*2*(1-info['purity'])/info['purity']
+                n=2
+            info['standard_total_dosage']=len(info['members'])*n/info['purity']
+            info['normal_dosage']=info['standard_total_dosage']*(1-info['purity'])
+        normal_dosage=sectors[WHOLET]['normal_dosage']
 
         (nodes_vars,tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs,
             )=mytree.snvs_freq_cnvs_profile(
@@ -634,20 +667,19 @@ def main(progname=None):
                 trunk_snvs=trunk_snvs.get(chroms,{}),
                 trunk_cnvs=trunk_cnvs.get(chroms,{}),
                 length=chroms_cfg['length'],
-                normal_dosage=normal_dosage,
                 chain=args.chain,
                 chroms=chroms,
                 sectors=sectors,
                 wholeT=WHOLET,
                 cnvl_dist=cnvl_dist,
             )
-        snvs_freq=sectors[WHOLET]['snvs_alt_freq']
+        snvs_alt_total=sectors[WHOLET]['snvs_alt_total']
         cnvs=sectors[WHOLET]['cnvs']
         cnv_profile=sectors[WHOLET]['cnv_profile']
         all_nodes_vars=csite.tree.merge_two_dict_set(dict1=all_nodes_vars,dict2=nodes_vars)
 
         if args.snv_genotype!=None:
-            for pos,mutation,freq in snvs_freq:
+            for pos,mutation,alt,total in snvs_alt_total:
                 genotype_file.write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,pos,pos+1,mutation,
                     '\t'.join([str(tipnode_snv_alts[tipnode][pos])+':'+str(tipnode_snv_refs[tipnode][pos]) for tipnode in tipnode_list])))
 
@@ -662,8 +694,18 @@ def main(progname=None):
 #                parental_copy_file.write('{}\t{}\n'.format(chroms,'\t'.join([str(x) for x in snv])))
 
         for sector,info in sectors.items():
-            for pos,mutation,freq in info['snvs_alt_freq']:
-                info['snv_file'].write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,pos,pos+1,mutation,round(freq,4)))
+            for pos,mutation,alt,total in info['snvs_alt_total']:
+                freq=alt/total
+                info['snv_file'].write('{}\t{}\t{}\t{}\t{}'.format(chroms,pos,pos+1,mutation,round(freq,4)))
+                if info['depth']!=None:
+                    total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(total,freq)
+                    if total_dp!=0:
+                        rfreq=round(b_allele_dp/total_dp,4)
+                    else:
+                        rfreq='-'
+                    info['snv_file'].write('\t{}:{}\t{}\n'.format(b_allele_dp,total_dp,rfreq))
+                else:
+                    info['snv_file'].write('\n')
             for cnv in info['cnvs']:
                 cnv_copy='+{}'.format(cnv['copy']) if cnv['copy']>0 else str(cnv['copy'])
                 info['cnv_file'].write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,cnv['start'],cnv['end'],cnv_copy,cnv['leaves_count']))

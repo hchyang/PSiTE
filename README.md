@@ -294,40 +294,45 @@ this option, phylovar can simulate multi-sector tumor samples. In the
 affiliation file, users should designate the sample affiliation of the tumor 
 cells to different sectors. An example affiliation file is shown below:
 
-    #sector purity prune_p cells
-    sector1 0.6    0.05    1,2,3,4..5000
-    sector2 0.6    0.05    5001..10000
+    #sector purity depth prune_p cells
+    sector1 0.6    -     0.05    1,2,3,4..5000
+    sector2 0.6    100   0.05    5001..10000
 
-- **sector**: The id of the sector. 
+- **sector**: The id of each sector. 
 - **purity**: The purity of each sector (the proportion of cells that is tumor 
 cells in each sector) .
-- **prune_p**: The pruning proportion for the focal sector. Subtrees that have 
+- **depth**: The depth of each sector. It's different from the 'depth' in 
+sector file (see section 2.4.1 and section 2.5.1). The 'depth' here is used
+to simulate read count for the simulated SNVs (see 'SNV files' under section 
+2.2.2). It dose not affect the coverage of sequencing reads in module 
+fa2wgs/fa2wes. User can use '-' here to disable the read count simulation.
+- **prune_p**: The pruning proportion for each sector. Subtrees that have 
 descendants fewer than the specified proportion will be trimmed away (see 2.2.3 
 --prune for details).
-- **cells**: The list of cells in the focal sector. It can be specified as a 
+- **cells**: The list of cells in each sector. It can be specified as a 
 list of cell names separated by commas or a continuous block of cells separated 
 by two dots (e.g. 'cell1..4,cell7' is equivalent to 
 'cell1,cell2,cell3,cell4,cell7').
 
 ##### CNV length distribution file (--cnvl_dist)
 
-By default, phylovar simulates the CNVs whose length are get from an exponential
-distribution (check --cnv_length_beta in section 2.2.3). By this option, users 
-can speficify a file, which conatins an empirical distribution of the length 
-of simulated CNVs. An example of this input file is shown below:
+By default, phylovar simulates CNVs whose length distribution is an exponential
+distribution (check --cnv_length_beta in section 2.2.3). With this option, users 
+can specify a file, which contains an empirical distribution of CNV length.
+An example input file is shown below:
 
     #low high prob
     10000 20000 0.2
     20000 80000 0.6
     80000 100000 0.2
 
-- **low**: The lower boundary of the bin (inclusive)
-- **high**: The upper boundary of the bin (exclusive)
-- **prob**: The probability of a simulated CNV with the length in the range of
+- **low**: The lower bound of the bin (inclusive)
+- **high**: The upper bound of the bin (exclusive)
+- **prob**: The probability of a simulated CNV whose length falls in the range of
 [low,high).
 
-Each record is about a bin. In each bin the length of CNVs follows uniform 
-distribution. And the sum of the probability of all bins should be 1. This
+Each record is specifying a bin. In each bin the length of CNVs follows an
+uniform distribution. Sum of the probability of all bins should be 1. This
 CNV length setting will override other settings of CNVs' length (i.e. 
 cnv_length_beta and cnv_length_max settings in command line or in the 
 configuration file).
@@ -342,19 +347,32 @@ information. Output files that are not foremost will be labelled as optional.
 
 ##### SNV files (-S/--snv)
 
-This option specifies the directory to store the SNV files across all sectors. 
+This option specifies the directory to store the SNV files of all sectors. 
 The SNV file contains the frequency information of simulated SNVs in each 
 sector. In addition to the SNV file for each sector, there is also a SNV file 
-for the whole tumor sample named 'tumor.snv' under this folder. There are five
-columns in the SNV file.
+for the whole tumor sample named 'tumor.snv' under this folder. There are at
+least five columns in the SNV file.
 
 - **chr**: The chromosome on which the SNV locates.
 - **start**: The start position of the SNV (0-based, inclusive).
 - **end**: The end position of the SNV (0-based, exclusive).
 - **form**: The type of base substitution (0 is transition, 1 and 2 are two 
 types of transversions, see the details for option --tstv under section 2.2.3).
-- **frequency**: The frequency of the alternative allele in tumor sample (taking 
-into account tumor purity).
+- **frequency**: The frequency of the alternative allele in tumor sample 
+(taking into account tumor purity).
+
+There are two more columns in SNV files if users simulate read count
+for each SNV by specifiying 'depth' in affiliation file or `--depth`.
+
+- **rcount**: The read count of SNVs. The read count of each sector is 
+simulated with the depth specified in affiliation file, and the read count of 
+the SNVs in whole tumor is simulated with the depth specified by `--depth` in 
+section 2.2.3. The vales in this column is in the foramt of 'N:M'. N is the 
+read count of alternative allele. M is the read count of the total reads 
+covering this loci. They are simulated by taking purity and CNVs into account.
+- **rfreq**: The frequency of the alternative allele in sectors or the whole 
+tumor sample. It's calculated by N/M. 
+
 
 ##### CNV files (-V/--cnv) 
 
@@ -467,9 +485,9 @@ locates. (see `--trunk_vars` option under section 2.2.1)
 The node CCF file, specified by `--nodes_ccf`, contains the Cancer Cell 
 Fraction (CCF) information of each node (all the nodes after pruning) in each 
 sector. For example, for a sector containing 1 million cells, if its purity is 
-0.6, the tumor cells in the whole sector is 600,000. Then, if an inner node, nodeX,
-in the tree have 200,000 leaves belong to this sector. The CCF of nodeX in this
-sector is 0.2.
+0.6, the tumor cells in the whole sector is 600,000. Then, if an inner node, 
+nodeX, in the tree has 200,000 descendants (leaf nodes) belonging to this 
+sector. The CCF of nodeX in this sector is 0.2.
 
 There are number_of_sectors+2 columns in this file:
 
@@ -653,9 +671,17 @@ parameter will affect the ploidy of the sex chromosomes.
 
 ##### --purity
 
-This option specifies the proportion of tumor cells in the sample. With this 
-option, phylovar can output true frequencies of each variant in the sample by 
-taking into account tumor purity (section 2.2.2 output file: SNVs file). 
+This option specifies the proportion of tumor cells in the whole sample. With 
+this option, phylovar can output true frequencies of each variant in the whole 
+sample by taking into account tumor purity (section 2.2.2 output file: SNVs 
+file). 
+
+##### --depth
+
+This option specifies the depth of the whole tumor sample for read count 
+simulation. With this option, phylovar can output read count of each variant 
+in the whole sample by taking into account tumor purity and CNVs effect
+(section 2.2.2 output file: SNVs file). 
 
 ##### --random_seed
 
@@ -796,7 +822,7 @@ simulation process.
 
 This option specifies the mean depth of the tumor sample. 
 
-##### -D/--normal-depth
+##### -D/--normal_depth
 
 For most of the cancer genomic analysis, paired normal sample is also needed. 
 This option specifies the mean depth of normal sample.
