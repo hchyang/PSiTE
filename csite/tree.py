@@ -373,18 +373,18 @@ class Tree:
                     self.tipnodes.extend(self.right.collect_tipnodes())
         return self.tipnodes
     
-    def attach_info(self,attr=None,info=None):
+    def attach_info(self,attr=None,info=None,null=None):
         '''
         Put the informaton of each node in the DICTIONARY (info) onto each node.
-        Will set None as the default value.
+        The missing data will use the value of null instead.
         '''
         if info==None:
             info={}
-        setattr(self,attr,info.get(self.nodeid))
+        setattr(self,attr,info.get(self.nodeid,null))
         if self.left!=None:
-            self.left.attach_info(attr,info)
+            self.left.attach_info(attr,info,null)
         if self.right!=None:
-            self.right.attach_info(attr,info)
+            self.right.attach_info(attr,info,null)
 
     def collect_leaves_and_trim(self,tipnode_leaves=None,sectors=None):
         '''

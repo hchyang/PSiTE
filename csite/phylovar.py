@@ -676,7 +676,8 @@ def main(progname=None):
         snvs_alt_total=sectors[WHOLET]['snvs_alt_total']
         cnvs=sectors[WHOLET]['cnvs']
         cnv_profile=sectors[WHOLET]['cnv_profile']
-        all_nodes_vars=csite.tree.merge_two_dict_set(dict1=all_nodes_vars,dict2=nodes_vars)
+        if args.nhx or args.NHX or args.nodes_vars:
+            all_nodes_vars=csite.tree.merge_two_dict_set(dict1=all_nodes_vars,dict2=nodes_vars)
 
         if args.snv_genotype!=None:
             for pos,mutation,alt,total in snvs_alt_total:
@@ -748,15 +749,38 @@ def main(progname=None):
 #        expands_snps_file.close()
 #        expands_segs_file.close()
 
-    if args.nhx:
-        mytree.attach_info(attr='vars',info=all_nodes_vars)
-        with open(args.nhx,'w') as tree_data_file:
-            tree_data_file.write('{};\n'.format(mytree.tree2nhx(with_lens=True,attrs=['nodeid','vars'])))
+    if args.nhx or args.NHX:
+        nodes_nSNV={}
+        nodes_nAMP={}
+        nodes_nDEL={}
+        for node,variants in all_nodes_vars.items():
+            nSNV,nAMP,nDEL=0,0,0
+            for var in variants:
+                form=var.split('#')[3]
+                if form.startswith('+'):
+                    nAMP+=1
+                elif form.startswith('-'):
+                    nDEL+=1
+                else:
+                    nSNV+=1
+            nodes_nSNV[node]=nSNV
+            nodes_nAMP[node]=nAMP
+            nodes_nDEL[node]=nDEL
 
-    if args.NHX:
-        original_tree.attach_info(attr='vars',info=all_nodes_vars)
-        with open(args.NHX,'w') as tree_data_file:
-            tree_data_file.write('{};\n'.format(original_tree.tree2nhx(with_lens=True,attrs=['nodeid','vars'])))
+        if args.nhx:
+            mytree.attach_info(attr='vars',info=all_nodes_vars)
+            mytree.attach_info(attr='nSNV',info=nodes_nSNV,null=0)
+            mytree.attach_info(attr='nAMP',info=nodes_nAMP,null=0)
+            mytree.attach_info(attr='nDEL',info=nodes_nDEL,null=0)
+            with open(args.nhx,'w') as tree_data_file:
+                tree_data_file.write('{};\n'.format(mytree.tree2nhx(with_lens=True,attrs=['nodeid','vars','nSNV','nAMP','nDEL'])))
+        if args.NHX:
+            original_tree.attach_info(attr='vars',info=all_nodes_vars)
+            original_tree.attach_info(attr='nSNV',info=nodes_nSNV,null=0)
+            original_tree.attach_info(attr='nAMP',info=nodes_nAMP,null=0)
+            original_tree.attach_info(attr='nDEL',info=nodes_nDEL,null=0)
+            with open(args.NHX,'w') as tree_data_file:
+                tree_data_file.write('{};\n'.format(original_tree.tree2nhx(with_lens=True,attrs=['nodeid','vars','nSNV','nAMP','nDEL'])))
 
 #output SNVs/CNVs on each node
     if args.nodes_vars:
