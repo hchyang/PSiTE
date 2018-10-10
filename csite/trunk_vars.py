@@ -31,10 +31,17 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
     cnvs={}
 
 #classify vars into different categories
-    with open(vars_file) as f:
-        for line in f:
-            if line.startswith('#'):
-                continue
+    with open(vars_file) as input:
+        header=next(input)
+        if not header.startswith('#'):
+            raise TrunkVarError("The first line should be a header line that starts with '#'!")
+        header=header.lstrip('#')
+        header=header.rstrip()
+        header=header.split()
+        if header!=['chr','hap','start','end','var','focal_cp'] or \
+            header!=['chr','hap','start','end','var']:
+            raise TrunkVarError('The format of your trunk variants file is not right!')
+        for line in input:
             cols=line.split()
             if len(cols)==5:
                 chroms,hap,start,end,var=cols

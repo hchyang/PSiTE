@@ -187,7 +187,7 @@ def add_vcf_vars(profile=None,vcf=None):
     And fill in the list hap_vars in profile.
     '''
     gz=False
-    if vcf.endswith(('gz','GZ')):
+    if vcf.endswith(('.gz','.GZ')):
         vcf_file=gzip.open(vcf,'rb')
         gz=True
     else:

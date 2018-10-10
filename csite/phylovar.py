@@ -120,7 +120,7 @@ def read_cnvl_dist(cfg_f=None):
     with open(cfg_f) as input:
         header=next(input)
         if not header.startswith('#'):
-            raise CnvDistFileError('The format of your CNV distribution file is not right!')
+            raise CnvDistFileError("The first line should be a header line that starts with '#'!")
         header=header.lstrip('#')
         header=header.rstrip()
         header=header.split()

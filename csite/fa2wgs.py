@@ -410,8 +410,8 @@ def compress_fq(prefix=None):
 
 def read_sectors_file(f=None):
     '''
-    Read the --sectors file and build a dictionary.
-    The --sectors file should have 3 columns:
+    Read the sectors file and build a dictionary.
+    The sectors file should have 3 columns:
     1: sector id
     2: purity of the sector
     3: simulation depth of the sector
@@ -421,22 +421,29 @@ def read_sectors_file(f=None):
     '''
     sectors={}
     with open(f,'r') as input:
+        header=next(input)
+        if not header.startswith('#'):
+            raise SectorsFileError("The first line should be a header line that starts with '#'!")
+        header=header.lstrip('#')
+        header=header.rstrip()
+        header=header.split()
+        if header!=['sector','purity','depth']:
+            raise SectorsFileError('The format of your sectors file is not right!')
         for line in input:
-            if not line.startswith('#'):
-                line=line.rstrip()
-                sector,purity,depth=line.split()[:3]
-                if sector not in sectors:
-                    sectors[sector]={}
-                else:
-                    raise SectorsFileError('Found two records about sector {} in your --sectors file.'.format(sector))
-                sectors[sector]['purity']=float(purity)
-                sectors[sector]['depth']=float(depth)
-                if not 0<sectors[sector]['purity']<=1:
-                    raise SectorsFileError("{} is an invalid value for sector purity.".format(sectors[sector]['purity'])+
-                        "It should be a float number in the range of (0,1].")
-                if sectors[sector]['depth']<0:
-                    raise SectorsFileError("{} is an invalid value for read depth.".format(sectors[sector]['depth'])+
-                        "It should be a non-negative float number.")
+            line=line.rstrip()
+            sector,purity,depth=line.split()[:3]
+            if sector not in sectors:
+                sectors[sector]={}
+            else:
+                raise SectorsFileError('Found two records about sector {} in your --sectors file.'.format(sector))
+            sectors[sector]['purity']=float(purity)
+            sectors[sector]['depth']=float(depth)
+            if not 0<sectors[sector]['purity']<=1:
+                raise SectorsFileError("{} is an invalid value for sector purity.".format(sectors[sector]['purity'])+
+                    "It should be a float number in the range of (0,1].")
+            if sectors[sector]['depth']<0:
+                raise SectorsFileError("{} is an invalid value for read depth.".format(sectors[sector]['depth'])+
+                    "It should be a non-negative float number.")
     return sectors
 
 def tipnode_leaves_counting(f=None):
