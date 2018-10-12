@@ -85,10 +85,10 @@ class Tree:
             snv_prob=snv_rate/(snv_rate+cnv_rate)
             mutation_waiting_times=waiting_times(span=self.lens,rate=mutation_rate)
             for waiting_t in mutation_waiting_times:
-                pos=numpy.random.randint(start,end)
                 if numpy.random.uniform()<snv_prob:
 #snv
 #make sure at most one SNV mutated on each position.
+                    pos=numpy.random.randint(start,end)
                     hit=0
                     while pos in Tree.snv_pos:
                         hit+=1
@@ -116,11 +116,13 @@ class Tree:
 #cnvs
 #if the new cnv overlap with accumulated_dels, compare it with the accumulated dels 
 #and only keep those new regions.
-                    cnv_start=pos
                     cnv_length=get_cnv_length(cnvl_dist=cnvl_dist,cnvl_beta=cnv_length_beta,cnvl_max=cnv_length_max)
-                    cnv_end=cnv_start+cnv_length
-                    if cnv_end>end:
+                    if cnv_length>=end-start:
+                        cnv_start=start
                         cnv_end=end
+                    else:
+                        cnv_start=numpy.random.randint(start,end-cnv_length)
+                        cnv_end=cnv_start+cnv_length
                     leaves_count=self.leaves_counting()
                     new_cnvs=[[cnv_start,cnv_end]]
                     logging.debug('New CNV: %s',str(new_cnvs))
@@ -592,8 +594,7 @@ class Tree:
     def construct_tipnode_hap(self,start=None,end=None):
         '''
         I will collect all vars (snvs+cnvs) for each tipnode here.
-        This function will apply to each haplotype.
-        The function will fill a dictionary with the structure:
+        For the tree, the method will build a dictionary with the structure:
         {'start':start,'end':end,'vars':{'tip_node1':[SNVs+CNVs],'tip_node2':[SNVs+CNVs],...}}
         !!!In this structure, each haplotype of each haplotypes in CNVs will have the same structure as above.!!!
         '''
