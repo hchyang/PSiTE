@@ -21,10 +21,15 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
     start:    the start of the variant
     end:      the end of the variant
     var:      an integer. 0/1/2: SNV, -1: deletion, +int: amplification
-    focal_cp: optional. an integer or some integers separeted by comma (only for SNV). 
-              0: the SNV is on the original copy
-              N: the SNV is on the copy N of this segment
-              Without this column: the SNV is on the original copy and all duplicated copy
+    target:   optional. an integer or some integers separeted by comma (for SNVs/amplifications). 
+              For SNVs:
+                  0: the SNV is on the original copy
+                  N: the SNV is on the copy N of this segment
+                  Without this column: the SNV is on the original copy and all duplicated copy
+              For amplifications (CNVs with copy>0):
+                  With this column: For an amplification with copy N, there should be N integers 
+                     to specify the insert locus of each new copy.
+                  Without this column: the amplification is an tandom repeat amplification.
     P.S. start and end are 0 based. And the region of each var is like in bed: [start,end).
     '''
     snvs={}
@@ -38,19 +43,19 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
         header=header.lstrip('#')
         header=header.rstrip()
         header=header.split()
-        if header!=['chr','hap','start','end','var','focal_cp'] and \
+        if header!=['chr','hap','start','end','var','target'] and \
             header!=['chr','hap','start','end','var']:
             raise TrunkVarError('The format of your trunk variants file is not right!')
         for line in input:
             cols=line.split()
             if len(cols)==5:
                 chroms,hap,start,end,var=cols
-                focal_cp=None
+                target=None
             elif len(cols)==6:
-                chroms,hap,start,end,var,focal_cp=cols
-                focal_cp=[int(x) for x in focal_cp.split(',')]
-                if var not in ('0','1','2'):
-                    raise TrunkVarError('Only SNVs can have the focal_cp (6th) column.'+
+                chroms,hap,start,end,var,target=cols
+                target=[int(x) for x in target.split(',')]
+                if var.startswith('-'):
+                    raise TrunkVarError('Only SNVs/AMPs can have the target (6th) column.'+
                         'Check the record below:\n{}'.format(line))
             else:
                 raise TrunkVarError('There should be 5 or 6 columns in your --trunk_vars file.\n'+
@@ -89,6 +94,15 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
                     cnvs[chroms][hap][-1]['pre_snvs']={0:[]}
                 elif copy>0:
                     cnvs[chroms][hap][-1]['type']='AMP'
+                    if target==None:
+                        target=[start for range(copy)]
+                    elif len(target)!=copy:
+                        raise TrunkVarError('The number of target of the amplification below is not equal the copy number:\n{}'.format(line))
+                    else:
+                        for pos in target:
+                            if not 0<=pos<chroms_cfg[chroms]['length']: 
+                                raise TrunkVarError('The target of the amplification below is out of range:\n{}'.format(line))
+                    cnvs[chroms][hap][-1]['target']=target
                     for i in range(copy): 
                         segment=cp.deepcopy(tree)
                         cnvs[chroms][hap][-1]['new_copies'].append(segment)
@@ -110,7 +124,7 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
                                          'start':start,
                                          'end':end,
                                          'mutation':form,
-                                         'focal_cp':focal_cp
+                                         'target':target,
                                         })
 
     snvs,cnvs=check_overlap(snvs,cnvs)
@@ -146,18 +160,18 @@ def check_overlap(snvs,cnvs):
                                 '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,snv['start'],snv['end'],snv['mutation']]]))+
                                 '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,cnv1['start'],cnv1['end'],'-1']])))
                         else: #amplification
-                            if snv['focal_cp']!=None:
-                                if 0 in snv['focal_cp']:
-                                    if snv['focal_cp']==[0]:
-                                        del(snv['focal_cp'])
+                            if snv['target']!=None:
+                                if 0 in snv['target']:
+                                    if snv['target']==[0]:
+                                        del(snv['target'])
                                         continue
                                     else:
-                                        for j in [x for x in snv['focal_cp'] if x!=0]:
+                                        for j in [x for x in snv['target'] if x!=0]:
                                             if j not in cnv1['pre_snvs']:
                                                 cnv1['pre_snvs'][j]=[]
                                             cnv1['pre_snvs'][j].append(snv)
                                 else:
-                                    for j in snv['focal_cp']:
+                                    for j in snv['target']:
                                         if j not in cnv1['pre_snvs']:
                                             cnv1['pre_snvs'][j]=[]
                                         cnv1['pre_snvs'][j].append(snv)
@@ -167,20 +181,20 @@ def check_overlap(snvs,cnvs):
                                     if j not in cnv1['pre_snvs']:
                                         cnv1['pre_snvs'][j]=[]
                                     cnv1['pre_snvs'][j].append(snv)
-                            del(snv['focal_cp'])
+                            del(snv['target'])
                 snvs[chroms][hap]=[snv for snv in snvs[chroms][hap] if not snv.get('not_on_original',False)]
 #check other SNVs
-#check whether there are any snv with focal_cp information
+#check whether there are any snv with target information
 #but without overlapping with any cnv
     for chroms in sorted(snvs.keys()):
         for hap in sorted(snvs[chroms].keys()):
             for snv in snvs[chroms][hap]:
-                if 'focal_cp' in snv:
-                    if snv['focal_cp']==None or snv['focal_cp']==[0]:
-                        del(snv['focal_cp'])
+                if 'target' in snv:
+                    if snv['target']==None or snv['target']==[0]:
+                        del(snv['target'])
                     else:
                         raise TrunkVarError('The SNV below is not covered by any CNV:\n'+
-                            '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,snv['start'],snv['end'],snv['mutation'],snv['focal_cp']]])))
+                            '{}\n'.format('\t'.join([str(x) for x in [chroms,hap,snv['start'],snv['end'],snv['mutation'],snv['target']]])))
     return snvs,cnvs
 
 class TrunkVarError(Exception):

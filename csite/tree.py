@@ -44,7 +44,7 @@ class Tree:
 
     #@profile
     def add_snv_cnv(self,start=None,end=None,inherent_snvs=None,inherent_cnvs=None,
-                    snv_rate=None,cnv_rate=None,del_prob=None,cnv_length_beta=None,
+                    snv_rate=None,cnv_rate=None,del_prob=None,tandom_prob=None,cnv_length_beta=None,
                     cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,cnvl_dist=None):
         '''
         Randomly put SNVs and CNVs on a phylogenetic tree.
@@ -210,11 +210,16 @@ class Tree:
                                  'seg':[start,end],
                                  'start':amp_start,
                                  'end':amp_end,
+                                 'target':[],
                                  'copy':cnv_copy,
                                  'leaves_count':leaves_count,
                                  'pre_snvs':{},
                                  'new_copies':new_copies}
                             for i in range(cnv_copy): cnv['pre_snvs'][i+1]=pre_snvs
+                            if tandom_prob==1 or numpy.random.uniform()<tandom_prob:
+                                for i in range(cnv_copy): cnv['target'].append(cnv['start'])
+                            else:
+                                cnv['target'].extend(numpy.random.randint(start,end,size=cnv['copy']))
                             self.cnvs.append(cnv)
                             self.accumulated_cnvs.append(cnv)
         for cnv in self.cnvs:
@@ -225,18 +230,18 @@ class Tree:
 #For each new copy of amplification, the current node is the root node. It inherent all the snvs in pre_snvs.
 #But we have compared all new cnvs with accumulated_cnvs, so no pre_cnvs will affect our new copies.
                     segment.add_snv_cnv(start=cnv['start'],end=cnv['end'],inherent_snvs=cnv['pre_snvs'][i+1],
-                                        snv_rate=snv_rate*scale,cnv_rate=cnv_rate*scale,del_prob=del_prob,
+                                        snv_rate=snv_rate*scale,cnv_rate=cnv_rate*scale,del_prob=del_prob,tandom_prob=tandom_prob,
                                         cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
                                         cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist)
 #only root node have inherent_snvs and inherent_cnvs
         if self.left != None:
             self.left.add_snv_cnv(start=start,end=end,inherent_snvs=[],inherent_cnvs=[],
-                                  snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
+                                  snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,tandom_prob=tandom_prob,
                                   cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
                                   cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist)
         if self.right != None:
             self.right.add_snv_cnv(start=start,end=end,inherent_snvs=[],inherent_cnvs=[],
-                                   snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,
+                                   snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,tandom_prob=tandom_prob,
                                    cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
                                    cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist)
 
@@ -572,8 +577,21 @@ class Tree:
                 tip_vars['start']=start
                 tip_vars['end']=end
                 tip_vars['vars']={}
-            tip_vars['vars'][self.nodeid]=self.accumulated_snvs+self.accumulated_cnvs
-            tip_vars['vars'][self.nodeid].sort(key=lambda var:var['start'])
+            tip_vars['vars'][self.nodeid]=[]
+            for snv in self.accumulated_snvs:
+                snv['target']=snv['start']
+                tip_vars['vars'][self.nodeid].append(snv)
+            for cnv in self.accumulated_cnvs:
+                if cnv['type']=='AMP':
+                    for i in range(cnv['copy']):
+                        amp=cnv.copy()
+                        amp['index']=i
+                        amp['target']=cnv['target'][i]
+                        tip_vars['vars'][self.nodeid].append(amp)
+                else:
+                    cnv['target']=cnv['start']
+                    tip_vars['vars'][self.nodeid].append(cnv)
+            tip_vars['vars'][self.nodeid].sort(key=lambda var:(var['target'],var['type']))
         return tip_vars
     
     def add_haps2cnv(self):
@@ -584,8 +602,8 @@ class Tree:
             if cnv['type']=='AMP':
                 cnv['haplotypes']=[]
                 for copy in cnv['new_copies']:
-                    cnv['haplotypes'].append(copy.tipnode_accumulated_vars(start=cnv['start'],end=cnv['end']))
                     copy.add_haps2cnv()
+                    cnv['haplotypes'].append(copy.tipnode_accumulated_vars(start=cnv['start'],end=cnv['end']))
         if self.left!=None:
             self.left.add_haps2cnv()
         if self.right!=None:
@@ -603,7 +621,7 @@ class Tree:
         return tipnode_hap
 
     #@profile
-    def snvs_freq_cnvs_profile(self,parental=None,snv_rate=None,cnv_rate=None,del_prob=None,
+    def snvs_freq_cnvs_profile(self,parental=None,snv_rate=None,cnv_rate=None,del_prob=None,tandom_prob=None,
                                cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,
                                trunk_snvs=None,trunk_cnvs=None,length=None,
                                chain=None,chroms=None,sectors=None,wholeT=None,cnvl_dist=None):
@@ -637,8 +655,8 @@ class Tree:
             hap_trunk_snvs=trunk_snvs.get(i,[])
             hap_trunk_cnvs=trunk_cnvs.get(i,[])
             hap_tree.add_snv_cnv(start=0,end=length,inherent_snvs=hap_trunk_snvs,
-                inherent_cnvs=hap_trunk_cnvs,snv_rate=snv_rate,
-                cnv_rate=cnv_rate,del_prob=del_prob,cnv_length_beta=cnv_length_beta,
+                inherent_cnvs=hap_trunk_cnvs,snv_rate=snv_rate,cnv_rate=cnv_rate,
+                del_prob=del_prob,tandom_prob=tandom_prob,cnv_length_beta=cnv_length_beta,
                 cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg,
                 tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist)
 
@@ -947,10 +965,10 @@ def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
     seq_seg=[]
     breakpoint=tip_vars['start']
     for var in tip_vars['vars'][tip]:
-#There will be no SNV overlap with DEL.
-#But AMP can overlap with SNV or DEL. As AMP will not change the breakpoint to its start,
+#There will be no SNV overlap with DEL, unless one of them is on a new copy of AMP.
+#AMP can overlap with SNV or DEL. As AMPs do NOT change the breakpoint to their end,
 #and all VARs are sorted by start, so the situation of breakpoint>start will only occure
-#in AMP events.
+#in AMP events (when SNV/DEL overlap with AMP).
         if var['type']=='SNV': #snv
             if var['start']>breakpoint:
                 out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'REF']))
@@ -970,12 +988,12 @@ def retrieve_tip_vars(tip_vars=None,tip=None,out_file=None,chroms=None):
                 raise ShouldNotBeHereError
             breakpoint=var['end']
         elif var['type']=='AMP': #amplification
-            if var['start']>breakpoint:
-                out_file.write(build_line(elements=[chroms,breakpoint,var['start'],'REF']))
-                breakpoint=var['start']
-            out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type'],'+{}'.format(var['copy'])]))
-            for haplotype in var['haplotypes']:
-                retrieve_tip_vars(tip_vars=haplotype,tip=tip,out_file=out_file,chroms=chroms)
+            if var['target']>breakpoint:
+                out_file.write(build_line(elements=[chroms,breakpoint,var['target'],'REF']))
+                breakpoint=var['target']
+            out_file.write(build_line(elements=[chroms,var['start'],var['end'],var['type'],'+{}/{}'.format(var['index']+1,var['copy'])]))
+            haplotype=var['haplotypes'][var['index']]
+            retrieve_tip_vars(tip_vars=haplotype,tip=tip,out_file=out_file,chroms=chroms)
         else: 
             raise ShouldNotBeHereError
     if tip_vars['end']>breakpoint:

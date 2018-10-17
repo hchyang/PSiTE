@@ -197,9 +197,9 @@ option (see Section 2.2.3).
 
 The format of this file is shown below:
 
-    #chr hap start end var focal_cp
+    #chr hap start end var target
     1 0 364645 364646 0
-    1 1 464646 466646 +3
+    1 1 464646 466646 +3 194327,149250611,5687878
     1 1 464650 464651 1
     1 1 464660 464661 1 0
     1 1 464670 464671 1 2,3
@@ -217,27 +217,35 @@ the truncal events to be on one of the four haplotypes (0/1/2/3).
 - **var**:      The type of the variant. 0/1/2: SNV, -1: deletion, 
 +N: amplification. 0/1/2 represent different types of base substitutions (see 
 section `--tstv` option under section 2.2.3).
-- **focal\_cp**: The copy of the segment that carries this variant. This column 
-is optional and is only relevant when the focal variant is SNV. If a SNV is 
-covered by an amplification with N new copies, the value in this column can be 
-either an integer in the range of [0,N], or a list of numbers separated by 
-commas representing multiple copies carrying this mutation. If there is no value 
-in this column, the focal SNV is assumed to occur early (i.e. if there are 
-overlapping CNV events, SNVs are assumed to be earlier than the CNV event). In 
-this case, all the new copies of the amplification will carry the SNV. In 
+- **target**:   This column is optional and is only relevant when the focal 
+variant is a SNV or an amplification.  **1)** For an amplification with N new 
+copies (i.e. +N in the var column), the `target` column can be a list with N 
+integers (seperated by commas) or omitted. The integer list indicates all the 
+insert loci of the new copies in this column. Without this information, the 
+amplification will be treated as a tandom amplification. **2)** For a SNV, 
+`target` indicates the copy of the segment that carries this variant. If a SNV 
+is covered by an amplification with N new copies, the value in this column can 
+be either an integer in the range of [0,N], or a list of numbers separated by 
+commas representing multiple copies carrying this mutation. If there is no 
+value in this column, the focal SNV is assumed to occur early (i.e. if there 
+are overlapping CNV events, SNVs are assumed to be earlier than the CNV event). 
+In this case, all the new copies of the amplification will carry the SNV. In 
 addition to this default setting, users can also specify alternative scenarios 
 using this column. For example:
 
 ```
-#chr hap start  end    var focal_cp
-1    1   464646 466646 +3
+#chr hap start  end    var target
+1    1   464646 466646 +3 194327,149250611,5687878
 1    1   464650 464651 1
 1    1   464660 464661 1 0
 1    1   464670 464671 1 2,3
 ```
 
 In this example, there is an amplification in the region 1:464646-466646 
-covering all the three SNVs, which corresponds to the following three scenarios: 
+covering all the three SNVs. The first copy of this amplification is 
+inserted before 194327. The second one is inserted before 149250611. The 
+third copy is inserted before 5687878. And the three SNV records correspond 
+to the following three scenarios: 
 
 1. The original copy and all the amplified copies will carry the first SNV 
 (1:464650-464651). 
@@ -510,8 +518,10 @@ is one chain file per tip node. Below is an example of the chain file:
 
     >1_Hap0 parental:0
     1       0       33      REF
-    1       33      55      DEL     -1
-    1       55      99      AMP     +1
+    1       55      99      AMP     +2/2
+    1       33      35      REF
+    1       35      55      DEL     -1
+    1       55      99      AMP     +1/2
     1       55      99      REF
     1       55      100000  REF
     >1_Hap1 parental:0
@@ -536,9 +546,13 @@ There are five columns in the body section:
 - **end**: The end position of the segment (0-based, exclusive).
 - **type**: The type of the segment (SNV: single nucleotide variation, AMP: 
 amplification, DEL: deletion, REF: reference). The amplified regions are 
-represented by multiple overlapping records. For example, line 4 and 5 in the 
+represented by multiple overlapping records. For example, line 3,6 and 7 in the 
 example chain file indicate that there is an amplification in region 1:55-99.
-- **var**: The type of the variant. 0/1/2: SNV, -1: deletion, +int: amplification.
+- **var**: The type of the variant. 0/1/2: SNV, -1: deletion. For 
+amplifications, this column is in the format of `+N/M`. N is the copy index and 
+M is the total number of new copies of the amplification events. In the example
+chain file, the first copy of the amplification (1:55-99) is inserted before 
+1:55, and the second one is inserted before 1:33. 
 
 ##### Tipnode map file (--map) (optional)
 

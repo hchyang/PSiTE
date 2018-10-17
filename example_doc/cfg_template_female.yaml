@@ -3,6 +3,7 @@ genome:
     snv_rate: 3000.0
     cnv_rate: 30.0
     del_prob: 0.5
+    tandom_prob: 1.0
     cnv_length_beta: 2000000
     cnv_length_max: 4000000
     copy_parameter: 0.5
