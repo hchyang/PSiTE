@@ -274,6 +274,7 @@ the YAML file, please see section 2.3.3 for further details).
         snv_rate: 2.0
         cnv_rate: 0.6
         del_prob: 0.5
+        tandom_prob: 1.0
         cnv_length_beta: 200
         cnv_length_max: 400
         copy_parameter: 0.5

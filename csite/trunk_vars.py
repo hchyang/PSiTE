@@ -95,7 +95,7 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
                 elif copy>0:
                     cnvs[chroms][hap][-1]['type']='AMP'
                     if target==None:
-                        target=[start for range(copy)]
+                        target=[start for i in range(copy)]
                     elif len(target)!=copy:
                         raise TrunkVarError('The number of target of the amplification below is not equal the copy number:\n{}'.format(line))
                     else:
