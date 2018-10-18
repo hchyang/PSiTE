@@ -32,7 +32,7 @@ LARGEST=2**31
 cfg_params={'snv_rate':float,
             'cnv_rate':float,
             'del_prob':float,
-            'tandom_prob':float,
+            'tandem_prob':float,
             'cnv_length_beta':int,
             'cnv_length_max':int,
             'copy_parameter':float,
@@ -73,10 +73,10 @@ def check_del_prob(value=None):
             "It should be an float number in the range of [0,1].")
     return fvalue
 
-def check_tandom_prob(value=None):
+def check_tandem_prob(value=None):
     fvalue=float(value)
     if not 0<=fvalue<=1:
-        raise argparse.ArgumentTypeError("{} is an invalid value for --tandom_prob. ".format(value)+
+        raise argparse.ArgumentTypeError("{} is an invalid value for --tandem_prob. ".format(value)+
             "It should be an float number in the range of [0,1].")
     return fvalue
 
@@ -378,8 +378,8 @@ def main(progname=None):
     group2.add_argument('-d','--del_prob',type=float,default=default,metavar='FLOAT',
         help='the probability of being deletion for a CNV mutation [{}]'.format(default))
     default=1.0
-    group2.add_argument('--tandom_prob',type=float,default=default,metavar='FLOAT',
-        help='the probability of being tandom repeat for an amplification mutation [{}]'.format(default))
+    group2.add_argument('--tandem_prob',type=float,default=default,metavar='FLOAT',
+        help='the probability of being tandem repeat for an amplification mutation [{}]'.format(default))
 #https://en.wikipedia.org/wiki/Copy-number_variation
     default=20000000
     group2.add_argument('-l','--cnv_length_beta',type=int,default=default,metavar='INT',
@@ -678,7 +678,7 @@ def main(progname=None):
                 snv_rate=chroms_cfg['snv_rate'],
                 cnv_rate=chroms_cfg['cnv_rate'],
                 del_prob=chroms_cfg['del_prob'],
-                tandom_prob=chroms_cfg['tandom_prob'],
+                tandem_prob=chroms_cfg['tandem_prob'],
                 cnv_length_beta=chroms_cfg['cnv_length_beta'],
                 cnv_length_max=chroms_cfg['cnv_length_max'],
                 cn_dist_cfg=cn_dist_cfg,

@@ -222,7 +222,7 @@ variant is a SNV or an amplification.  **1)** For an amplification with N new
 copies (i.e. +N in the var column), the `target` column can be a list with N 
 integers (seperated by commas) or omitted. The integer list indicates all the 
 insert loci of the new copies in this column. Without this information, the 
-amplification will be treated as a tandom amplification. **2)** For a SNV, 
+amplification will be treated as a tandem amplification. **2)** For a SNV, 
 `target` indicates the copy of the segment that carries this variant. If a SNV 
 is covered by an amplification with N new copies, the value in this column can 
 be either an integer in the range of [0,N], or a list of numbers separated by 
@@ -274,7 +274,7 @@ the YAML file, please see section 2.3.3 for further details).
         snv_rate: 2.0
         cnv_rate: 0.6
         del_prob: 0.5
-        tandom_prob: 1.0
+        tandem_prob: 1.0
         cnv_length_beta: 200
         cnv_length_max: 400
         copy_parameter: 0.5

@@ -29,7 +29,7 @@ def classify_vars(vars_file,chroms_cfg,leaves_number,tree):
               For amplifications (CNVs with copy>0):
                   With this column: For an amplification with copy N, there should be N integers 
                      to specify the insert locus of each new copy.
-                  Without this column: the amplification is an tandom repeat amplification.
+                  Without this column: the amplification is an tandem repeat amplification.
     P.S. start and end are 0 based. And the region of each var is like in bed: [start,end).
     '''
     snvs={}
