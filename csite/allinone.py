@@ -48,6 +48,9 @@ def main(progname=None):
     default=None
     group2.add_argument('--affiliation',type=check_file,default=default,metavar='FILE',
         help='a file containing sector affiliation of the cells in the sample [{}]'.format(default))
+    default=None
+    group2.add_argument('--cnvl_dist',type=check_file,default=default,metavar='FILE',
+        help="a file containing the distribution profile of CNVs' length [{}]".format(default))
     default='WGS'
     group0.add_argument('--type',type=str,default=default,choices=['WGS','WES','BOTH'],
         help='sequencing type to simulate [{}]'.format(default))
@@ -175,6 +178,8 @@ def main(progname=None):
         trunk_vars=os.path.abspath(args.trunk_vars)
     if args.affiliation:
         affiliation=os.path.abspath(args.affiliation)
+    if args.cnvl_dist:
+        cnvl_dist=os.path.abspath(args.cnvl_dist)
     if args.sectors:
         sectors=os.path.abspath(args.sectors)
     outdir=args.output
@@ -251,6 +256,8 @@ def main(progname=None):
             cmd_params.extend(['--trunk_vars',trunk_vars])
         if args.affiliation:
             cmd_params.extend(['--affiliation',affiliation])
+        if args.cnvl_dist:
+            cmd_params.extend(['--cnvl_dist',cnvl_dist])
         if args.trunk_length:
             cmd_params.extend(['--trunk_length',str(args.trunk_length)])
         logging.info(' Command: %s',' '.join(cmd_params))
