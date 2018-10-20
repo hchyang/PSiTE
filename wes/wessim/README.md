@@ -8,7 +8,7 @@ The other is Wessim2 (Wessim2.py), which uses probe hybridization approach.
 Wessim2 is highly recommended when the probe sequence is available since it is more realistic.
 
 #### Revisions
-For ease of use, we revised the source code of WesSim2 and include it in our CSiTE package.  
+For ease of use, we revised the source code of WesSim2 and include it in our PSiTE package.  
 
 Major changes:
 1. Replace gfServer and gfClient with blat for mapping probes to the genome
@@ -26,4 +26,4 @@ Several additional packages are required to run WesSim, including:
 
 You may use `pip install pysam` to install pysam.
 
-If pysam is not installed, the script fa2wes.py (under folder csite) will try to install it automatically.
+If pysam is not installed, the script fa2wes.py (under folder PSiTE/psite) will try to install it automatically.

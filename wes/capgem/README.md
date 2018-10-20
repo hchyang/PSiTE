@@ -24,7 +24,7 @@ In particular, it is based on script "\_\_sub_wessim2.py" from [Wessim](http://s
 #### Install
 CapGem requires a Java Runtime Environment (Java Runtime Environment >=1.7).
 
-To install CapSim, one can go to the folder containing the source code (CSiTE/wes/capgem) and then run `make`.  
+To install CapSim, one can go to the folder containing the source code (PSiTE/wes/capgem) and then run `make`.  
 A sample command is:  `make install INSTALL_DIR=./ MXMEM=8000m SERVER=true`.  
 If INSTALL_DIR is specified to be a directory other than ‘./’, this directory should be added to environment variable PATH.   
 In case the memory for Java virtual machine is not enough, users can set the maximum memory by adding

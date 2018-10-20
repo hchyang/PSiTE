@@ -16,9 +16,9 @@ import logging
 import copy
 import yaml
 import time
-import csite.trunk_vars
-import csite.tree
-from csite.vcf2fa import check_sex
+import psite.trunk_vars
+import psite.tree
+from psite.vcf2fa import check_sex
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe
@@ -292,7 +292,7 @@ def read_affiliation(affiliation_f=None):
             prune_p=float(cols[3])
             if sector==WHOLET:
                 raise AffiliationFileError(
-                    "Please do not use '{}' as a sector name. In CSiTE, I use it to stand for the whole tumor sample.".format(WHOLET))
+                    "Please do not use '{}' as a sector name. In PSiTE, I use it as the name of whole tumor sample.".format(WHOLET))
             if not 0<=purity<=1:
                 raise AffiliationFileError(
                     "The purity {} for sector {} is not valid in your affiliation file.\n".format(prune_p,sector)+\
@@ -346,7 +346,7 @@ def main(progname=None):
     t0 = time.time()
     prog=progname if progname else sys.argv[0]
     parser=argparse.ArgumentParser(
-        description='Simulate SNVs/CNVs on a coalescent tree in newick format',
+        description='Simulate SNVs/CNVs on a phylogenetic tree in newick format',
         prog=prog)
     group1=parser.add_argument_group('Input arguments')
     group1.add_argument('-t','--tree',required=True,metavar='FILE',
@@ -532,7 +532,7 @@ def main(progname=None):
     with open(args.tree) as input:
         for line in input:
             newick+=line.rstrip()
-    mytree=csite.tree.newick2tree(newick)
+    mytree=psite.tree.newick2tree(newick)
     if args.trunk_length:
         mytree.lens=args.trunk_length
 
@@ -604,7 +604,7 @@ def main(progname=None):
     trunk_snvs={}
     trunk_cnvs={}
     if args.trunk_vars!=None:
-        trunk_snvs,trunk_cnvs=csite.trunk_vars.classify_vars(
+        trunk_snvs,trunk_cnvs=psite.trunk_vars.classify_vars(
             args.trunk_vars,final_chroms_cfg,leaves_number,mytree)
 
 ###### open all required output file and output the headers 
@@ -696,7 +696,7 @@ def main(progname=None):
         cnvs=sectors[WHOLET]['cnvs']
         cnv_profile=sectors[WHOLET]['cnv_profile']
         if args.nhx or args.NHX or args.nodes_vars:
-            all_nodes_vars=csite.tree.merge_two_dict_set(dict1=all_nodes_vars,dict2=nodes_vars)
+            all_nodes_vars=psite.tree.merge_two_dict_set(dict1=all_nodes_vars,dict2=nodes_vars)
 
         if args.snv_genotype!=None:
             for pos,mutation,alt,total in snvs_alt_total:
@@ -718,7 +718,7 @@ def main(progname=None):
                 freq=alt/total
                 info['snv_file'].write('{}\t{}\t{}\t{}\t{}'.format(chroms,pos,pos+1,mutation,round(freq,4)))
                 if info['depth']!=None:
-                    total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(total,freq)
+                    total_dp,b_allele_dp=psite.tree.simulate_sequence_coverage(total,freq)
                     if total_dp!=0:
                         rfreq=round(b_allele_dp/total_dp,4)
                     else:
@@ -739,7 +739,7 @@ def main(progname=None):
 ##output for expands
 #        if args.expands != None:
 #            for pos,mutation,freq in snvs_freq:
-#                total_dp,b_allele_dp=csite.tree.simulate_sequence_coverage(args.depth,freq)
+#                total_dp,b_allele_dp=psite.tree.simulate_sequence_coverage(args.depth,freq)
 #                expands_snps_file.write('{}\t{}\t{}\t{}\n'.format(chroms,pos,b_allele_dp/total_dp,0))
 #
 ##in the segment input for expands

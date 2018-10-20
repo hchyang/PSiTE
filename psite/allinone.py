@@ -16,10 +16,10 @@ import yaml
 import logging
 import subprocess
 import pyfaidx
-from csite.vcf2fa import check_sex,check_vcf,check_autosomes
-from csite.phylovar import check_prune,check_seed,check_purity,random_int,check_config_file
-from csite.fa2wgs import check_depth,check_file
-from csite.fa2wes import TargetAction, RATIO_WESSIM, RATIO_CAPGEM, check_program, check_snakemake
+from psite.vcf2fa import check_sex,check_vcf,check_autosomes
+from psite.phylovar import check_prune,check_seed,check_purity,random_int,check_config_file
+from psite.fa2wgs import check_depth,check_file
+from psite.fa2wes import TargetAction, RATIO_WESSIM, RATIO_CAPGEM, check_program, check_snakemake
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe

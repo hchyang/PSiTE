@@ -3,7 +3,7 @@
 #########################################################################
 # Author: Hechuan Yang
 # Created Time: 2017-09-27 10:50:14
-# File Name: csite.py
+# File Name: psite.py
 # Description:
 #########################################################################
 
@@ -21,10 +21,10 @@ __version__='0.9.0'
 
 def usage():
     print("")
-    print("Program: csite.py (a Coalescent Simulator for Tumor Evolution)")
+    print("Program: psite.py (a Phylogeny guided Simulator for Tumor Evolution)")
     print("Version: {}".format(__version__))
     print("")
-    print("Usage:   csite.py <command> [options]")
+    print("Usage:   psite.py <command> [options]")
     print("")
     print("Command: vcf2fa     build normal genome from input germline vcf file")
     print("         phylovar   simulate somatic variants along a phylogeny")
@@ -39,28 +39,28 @@ def main():
         usage()
     else:
         command=sys.argv[1]
-        progname='csite.py '+command
+        progname='psite.py '+command
         del sys.argv[1]
         if command=='vcf2fa':
-            import csite.vcf2fa
-            csite.vcf2fa.main(progname=progname)
+            import psite.vcf2fa
+            psite.vcf2fa.main(progname=progname)
         elif command=='phylovar':
-            import csite.phylovar
-            csite.phylovar.main(progname=progname)
+            import psite.phylovar
+            psite.phylovar.main(progname=progname)
         elif command=='chain2fa':
-            import csite.chain2fa
-            csite.chain2fa.main(progname=progname)
+            import psite.chain2fa
+            psite.chain2fa.main(progname=progname)
         elif command=='fa2wgs':
-            import csite.fa2wgs
-            csite.fa2wgs.main(progname=progname)
+            import psite.fa2wgs
+            psite.fa2wgs.main(progname=progname)
         elif command=='fa2wes':
-            import csite.fa2wes
-            csite.fa2wes.main(progname=progname)
+            import psite.fa2wes
+            psite.fa2wes.main(progname=progname)
         elif command=='allinone':
-            import csite.allinone
-            csite.allinone.main(progname=progname)
+            import psite.allinone
+            psite.allinone.main(progname=progname)
         else:
-            print("[csite.py] Unrecognized command: '{}'".format(command))
+            print("[psite.py] Unrecognized command: '{}'".format(command))
             sys.exit()
 
 

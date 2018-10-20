@@ -20,7 +20,7 @@ import multiprocessing
 import shutil
 import gzip
 import time
-from csite.phylovar import check_seed,check_purity,random_int
+from psite.phylovar import check_seed,check_purity,random_int
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe

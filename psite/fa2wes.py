@@ -19,8 +19,8 @@ import glob
 import multiprocessing
 import pip
 import time
-from csite.phylovar import check_purity, check_seed, random_int
-from csite.fa2wgs import check_folder, check_file, check_depth, merge_fq, OutputExistsError, read_sectors_file, tipnode_leaves_counting, genomesize
+from psite.phylovar import check_purity, check_seed, random_int
+from psite.fa2wgs import check_folder, check_file, check_depth, merge_fq, OutputExistsError, read_sectors_file, tipnode_leaves_counting, genomesize
 
 # handle the error below
 # python | head == IOError: [Errno 32] Broken pipe

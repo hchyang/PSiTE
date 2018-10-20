@@ -16,7 +16,7 @@ import glob
 import numpy
 import multiprocessing
 import time
-from csite.vcf2fa import check_output_folder
+from psite.vcf2fa import check_output_folder
 
 #handle the error below
 #python | head == IOError: [Errno 32] Broken pipe

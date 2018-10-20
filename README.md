@@ -1,9 +1,9 @@
-# Coalescent Simulator for Tumor Evolution (CSiTE)
+# Phylogeny guided Simulator for Tumor Evolution (PSiTE)
 
-CSiTE is a coalescent simulator for tumor evolution. It first simulates somatic 
+PSiTE is a phylogeny guided simulator for tumor evolution. It first simulates somatic 
 variants (Single Nucleotide Variants (SNVs) and Copy Number Variants (CNVs)) 
 along the history of tumor evolution and then generates Next Generation 
-Sequencing (NGS) data for tumor samples. CSiTE can simulate a wide range of 
+Sequencing (NGS) data for tumor samples. PSiTE can simulate a wide range of 
 tumor data including single sector, multi-sectoring bulk tumor as well single 
 cell data. It provides a powerful approach simulating tumor evolution with 
 different demographic histories and allows efficient benchmarking of methods 
@@ -69,26 +69,26 @@ for clonality analysis.
 
 ## 1. Installation
 
-CSiTE is written in Python3 (>=3.5). It requires three python libraries: numpy, 
+PSiTE is written in Python3 (>=3.5). It requires three python libraries: numpy, 
 pyfaidx and PyYAML. In order to simulate whole genome sequencing (WGS) data, 
 ART is also needed. We recommend using the latest version of ART (MountRainier 
 or later), since older versions introduce high levels of sequencing errors. If 
 users would like to simulate whole exome sequencing (WES) data, please refer to 
 [section 2.5.0](#250-requirements) for the additional requirements.
 
-CSiTE can be downloaded from github:
+PSiTE can be downloaded from github:
 
-    git clone https://github.com/hchyang/CSiTE.git
+    git clone https://github.com/hchyang/PSiTE.git
 
 ## 2. Usage
 
-There are six modules in CSiTE.
+There are six modules in PSiTE.
 
 ```
-Program: csite.py (a Coalescent Simulator for Tumor Evolution)
+Program: psite.py (a Phylogeny guided Simulator for Tumor Evolution)
 Version: 0.9.0
 
-Usage:   csite.py <command> [options]
+Usage:   psite.py <command> [options]
 
 Command: vcf2fa     build normal genome from input germline vcf file
          phylovar   simulate somatic variations along a phylogeny
@@ -98,22 +98,22 @@ Command: vcf2fa     build normal genome from input germline vcf file
          allinone   a wrapper for NGS reads simulation by combining all individual steps
 ```
 
-CSiTE starts the simulation by generating the personal (diploid) genome of an 
+PSiTE starts the simulation by generating the personal (diploid) genome of an 
 individual using the input VCF file (Module 1: vcf2fa). Subsequently, by taking 
 the evolutionary history of the sample (For example, using coalescent 
 simulations from Population Genetic modeling) and a set of user specified rate 
-parameters of somatic events (e.g. SNV and CNV rates), CSiTE stimulates somatic 
+parameters of somatic events (e.g. SNV and CNV rates), PSiTE stimulates somatic 
 variants of a sample along its evolutionary history (Module 2: phylovar). At 
 the end of the second module, the simulated somatic variants will be stored in 
 a special file format called chain file, which records all the somatic events 
-from the root of the tree to focal clone. In the third step, CSiTE integrates 
+from the root of the tree to focal clone. In the third step, PSiTE integrates 
 simulated somatic variants (stored in the chain file) into the personal genome 
 of the individual and builds the genomes of tumor clones (possibly down to 
 individual cells) (Module 3: chain2fa). In the last step, users can use ART to 
 simulate WGS reads from cancer genomes of different clones, taking into account 
 their relative proportions in the tumor (Module 4: fa2wgs). Alternatively, users 
 can use a similar module to simulate WES data (Module 5: fa2wes). In order to 
-facilitate the simulation, CSiTE also provides a wrapper module (Module 6: 
+facilitate the simulation, PSiTE also provides a wrapper module (Module 6: 
 allinone), which allows users to execute all previous steps in one command. 
 
 ### 2.1 vcf2fa (module 1)
@@ -135,7 +135,7 @@ and chromosome X should be included in this file).
 
 A list of phased germline SNVs in the VCF format is specified via `-v/--vcf`. 
 The variants in this file will be spiked into the reference genome to build the 
-germline genome of an individual. Only SNVs are acceptable. CSiTE expects phased 
+germline genome of an individual. Only SNVs are acceptable. PSiTE expects phased 
 genotype data for the cancer individual. To be more precise, the VCF file should 
 contain only one sample's genotype information and two alleles at each locus 
 should be separated by '|' in the GT field of the VCF file. 
@@ -169,16 +169,16 @@ termination of the program.)
 
 ### 2.2 phylovar (module 2)
 
-phylovar is the core module of CSiTE. It can jointly simulate SNVs and CNVs of 
+phylovar is the core module of PSiTE. It can jointly simulate SNVs and CNVs of 
 a tumor sample along the history of a cell lineage tree (i.e. phylogenetic 
 tree). Phylovar can be used either in a standalone mode or in an integrated 
-mode to simulate NGS data of a tumor sample together with other modules in CSiTE.  
+mode to simulate NGS data of a tumor sample together with other modules in PSiTE.  
 
 #### 2.2.1 Input files 
 
 ##### Tree file (-t/--tree)
 
-To run the module, a cell lineage tree (i.e. coalescent tree in the Newick 
+To run the module, a cell lineage tree (i.e. a phylogenetic tree in the Newick 
 format) which captures the ancestral relationship of the tumor cells is 
 required. The [ms](http://home.uchicago.edu/rhudson1/source/mksamples.html) 
 program is recommended to generate the tree (with `-T` option in ms), and it has 
@@ -461,7 +461,7 @@ cells, the local copy number will be 1800.
 
 The variant tree file (in NHX format) outputs locations of the somatic variants 
 on the phylogenetic tree.  The NHX format contains IDs of all the nodes in the 
-coalescence tree and somatic variants along all the branches. This allows users 
+phylogenetic tree and somatic variants along all the branches. This allows users 
 to reconstruct the entire history of somatic events in tumor evolution. If users 
 specify the option with `--nhx`, phylovar will output the pruned version of the 
 tree (see `--prune` option under 2.2.3 for details) together with all somatic 
@@ -475,7 +475,7 @@ Here, entry 'var' has the same format as column 'var' in the trunk variant file
 
 The node variant file, specified by `--nodes_vars`, contains the somatic 
 variants (SNVs/CNVs) occurring on the branch leading to each node in the 
-coalescent tree. This is the collapsed version of the variant tree file where 
+phylogenetic tree. This is the collapsed version of the variant tree file where 
 the phylogenetic information is simply replaced with the node information. 
 There are six columns in this file:
 
@@ -567,7 +567,7 @@ map file in the folder, named 'tumor.tipnode.map'.
 
 There are three columns in a node map file:
 
-- **tip_node**: The id of the tip node in the coalescence tree. If pruning 
+- **tip_node**: The id of the tip node in the phylogenetic tree. If pruning 
 option is turned on, the tip node refers to the leaves after the pruning step.
 - **cell_count**: The number of cells (i.e. number of leaves) descending from 
 this node.
@@ -660,12 +660,12 @@ config file is described in section 2.2.1 Input files (Configuration file).
 
 ##### --trunk_length/--trunk_vars 
 
-The coalescent tree only describes the polymorphic part of the sample. Users can 
+The phylogenetic tree only describes the polymorphic part of the sample. Users can 
 also simulate the truncal part of tumor evolution (tumorigenesis) through two 
 different approaches: a) specifying the trunk length using `--trunk_length`.  
 b) specify the events on the trunk in a file through `--trunk_vars` (see section 
 2.2.2). Option `--trunk_length` accepts a single float number that represents 
-the length of the branch from the root of the coalescent tree to the most common 
+the length of the branch from the root of the phylogenetic tree to the most common 
 ancestor of the sample. 
 
 ##### --prune
@@ -712,7 +712,7 @@ verbosity.
 #### Notes
 
 By default, the branch length of trees generated from the ms program is measured 
-in 4N generations. If we set `-r` to 100 in phylovar (CSiTE), this is equivalent 
+in 4N generations. If we set `-r` to 100 in phylovar (PSiTE), this is equivalent 
 to setting the population rescaled parameter -t to 100 in ms (see ms manual for 
 details).
 
@@ -765,7 +765,7 @@ This option specifies the number of cores used to run this module.
 
 ### 2.4 fa2wgs (module 4)
 
-After running the first three modules (vcf2fa, phylovar and chain2fa), CSiTE 
+After running the first three modules (vcf2fa, phylovar and chain2fa), PSiTE 
 have generated the genomes of normal/tumor clones (cells). Module fa2wgs then calls 
 [ART](https://www.niehs.nih.gov/research/resources/software/biostatistics/art/index.cfm) 
 to simulate whole-genome sequencing data from these genomes. fa2wgs first 
@@ -883,7 +883,7 @@ ART (i.e. `--rndSeed` option in ART) to initiate the simulation of short reads.
 
 ### 2.5 fa2wes (module 5)
 
-In addition to simulating WGS data, CSiTE can also simulate WES data (Illumina) 
+In addition to simulating WGS data, PSiTE can also simulate WES data (Illumina) 
 by running module fa2wes. Similar to module fa2wgs, fa2wes first computes 
 sequencing coverage (or read number) for each genome in the tumor/normal sample 
 and then calls a WES simulator to simulate short reads. 
@@ -921,7 +921,7 @@ There are several ways to install snakemake. Please follow the instructions
 ##### WesSim
 
 For ease of use, we revised the source code of WesSim2 (probe-based version) and 
-include it in our CSiTE package.  
+include it in our PSiTE package.  
 
 Several additional packages are required to run WesSim:
 
@@ -939,7 +939,7 @@ Several additional packages are required to use CapGem for simulation:
 - [samtools](http://samtools.sourceforge.net/) (version >= 1.5)
 
 To install CapGem, one can navigate to the folder containing the source code of 
-CapGem (CSiTE/wes/capgem) and then run `make`. 
+CapGem (PSiTE/wes/capgem) and then run `make`. 
 
 A sample command is `make install INSTALL_DIR=./ MXMEM=8000m SERVER=true`. If 
 `INSTALL_DIR` is specified to be a directory other than './', this directory 
@@ -1009,7 +1009,7 @@ probe sequences for Agilent's SureSelect platforms can be downloaded from
 in the website for downloading). The download option can be found in the menu by 
 first clicking 'Find Designs' and then 'SureSelect DNA', followed by clicking 
 'Agilent Catalog Designs'. To obtain a FASTA file from the downloaded TXT file, 
-user can use the script probe2fa.py provided in our CSiTE package (under 
+user can use the script probe2fa.py provided in our PSiTE package (under 
 directory wes/util/). We provide an example probe file 
 wes/example/S03723314_Probes.fa.gz for users (need extration before using). 
 Check the [wes/example/README.md](wes/example/README.md) file for details.
@@ -1019,7 +1019,7 @@ Check the [wes/example/README.md](wes/example/README.md) file for details.
 The target file (BED format) is specified via `--target`. This file contains the 
 positions of target regions along the genome. Similar to the probe file, Target 
 files for different sequencing platforms can also be obtained from vendor's 
-website. Users can find an example target file file wes/example folder of CSiTE
+website. Users can find an example target file file wes/example folder of PSiTE
 package (wes/example/S03723314_Covered_c3.bed). 
 Check the [wes/example/README.md](wes/example/README.md) file for details.
 
@@ -1030,7 +1030,7 @@ sequencing generated by GemErr.py (please see wes/util/README.md for details).
 GemErr.py was adapted from the GemSim package and it can tabulate an error model 
 from real sequencing data. With the error model learned from the real data, 
 users can simulate more realistic short reads. Users can use a default error 
-model provided under wes/example folder of CSiTE package 
+model provided under wes/example folder of PSiTE package 
 (wes/example/RMNISTHS_30xdownsample_chr22_p.gzip).
 Check the [wes/example/README.md](wes/example/README.md) file for details.
 
@@ -1274,11 +1274,11 @@ step_ID th step. The step_ID (inclusive) can be an integer number from 1 to 4.
 
 ## 3. Tutorial
 
-In this section, we will demonstrate how to use CSiTE.
+In this section, we will demonstrate how to use PSiTE.
 
 1. At first, several input files have to be prepared with the following steps.
 
-    - Simulate the coalescent tree of 1000 tumor cells, which are sampled from 
+    - Simulate a coalescent tree of 1000 tumor cells, which are sampled from 
     an exponentially growing tumor. (Please check the manual of ms for more 
     information)
   
@@ -1314,7 +1314,7 @@ In this section, we will demonstrate how to use CSiTE.
 by integrating germline SNPs into the human reference genome.
 
       ```
-      csite.py vcf2fa -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz \
+      psite.py vcf2fa -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz \
           --autosomes 1..22 --sex_chr X,X -o normal_fa
       ```
 
@@ -1322,11 +1322,11 @@ by integrating germline SNPs into the human reference genome.
 multiple options in phylovar that allow a flexible simulation, as shown below.
 
     - Simulate variants based on a configuration file. Check 
-    cfg_template_female.yaml in CSiTE package (under folder example_doc)  for 
+    cfg_template_female.yaml in PSiTE package (under folder example_doc)  for 
     detailed settings.
   
         ```
-        csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
+        psite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
             --purity 0.8 --sex_chr X,X
         ```
   
@@ -1334,7 +1334,7 @@ multiple options in phylovar that allow a flexible simulation, as shown below.
     tumor sample.
   
         ```
-        csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
+        psite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
             --purity 0.8 --sex_chr X,X --trunk_length 2.0
         ```
   
@@ -1345,7 +1345,7 @@ multiple options in phylovar that allow a flexible simulation, as shown below.
     trim the infrequent lineages.
   
         ```
-        csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
+        psite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
             --purity 0.8 --sex_chr X,X --trunk_length 2.0 --prune 0.05
         ```
   
@@ -1356,7 +1356,7 @@ multiple options in phylovar that allow a flexible simulation, as shown below.
     the sequencing data from those cells.
   
         ```
-        csite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
+        psite.py phylovar -t ms_tree.txt --config cfg_template_female.yaml \
             --purity 0.8 --sex_chr X,X --trunk_length 2.0 --prune 0.05 \
             --chain tumor_chain --map map
         ```
@@ -1365,7 +1365,7 @@ multiple options in phylovar that allow a flexible simulation, as shown below.
 genomes of tumor cells in the sample. 
 
     ```
-    csite.py chain2fa -c tumor_chain \
+    psite.py chain2fa -c tumor_chain \
         -n normal_fa/normal.parental_0.fa,normal_fa/normal.parental_1.fa \
         -o tumor_fa --cores 16
     ```
@@ -1378,7 +1378,7 @@ types of NGS reads.
     coverage 30X. Use 16 CPUs to run the simulation.
   
         ```
-        csite.py fa2wgs -n normal_fa -t tumor_fa -m map --purity 0.8 \
+        psite.py fa2wgs -n normal_fa -t tumor_fa -m map --purity 0.8 \
             --tumor_depth 50 --normal_depth 30  -o wgs_reads --cores 16
         ```
   
@@ -1386,15 +1386,15 @@ types of NGS reads.
     coverage of 100X as well as the paired normal sample with 100X coverage. 
     Use wessim and 16 CPUs to run the simulation. The probe file, target file 
     and error model file used in this command can be found under directory 
-    wes/example of CSiTE package (**Note:** The probe file 
-    CSiTE/wes/example/S03723314_Probes.fa is compressed in '.gz' format when 
+    wes/example of PSiTE package (**Note:** The probe file 
+    PSiTE/wes/example/S03723314_Probes.fa is compressed in '.gz' format when 
     distributing. Users should extract it before using).
   
         ```
-        csite.py fa2wes -n normal_fa -t tumor_fa -m map \
-            --probe CSiTE/wes/example/S03723314_Probes.fa \
-            --target CSiTE/wes/example/S03723314_Covered_c3.bed \
-            --error_model CSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
+        psite.py fa2wes -n normal_fa -t tumor_fa -m map \
+            --probe PSiTE/wes/example/S03723314_Probes.fa \
+            --target PSiTE/wes/example/S03723314_Covered_c3.bed \
+            --error_model PSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
             --purity 0.8 --tumor_rdepth 100 --normal_rdepth 100 \
             --simulator wessim -o wes_reads --cores 16
         ```
@@ -1405,10 +1405,10 @@ types of NGS reads.
     for the requirements).
   
         ```
-        csite.py fa2wes -n normal_fa -t tumor_fa -m map \
-            --probe CSiTE/wes/example/S03723314_Probes.fa \
-            --target CSiTE/wes/example/S03723314_Covered_c3.bed \
-            --error_model CSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
+        psite.py fa2wes -n normal_fa -t tumor_fa -m map \
+            --probe PSiTE/wes/example/S03723314_Probes.fa \
+            --target PSiTE/wes/example/S03723314_Covered_c3.bed \
+            --error_model PSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
             --purity 0.8 --tumor_rdepth 100 --normal_rdepth 0 \
             --simulator capgem -o wes_reads \
             --snakemake 'snakemake -j 200 --rerun-incomplete --latency-wait 120 \
@@ -1422,7 +1422,7 @@ pipeline to generate the WGS or WES data.
     - Run the whole pipeline to generate the WGS data.
   
         ```
-        csite.py allinone \
+        psite.py allinone \
             -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz \
             -t ms_tree.txt -c cfg_template_female.yaml -o output \
             --autosomes 1..22 --sex_chr X,X --trunk_length 2.0 \
@@ -1432,14 +1432,14 @@ pipeline to generate the WGS or WES data.
     - Run the whole pipeline to generate the WES data.
   
         ```
-        csite.py allinone --type WES \
+        psite.py allinone --type WES \
             -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz \
             -t ms_tree.txt -c cfg_template_female.yaml -o output \
             --autosomes 1..22 --sex_chr X,X --trunk_length 2.0 \
             -p 0.8 -x 0.05 \
-            --probe CSiTE/wes/example/S03723314_Probes.fa \
-            --target CSiTE/wes/example/S03723314_Covered_c3.bed \
-            --error_model CSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
+            --probe PSiTE/wes/example/S03723314_Probes.fa \
+            --target PSiTE/wes/example/S03723314_Covered_c3.bed \
+            --error_model PSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
             --rlen 150 --tumor_rdepth 100 --normal_rdepth 100 \
             --simulator wessim --cores 16
         ```
@@ -1447,14 +1447,14 @@ pipeline to generate the WGS or WES data.
     - Run the whole pipeline to generate both WGS and WES data.
   
         ```
-        csite.py allinone --type BOTH \
+        psite.py allinone --type BOTH \
             -r human_g1k_v37.fasta -v NA12878.phased_snp.vcf.gz \
             -t ms_tree.txt -c cfg_template_female.yaml -o output \
             --autosomes 1..22 --sex_chr X,X --trunk_length 2.0 \
             -d 50 -D 30 -p 0.8 -x 0.05 \
-            --probe CSiTE/wes/example/S03723314_Probes.fa \
-            --target CSiTE/wes/example/S03723314_Covered_c3.bed \
-            --error_model CSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
+            --probe PSiTE/wes/example/S03723314_Probes.fa \
+            --target PSiTE/wes/example/S03723314_Covered_c3.bed \
+            --error_model PSiTE/wes/example/RMNISTHS_30xdownsample_chr22_p.gzip \
             --rlen 150 --tumor_rdepth 100 --normal_rdepth 100 \
             --simulator wessim --cores 16
         ```
