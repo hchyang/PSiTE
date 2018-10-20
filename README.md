@@ -11,7 +11,6 @@ for clonality analysis.
 
 ## Table of Contents
 
-<!-- toc -->
 
 - [**1. Installation**](#1-installation)
 - [**2. Usage**](#2-usage)
@@ -42,7 +41,6 @@ for clonality analysis.
     * [2.6.3. Options](#263-options)
 - [**3. Tutorial**](#3-tutorial)
 
-<!-- tocstop -->
 
 ## 1. Installation
 
