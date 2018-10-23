@@ -880,7 +880,7 @@ def node_id():
 #@profile
 def newick2tree(newick=None):
     leaf_name_re=re.compile('^\w+:')
-    lens_re=re.compile('^:[0-9.]+')
+    lens_re=re.compile('^:[0-9.eE-]+')
     brushwood=newick.split(',')
     node_id_gen=node_id()
     for branch in brushwood:
