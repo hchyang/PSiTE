@@ -605,7 +605,7 @@ def run_snakemake(outdir, args, sample_file, snake_file):
             os.path.realpath(sys.argv[0])), 'wes/config/cluster.yaml')
         assert os.path.isfile(
             cluster_file), 'Cannot find cluster.yaml below under the program directory:{}'.format(cluster_file)
-        cluster_file_copy = os.path.join(outdir, 'config/cluster.yaml')
+        cluster_file_copy = os.path.join(os.path.abspath(outdir), 'config/cluster.yaml')
         shutil.copyfile(cluster_file, cluster_file_copy)
         orig_params += ['--cluster-config', cluster_file_copy]
 
@@ -775,7 +775,7 @@ def main(progname=None):
         sectors = parse_sectors(args)
         check_tumor_fa(args.tumor, sectors, args.simulator)
 
-        outdir = args.output
+        outdir = os.path.abspath(args.output)
         configdir = os.path.join(outdir, 'config')
         if not os.path.exists(configdir):
             os.makedirs(configdir)
@@ -795,7 +795,7 @@ def main(progname=None):
         sectors = parse_sectors(args)
         check_tumor_fa(args.tumor, sectors, args.simulator)
 
-        outdir = os.path.join(args.output, "tumor")
+        outdir = os.path.join(os.path.abspath(args.output), "tumor")
         if not os.path.exists(outdir):
             os.makedirs(outdir)
         configdir = os.path.join(outdir, 'config')
@@ -811,7 +811,7 @@ def main(progname=None):
         clean_output(args.out_level, outdir)
 
     elif args.normal_rdepth > 0 or args.normal_rnum > 0:
-        outdir = os.path.join(args.output, 'normal')
+        outdir = os.path.join(os.path.abspath(args.output), 'normal')
         if not os.path.exists(outdir):
             os.makedirs(outdir)
         configdir = os.path.join(outdir, 'config')
