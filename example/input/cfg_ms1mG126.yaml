@@ -1,7 +1,7 @@
 #a female human genome (GRCh37), with anouploidy on chromsome 3 (00), 9 (011) and 15 (1).
 genome:
-    snv_rate: 1600.0
-    cnv_rate: 100.0
+    snv_rate: 16000.0
+    cnv_rate: 500.0
     del_prob: 0.5
     tandem_prob: 1.0
     cnv_length_beta: 3000000
