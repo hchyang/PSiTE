@@ -1,0 +1,67 @@
+rule all:
+    input:
+        expand("sequenza/{sample}.done",sample=config['samples'].keys())
+        
+rule sequenza_done:
+    input: 
+        "sequenza/{sample}/output_sequenza_log.txt"
+    output: 
+        touch("sequenza/{sample}.done")
+
+rule ref_gc5base:
+    input:
+        config['reference']
+    output:
+        config['reference']+".gc5Base.txt.gz"
+    log:
+        config['reference']+".gc5Base.txt.gz.log"
+    shell:
+        "sequenza-utils.py GC-windows -w 5 {input} |gzip > {output} 2> {log}"
+
+rule bam2pileup:
+    input:
+        ref=config['reference'],
+        bed=config['exome_bed'],
+        bam=lambda wildcards: config['samples'][wildcards.sample][wildcards.group]
+    output:
+        temp("sequenza/{sample}.{group,(normal)|(tumor)}.pileup.gz")
+    log:
+        "sequenza/{sample}.{group,(normal)|(tumor)}.pileup.gz.log"
+    shell:
+        "samtools mpileup -q 1 -l {input.bed} -f {input.ref} {input.bam} |gzip > {output} 2>{log}"
+        
+
+rule pileup2seqz:
+    input:
+        gc=config['reference']+".gc5Base.txt.gz",
+        normal="sequenza/{sample}.normal.pileup.gz",
+        tumor ="sequenza/{sample}.tumor.pileup.gz",
+    output:
+        temp("sequenza/{sample}.seqz.gz")
+    log:
+        "sequenza/{sample}.seqz.gz.log"
+    shell:
+        "sequenza-utils.py pileup2seqz -gc {input.gc}"
+        " -n {input.normal} -t {input.tumor}"
+        " |gzip > {output} 2> {log}" 
+
+rule seqz_binning:
+    input:
+        "sequenza/{sample}.seqz.gz"
+    output:
+        "sequenza/{sample}.binning_seqz.gz"
+    log:
+        "sequenza/{sample}.binning_seqz.gz.log"
+    shell:
+        "sequenza-utils.py seqz-binning -w 50"
+        " -s {input} | gzip > {output} 2> {log}"
+
+rule sequenza:
+    input:
+        "sequenza/{sample}.binning_seqz.gz"
+    output:
+        "sequenza/{sample}/output_sequenza_log.txt"
+    log:
+        "sequenza/{sample}/output_sequenza_log.txt.log"
+    shell:
+        "Rscript {config[sequenza]} {input} >& {log}"
