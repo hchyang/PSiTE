@@ -3,19 +3,21 @@
 #####################################################
 # Author: Bingxin Lu
 # Description: This script is used to compare the output of PyClone (predicted clonal compositions) against simulated clonal compositions
-# Input: None
+# Input: $1 -- Y (The sample is single tumor); N (The sample is multi-regional tumor)
 # Output: 
 #   pyclone.txt, which contains the predictions of PyClone;
-#   pyclone_stats.txt, which contains a brief summary of PyClone precitions; 
-#   mutect_snv.txt, a TSV file containing SNVs predicted by Mutect; 
-#   real_snv.txt, a one-column file containing the position of simulated SNVs; 
-#   trunk_snv.pos, a one-column file containing the position of truncal SNVs
+#   Files when the sample is single tumor:
+#     pyclone_stats.txt, which contains a brief summary of PyClone precitions; 
+#     mutect_snv.txt, a TSV file containing SNVs predicted by Mutect; 
+#     real_snv.txt, a one-column file containing the position of simulated SNVs; 
+#     trunk_snv.pos, a one-column file containing the position of truncal SNVs
 # Assumption: 
 #   The following files are available -- pyclone_output/tables/cluster.tsv; pyclone_output/tables/loci.tsv; output/phylovar_snvs/tumor.snv; comparison/tumor_snv_exome.txt;  comparison/trunk_snv.pos
 #   The script file scripts/compare_clone.R
 # Command: bash cmp_clone.sh
 #####################################################
 
+is_single=$1
 
 # Postprocess the output of PyClone
 idir=pyclone_output/tables
@@ -31,31 +33,40 @@ awk 'NR>1 && $3>1' $cluster | perl -e 'open CLUSTER,$ARGV[0];while(<CLUSTER>){@l
 
 # Find the statistics of input SNVs
 # Write evaluation statistic to a file
-fstat="$wdir/pyclone_stats.txt"
-cat /dev/null > $fstat
+if [[ $is_single == "Y" ]]; then 
+  fstat="$wdir/pyclone_stats.txt"
+  cat /dev/null > $fstat
 
-fpos=$wdir/pyclone_input.pos
-fsnv="output/phylovar_snvs/tumor.snv"
-fsnv_exome="$wdir/tumor_snv_exome.txt"
+  fpos=$wdir/pyclone_input.pos
+  fsnv="output/phylovar_snvs/tumor.snv"
+  fsnv_exome="$wdir/tumor_snv_exome.txt"
 
-less pyclone_output/input.tsv | tail -n+2 | cut -f1 | sed 's/chr//g' | sed 's/:/_/g' > $fpos
-total=`less $fpos | wc -l`
-echo "The number of input SNVs to PyClone: $total" >> $fstat
+  less pyclone_output/input.tsv | tail -n+2 | cut -f1 | sed 's/chr//g' | sed 's/:/_/g' > $fpos
+  total=`less $fpos | wc -l`
+  echo "The number of input SNVs to PyClone: $total" >> $fstat
 
-# All the truncal SNVs must be TPs
-truncal=`grep -f $fpos $wdir/trunk_snv.pos | wc -l`
-echo "  $truncal truncal SNVs" >> $fstat
-ntruncal=`echo $total - $truncal | bc`
+  # All the truncal SNVs must be TPs
+  truncal=`grep -f $fpos $wdir/trunk_snv.pos | wc -l`
+  echo "  $truncal truncal SNVs" >> $fstat
+  ntruncal=`echo $total - $truncal | bc`
 
-# The other mutations may be FPs
-# Input mutations to PyClone that are not truncal
-less $wdir/real_snv.txt | tail -n+2 | cut -f1,2 | sed 's/\t/_/g' > $wdir/real_snv.pos
-ntruncal_tp=`grep -f $fpos $wdir/trunk_snv.pos  -v | grep -f - $wdir/real_snv.pos | wc -l`
-echo "  $ntruncal_tp simulated non-truncal SNVs" >> $fstat
-ntruncal_fp=`echo $ntruncal - $ntruncal_tp | bc`
-echo "  $ntruncal_fp FP non-truncal SNVs" >> $fstat
-echo -e "\n" >> $fstat
-
+  # The other mutations may be FPs
+  # Input mutations to PyClone that are not truncal
+  less $wdir/real_snv.txt | tail -n+2 | cut -f1,2 | sed 's/\t/_/g' > $wdir/real_snv.pos
+  grep -f $fpos $wdir/trunk_snv.pos > $fpos.trunk
+  grep -f $fpos.trunk $fpos -v > $fpos.ntrunk
+  ntruncal_tp=`grep -f $fpos.ntrunk $wdir/real_snv.pos | wc -l`
+  echo "  $ntruncal_tp simulated non-truncal SNVs" >> $fstat
+  ntruncal_fp=`echo $ntruncal - $ntruncal_tp | bc`
+  echo "  $ntruncal_fp FP non-truncal SNVs" >> $fstat
+  echo -e "\n" >> $fstat
+  
+  # Remove intermediate files
+  rm $wdir/pyclone_input.pos
+  rm $wdir/real_snv.pos
+  rm $fpos.trunk
+  rm $fpos.ntrunk
+fi
 
 # Draw plot of mutation assignment
 # Only show mutations in both output
@@ -63,6 +74,3 @@ echo -e "\n" >> $fstat
 # Assign CCF for each node
 Rscript scripts/compare_clone.R
 
-# Remove intermediate files
-rm $wdir/pyclone_input.pos
-rm $wdir/real_snv.pos
