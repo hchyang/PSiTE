@@ -32,15 +32,15 @@ fcnv_exome_bed=$wdir/tumor_cnv_exome.bed
 # Find regions in $fsnv that are also in $ftarget
 bedtools intersect -u -a $fsnv -b $ftarget > $fsnv_exome 
 # Extract only the position
-less $fsnv_exome | cut -f1,3 | sed 's/\t/_/g' > $wdir/tumor_snv_exome.pos
-less $fsnv | cut -f1,3,4,5 > $wdir/real_snv.pos
+cut -f1,3 $fsnv_exome| sed 's/\t/_/g' > $wdir/tumor_snv_exome.pos
+cut -f1,3,4,5 $fsnv |> $wdir/real_snv.pos
 # trunk_snv.pos, which contains simulated truncal SNVs;
-less $ftrunk | tail -n+2 | awk '$5 !~ /^+.*/ && $5 !~ /^-.*/' | cut -f1,4 | sed 's/\t/_/g' > $wdir/trunk_snv.pos
+tail -n+2 $ftrunk | awk '$5 !~ /^+.*/ && $5 !~ /^-.*/' | cut -f1,4 | sed 's/\t/_/g' > $wdir/trunk_snv.pos
 
 
 # Parse the simulated CNVs
 # trunk_cnv.pos, which contains simulated truncal CNVs.   
-less $ftrunk | tail -n+2 | awk '$5 ~ /^+.*/ || $5 ~ /^-.*/' | cut -f1,3,4,5  > $wdir/trunk_cnv.pos
+tail -n+2 $ftrunk | awk '$5 ~ /^+.*/ || $5 ~ /^-.*/' | cut -f1,3,4,5  > $wdir/trunk_cnv.pos
 awk 'BEGIN{OFS="\t"}NR>1{if($4 ~ /-/) print $1,$2,$3,"deletion"; else print $1,$2,$3,"amplification"}'  $fcnv | sed 's/^X/999/g' - | sort -k1n -k2n | sed 's/^999/X/g' - > $fcnv_bed
 # Extract CNVs in exome region
 # $ftarget contains a set of small regions; $fcnv contains a set of large regions; -F Minimum overlap required as a fraction of B. -u:  Write the original A entry once if any overlaps found in B.
@@ -53,15 +53,15 @@ fstat="$wdir/phylovar_stats.txt"
 cat /dev/null > $fstat
 
 ## SNVs
-total=`less $fsnv | tail -n+2 | wc -l`
+total=`tail -n+2 $fsnv | wc -l`
 echo "The number of SNVs simulated: $total" >> $fstat
-truncal=`less $ftrunk | tail -n+2 | awk '$5 !~ /^+.*/ && $5 !~ /^-.*/' | wc -l`
+truncal=`tail -n+2 $ftrunk | awk '$5 !~ /^+.*/ && $5 !~ /^-.*/' | wc -l`
 echo "  $truncal truncal SNVs" >> $fstat
 ntruncal=`echo $total - $truncal | bc`
 echo "  $ntruncal non-truncal SNVs" >> $fstat
 echo -e "\n" >> $fstat
 
-real=`less $wdir/tumor_snv_exome.pos | wc -l`
+real=`cat $wdir/tumor_snv_exome.pos | wc -l`
 echo "The number of SNVs in exome region: $real" >> $fstat
 truncal=`grep -f $wdir/tumor_snv_exome.pos $wdir/trunk_snv.pos | wc -l`
 echo "  $truncal truncal SNVs" >> $fstat
@@ -71,17 +71,17 @@ echo -e "\n" >> $fstat
 
 
 ## CNVs
-total=`less $fcnv | tail -n+2 | wc -l`
-ndel=`less $fcnv_bed | grep del | wc -l`
-namp=`less $fcnv_bed | grep amp | wc -l`
+total=`tail -n+2 $fcnv | wc -l`
+ndel=`grep del $fcnv_bed | wc -l`
+namp=`grep amp $fcnv_bed | wc -l`
 echo "The number of CNVs simulated: $total" >> $fstat
 echo "  $ndel deletions" >> $fstat
 echo -e "  $namp amplifications\n" >> $fstat
-truncal=`less $ftrunk | tail -n+2 | awk '$5 ~ /^+.*/ || $5 ~ /^-.*/' | wc -l`
+truncal=`tail -n+2 $ftrunk | awk '$5 ~ /^+.*/ || $5 ~ /^-.*/' | wc -l`
 
 echo "The number of truncal CNVs simulated: $truncal" >> $fstat
-ndelt=`less $ftrunk | awk '$5 ~ /^-.*/' | wc -l`
-nampt=`less $ftrunk | awk '$5 ~ /^+.*/' | wc -l`
+ndelt=`awk '$5 ~ /^-.*/' $ftrunk | wc -l`
+nampt=`awk '$5 ~ /^+.*/' $ftrunk | wc -l`
 echo "  $ndelt deletions" >> $fstat
 echo -e "  $nampt amplifications\n" >> $fstat
 
@@ -92,17 +92,17 @@ nampn=`echo $namp - $nampt | bc`
 echo "  $ndeln deletions" >> $fstat
 echo -e "  $nampn amplifications\n" >> $fstat
 
-total=`less $fcnv_exome_bed | wc -l`
-ndel=`less $fcnv_exome_bed | grep del | wc -l`
-namp=`less $fcnv_exome_bed | grep amp | wc -l`
+total=`cat $fcnv_exome_bed | wc -l`
+ndel=`grep del $fcnv_exome_bed | wc -l`
+namp=`grep amp $fcnv_exome_bed | wc -l`
 echo "The number of CNVs overlaping with target regions: $total" >> $fstat
 echo "  $ndel deletions" >> $fstat
 echo -e "  $namp amplifications\n" >> $fstat
 
-truncal=`less $wdir/trunk_cnv_exome | wc -l`
+truncal=`cat $wdir/trunk_cnv_exome | wc -l`
 echo "The number of truncal CNVs overlaping with target regions: $truncal" >> $fstat
-ndelt=`less $wdir/trunk_cnv_exome | awk '$4 ~ /^-.*/' | wc -l`
-nampt=`less $wdir/trunk_cnv_exome | awk '$4 ~ /^+.*/' | wc -l`
+ndelt=`awk '$4 ~ /^-.*/' $wdir/trunk_cnv_exome | wc -l`
+nampt=`awk '$4 ~ /^+.*/' $wdir/trunk_cnv_exome | wc -l`
 echo "  $ndelt deletions" >> $fstat
 echo -e "  $nampt amplifications\n" >> $fstat
 

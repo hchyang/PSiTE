@@ -41,8 +41,8 @@ if [[ $is_single == "Y" ]]; then
   fsnv="output/phylovar_snvs/tumor.snv"
   fsnv_exome="$wdir/tumor_snv_exome.txt"
 
-  less pyclone_output/input.tsv | tail -n+2 | cut -f1 | sed 's/chr//g' | sed 's/:/_/g' > $fpos
-  total=`less $fpos | wc -l`
+  tail -n+2 pyclone_output/input.tsv | cut -f1 | sed 's/chr//g' | sed 's/:/_/g' > $fpos
+  total=`cat $fpos | wc -l`
   echo "The number of input SNVs to PyClone: $total" >> $fstat
 
   # All the truncal SNVs must be TPs
@@ -52,7 +52,7 @@ if [[ $is_single == "Y" ]]; then
 
   # The other mutations may be FPs
   # Input mutations to PyClone that are not truncal
-  less $wdir/real_snv.txt | tail -n+2 | cut -f1,2 | sed 's/\t/_/g' > $wdir/real_snv.pos
+  tail -n+2 $wdir/real_snv.txt | cut -f1,2 | sed 's/\t/_/g' > $wdir/real_snv.pos
   grep -f $fpos $wdir/trunk_snv.pos > $fpos.trunk
   grep -f $fpos.trunk $fpos -v > $fpos.ntrunk
   ntruncal_tp=`grep -f $fpos.ntrunk $wdir/real_snv.pos | wc -l`

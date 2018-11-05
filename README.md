@@ -1297,7 +1297,7 @@ by integrating germline SNPs into the human reference genome.
 multiple options in phylovar that allow a flexible simulation, as shown below.
 
     - Simulate variants based on a configuration file. Check 
-    cfg_template_female.yaml in PSiTE package (under folder example_doc)  for 
+    cfg_template_female.yaml in PSiTE package (under folder example)  for 
     detailed settings.
   
         ```

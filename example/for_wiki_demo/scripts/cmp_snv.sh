@@ -35,14 +35,14 @@ fsnv_exome="$wdir/tumor_snv_exome.txt"
 # Find regions in $fsnv that are also in $ftarget
 bedtools intersect -u -a $fsnv -b $ftarget > $fsnv_exome
 # Extract only the position
-less $fsnv_exome | cut -f1,3 | sed 's/\t/_/g' > $wdir/tumor_snv_exome.pos
-less $fsnv | cut -f1,3,4,5 > $wdir/real_snv.txt
-less $ftrunk | tail -n+2 | awk '$5 !~ /^+.*/ && $5 !~ /^-.*/' | cut -f1,4 | sed 's/\t/_/g' > $wdir/trunk_snv.pos
+cut -f1,3 $fsnv_exome | sed 's/\t/_/g' > $wdir/tumor_snv_exome.pos
+cut -f1,3,4,5 $fsnv > $wdir/real_snv.txt
+tail -n+2 $ftrunk | awk '$5 !~ /^+.*/ && $5 !~ /^-.*/' | cut -f1,4 | sed 's/\t/_/g' > $wdir/trunk_snv.pos
 
 # Parse the predicted SNVs
-less $res_mutect | grep -v '^#' | cut -f1,2 > $wdir/mutect_snv.pos
+zcat $res_mutect | awk '!/^#/' | cut -f1,2 > $wdir/mutect_snv.pos
 sed -i 's/\t/_/g' $wdir/mutect_snv.pos
-less $res_mutect | grep -v "^#" | cut -f1,2,4,5,10,11 | perl -lane '@s1=split/:/,$F[4]; @s2=split/:/,$F[5]; print join("\t", $F[0], $F[1], $F[2], $F[3], $s1[4], $s2[4]);' -  > $wdir/mutect_snv.txt
+zcat $res_mutect | awk '!/^#/' | cut -f1,2,4,5,10,11 | perl -lane '@s1=split/:/,$F[4]; @s2=split/:/,$F[5]; print join("\t", $F[0], $F[1], $F[2], $F[3], $s1[4], $s2[4]);' -  > $wdir/mutect_snv.txt
 
 # Find FNs and FPs
 fpos=$wdir/mutect_snv.pos
@@ -56,15 +56,15 @@ diff <(sort $fwes) <(sort $fpos) | grep '^>' | sed 's/^>\ //' > $ffp
 fstat="$wdir/$fout"
 cat /dev/null > $fstat
 
-total=`less $fsnv | tail -n+2 | wc -l`
+total=`tail -n+2 $fsnv | wc -l`
 echo "The number of SNVs simulated: $total" >> $fstat
-truncal=`less $ftrunk | tail -n+2 | awk '$5 !~ /^+.*/ && $5 !~ /^-.*/' | wc -l`
+truncal=`tail -n+2 $ftrunk | awk '$5 !~ /^+.*/ && $5 !~ /^-.*/' | wc -l`
 echo "  $truncal truncal SNVs" >> $fstat
 ntruncal=`echo $total - $truncal | bc`
 echo "  $ntruncal non-truncal SNVs" >> $fstat
 echo -e "\n" >> $fstat
 
-real=`less $wdir/tumor_snv_exome.pos | wc -l`
+real=`cat $wdir/tumor_snv_exome.pos | wc -l`
 echo "The number of SNVs in exome region: $real" >> $fstat
 truncal=`grep -f $wdir/tumor_snv_exome.pos $wdir/trunk_snv.pos | wc -l`
 echo "  $truncal truncal SNVs" >> $fstat
@@ -73,7 +73,7 @@ echo "  $ntruncal non-truncal SNVs" >> $fstat
 echo -e "\n" >> $fstat
 
 # Find truncal and non-truncal mutations in the predicted SNVs
-pred=`less $fpos | wc -l`
+pred=`cat $fpos | wc -l`
 echo "Predicted SNVs by mutect: $pred" >> $fstat
 truncal=`grep -f $fpos $wdir/trunk_snv.pos | wc -l`
 echo "  $truncal truncal SNVs" >> $fstat
@@ -82,9 +82,9 @@ echo "  $ntruncal non-truncal SNVs" >> $fstat
 echo -e "\n" >> $fstat
 
 
-fn=`less $ffn | wc -l`
+fn=`cat $ffn | wc -l`
 echo "FNs in the predictions: $fn" >> $fstat
-fp=`less $ffp | wc -l`
+fp=`cat $ffp | wc -l`
 echo "FPs in the predictions: $fp" >> $fstat
 tp=`echo "$pred - $fp" | bc`
 echo "TPs in the predictions: $tp" >> $fstat
@@ -96,11 +96,11 @@ echo -e "\n" >> $fstat
 
 # Find the frequency of FPs and FNs
 # Get simulated (real) frequency of FNs
-less $ffn | sed 's/_/\t/g' - | grep -F -f - $wdir/real_snv.txt | sort -k4n > $ffn.freq
+sed 's/_/\t/g' $ffn | grep -F -f - $wdir/real_snv.txt | sort -k4n > $ffn.freq
 # Find FNs with low frequency
-nlf=`less $ffn.freq | awk -v cutoff=$cutoff '$4<cutoff' | wc -l`
+nlf=`awk -v cutoff=$cutoff '$4<cutoff' $ffn.freq | wc -l`
 echo "The number of FNs with frequency lower than $cutoff: $nlf"  >> $fstat
-total=`less $ffn  | wc -l`
+total=`cat $ffn  | wc -l`
 # echo "The number of total FNs: $total" >> $fstat
 frac=`echo "scale=2; $nlf / $total" | bc`
 echo "The fraction of FNs with frequency lower than $cutoff: $frac" >> $fstat
@@ -108,11 +108,11 @@ echo -e "\n" >> $fstat
 
 # Get predicted frequency of FNs
 sed 's/_/\t/g' $ffp > tmp
-less $res_mutect | grep -F -f tmp - | cut -f1,2,4,5,10,11 | perl -lane '@s1=split/:/,$F[4]; @s2=split/:/,$F[5]; print join("\t", $F[0], $F[1], $F[2], $F[3], $s1[4], $s2[4]);' -  > $ffp.freq
+zcat $res_mutect | grep -F -f tmp - | cut -f1,2,4,5,10,11 | perl -lane '@s1=split/:/,$F[4]; @s2=split/:/,$F[5]; print join("\t", $F[0], $F[1], $F[2], $F[3], $s1[4], $s2[4]);' -  > $ffp.freq
 # Find FPs with low frequency
-nlf=`less $ffp.freq | awk -v cutoff=$cutoff '$6>cutoff' | wc -l`
+nlf=`awk -v cutoff=$cutoff '$6>cutoff' $ffp.freq | wc -l`
 echo "The number of FPs with frequency lower than $cutoff: $nlf" >> $fstat
-total=`less $ffp.freq | wc -l`
+total=`cat $ffp.freq | wc -l`
 # echo "The number of total FNs: $total" >> $fstat
 frac=`echo "scale=2; $nlf / $total" | bc`
 echo "The fraction of FPs with frequency lower than $cutoff: $frac" >> $fstat
