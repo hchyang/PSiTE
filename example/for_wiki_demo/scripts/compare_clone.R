@@ -2,7 +2,8 @@
 
 #####################################################
 # Author: Bingxin Lu
-# Description: This script is used to compare the cluster assignments of two different clusterings (simulated truth vs PyClone).
+# Description: This script is used to compare the cluster assignments of two different clusterings (simulated truth vs PyClone). 
+# The alluvial plot shows the assignment of mutations in different clusters between the simulated clonal populations and the predicted clonal populations. The y-axis represents the number of mutations. Each rectangle in the white bar at the two sides of the plot represents a cluster. The cluster are ordered by increasing CCF (Cancer Cell Fraction) from top to bottom. On the left, there are 9 clusters in the simulated data. On the right, there are 2 clusters predicted by PyClone. The color stripes correspond to mutations in different simulated clusters. CRI: corrected rand index. VI: variation of information. CRI (range from -1 to 1) and VI (non-negative) are two common indexes to measure the agreement between two clusterings. They were computed by method cluster.stats in R library fpc. The larger the CRI is, the more similar the two clustersings are. The smaller the VI is, the more similar the two clustersings are.
 #####################################################
 
 library(ggplot2)
@@ -74,7 +75,7 @@ for (i in 1:length(samples)){
            aes(axis1 = sprintf("%.3f",tumor), axis2 = sprintf("%.3f",ccf))) +
     scale_x_discrete(limits = c("Real", "PyClone"), expand=c(0, 0)) +
     geom_alluvium(aes(fill = as.factor(tumor))) +
-    geom_stratum(width = 1/10) + geom_text(stat = "stratum", label.strata = TRUE) +
+    geom_stratum(width = 1/10) + geom_label(stat = "stratum", label.strata = TRUE) +
     themes1 + ggtitle(main)
   print(p)
 }

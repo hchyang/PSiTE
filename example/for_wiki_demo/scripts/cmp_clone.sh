@@ -12,8 +12,13 @@
 #     real_snv.txt, a one-column file containing the position of simulated SNVs; 
 #     trunk_snv.pos, a one-column file containing the position of truncal SNVs
 # Assumption: 
-#   The following files are available -- pyclone_output/tables/cluster.tsv; pyclone_output/tables/loci.tsv; output/phylovar_snvs/tumor.snv; comparison/tumor_snv_exome.txt;  comparison/trunk_snv.pos
-#   The script file scripts/compare_clone.R
+#   The following files are available:
+#     pyclone_output/tables/cluster.tsv; 
+#     pyclone_output/tables/loci.tsv; 
+#     output/phylovar_snvs/tumor.snv; 
+#     comparison/tumor_snv_exome.txt;  
+#     comparison/trunk_snv.pos
+#     scripts/compare_clone.R
 # Command: bash cmp_clone.sh
 #####################################################
 

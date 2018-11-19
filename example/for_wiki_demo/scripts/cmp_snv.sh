@@ -3,15 +3,23 @@
 #####################################################
 # Author: Bingxin Lu
 # Description: This script is used to compare the output of Mutect (predicted SNVs) against simulated SNVs
-# Input: $1 -- The folder storing mutect.PASS.vcf.gz; $2 -- The name of output file
+# Input: 
+#   $1 -- The folder storing mutect.PASS.vcf.gz; 
+#   $2 -- The name of output file
 # Output: 
 #   The file specified by $2, which contains a brief summary of SNV precitions; 
 #   tumor_snv_exome.txt, a TSV file containing simulated SNVs in the exome region; 
 #   mutect_snv.txt, a TSV file containing SNVs predicted by Mutect; 
 #   real_snv.txt, a TSV file containing the position of simulated SNVs; 
 #   trunk_snv.pos, a one-column file containing the position of truncal SNVs
-# Assumption: The following files are available -- input/S03723314_Covered_c3.bed; input/trunk8000snvs.txt; output/phylovar_snvs/tumor.snv; $1/mutect.PASS.vcf.gz
-# Command: bash check_snv.sh $1 $2
+# Assumption: 
+#   The following files are available: 
+      # input/S03723314_Covered_c3.bed; 
+      # input/trunk8000snvs.txt; 
+      # output/phylovar_snvs/tumor.snv; 
+      # $1/mutect.PASS.vcf.gz
+# Command: 
+#   bash check_snv.sh $1 $2
 #####################################################
 
 dir_mutect=$1

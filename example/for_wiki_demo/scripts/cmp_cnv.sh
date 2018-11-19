@@ -3,9 +3,11 @@
 #####################################################
 # Author: Bingxin Lu
 # Description: This script is used to compare the output of Sequenza (predicted CNVs) against simulated CNVs
-# Input: $1 -- The folder storing output of sequenza (output_alternative_solutions.txt, output_segments.txt) ; $2 -- The name of output file 
+# Input: 
+#   $1 -- The folder storing output of sequenza (output_alternative_solutions.txt, output_segments.txt); 
+#   $2 -- The name of output file 
 # Output: 
-# The file specified by $2, which contains a brief summary of CNV precitions; 
+#   The file specified by $2, which contains a brief summary of CNV precitions; 
 #   cmp_CNA_bed.txt, which contains metrics obtained by comparing predicted CNVs with simulated CNVs;
 #   tumor_cnv_exome.txt, a TSV file containing simulated CNVs in the exome region; 
 #   sequenza_CNA.bed, a BED file containing the CNVs predicted by Sequenza; 
@@ -19,8 +21,8 @@
 # The directory that stores the predicted CNVs
 indir=$1
 fout=$2
-indir=sequenza_output/output/sequenza/sample/
-fout="cnv_stats.txt"
+# indir=sequenza_output/output/sequenza/sample/
+# fout="cnv_stats.txt"
 
 ftarget="input/S03723314_Covered_c3.bed"
 ftrunk="input/trunk8000snvs.txt"
