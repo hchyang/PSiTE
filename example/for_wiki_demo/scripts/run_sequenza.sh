@@ -13,6 +13,7 @@
 #     input/S03723314_Covered_c3.bed; 
 #     scripts/runSequenza.R; 
 #     scripts/Snakefile_sequenza_wes;
+#     sequenza-utils.py from sequenza package is on the $PATH environmental variable
 #     Two BAM files for a pair of normal and tumor sample under directory $indir(out/normal/normal.bwamem.dedup.realn.recal.bam; out/tumor/tumor.bwamem.dedup.realn.recal.bam)
 #####################################################
 
@@ -23,8 +24,8 @@ odir=$2
 
 home=$PWD
 
-if [ ! -d $odir ]; then
-        mkdir -p $odir
+if [ ! -d $odir/output ]; then
+        mkdir -p $odir/output
 fi
 cd $odir
 
@@ -42,7 +43,7 @@ echo -e "   normal: $normal" >> config.yaml
 echo -e "   tumor: $tumor" >> config.yaml
 
 # Step 6: Call snakemake to run sequenza with the following command
-snakemake --latency-wait 120 --rerun-incomplete -j 100 -d $odir/output --configfile $odir/config.yaml -s $home/scripts/Snakefile_sequenza_wes
+snakemake --latency-wait 120 --rerun-incomplete -j 5 -d $odir/output --configfile $odir/config.yaml -s $home/scripts/Snakefile_sequenza_wes
 # Submiting to a cluster node
-# cmd="snakemake --latency-wait 120 --rerun-incomplete -j 100 -d $odir/output --configfile $odir/config.yaml -s $home/scripts/Snakefile_sequenza_wes"
-# qsub -V -pe OpenMP 1 -l h_rss=2G,h_rt=480:00:00 -N sequenza -wd $odir/ -o $odir/ -j y -b y "$cmd"
+# cmd="source activate /mnt/projects/lub/workspace/anaconda3/envs/pyclone/;  snakemake --latency-wait 120 --rerun-incomplete -j 5 -d $odir/output --configfile $odir/config.yaml -s $home/scripts/Snakefile_sequenza_wes; source deactivate"
+# qsub -V -pe OpenMP 1 -l h_rss=4G,h_rt=480:00:00 -N sequenza -wd $odir/output -o $odir/ -j y -b y "$cmd"

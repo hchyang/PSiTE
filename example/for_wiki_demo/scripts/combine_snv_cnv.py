@@ -3,6 +3,7 @@
 #####################################################
 # Author: Bingxin Lu
 # Description: This script is used to combine the output of Mutect and Sequenza, which serves as the input to PyClone
+# Usage: Run `python combine_snv_cnv.py -h` for details
 #####################################################
 
 
@@ -146,17 +147,18 @@ def combine_snv_cnv(snv_file, cnvs, sampleID, min_CellFreq, max_PM, min_depth, o
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-m", dest="snv_file", default="", help="The output of Mutect (e.g. /mnt/projects/lub/workspace/results/WHT194vsWHT195_20171006/out/variants/mutect.PASS.vcf)")
-    parser.add_argument("-c", dest="cnv_file", default="", help="The output of Sequenza (e.g. /mnt/projects/lub/workspace/results/sequenza/WHT194vsWHT195_20171012/sequenza/TEST/Test_segments.txt)")
+    parser.add_argument("-m", dest="snv_file", default="", required=True, help="The main output of Mutect (e.g. mutect.PASS.vcf)")
+    parser.add_argument("-c", dest="cnv_file", default="", required=True, help="The main output of Sequenza (e.g. output_segments.txt)")
+    parser.add_argument("-s", dest="sampleID", default='tumor', required=True, help="The ID of sample")
+    parser.add_argument("-o", dest="output", default='', required=True, help="The output file")
     parser.add_argument("-t", dest="type_file", default="", help="The file specifying the type of each sample (normal or tumor)")
     parser.add_argument("-I", dest="columns", default="2,4", help="The columns corresponding to normal samples and tumor samples in the file specified by -t")
     parser.add_argument("-g", dest="is_gzipped", action="store_true", default=False, help="The SNV file is gzipped or not")
     parser.add_argument("-r", dest="is_dpratio", action="store_true", default=False, help="Using the estimates of depth ratio from Sequenza")
-    parser.add_argument("-s", dest="sampleID", default='WHT195', help="The ID of sample")
     parser.add_argument("-f", dest="min_CellFreq", type=float, default=0.1, help="The threshold to ignore low-frequency variants")
     parser.add_argument("-p", dest="max_PM", type=int, default=6, help="The threshold to ignore variants with high copy number")
     parser.add_argument("-d", dest="min_depth", type=int, default=0, help="The threshold to ignore variants with low read coverage")
-    parser.add_argument("-o", dest="output", default='/mnt/projects/lub/workspace/results/pyclone/WHT194vsWHT195_10112017/WHT195.tsv', help="The output file")
+    
     args = parser.parse_args()
 
     cnvs = read_cnv(args.cnv_file, args.is_dpratio)

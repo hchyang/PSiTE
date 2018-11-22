@@ -13,7 +13,13 @@
 #   sequenza_CNA.bed, a BED file containing the CNVs predicted by Sequenza; 
 #   trunk_cnv.pos, a TSV file containing the position of truncal CNVs
 # Assumption: 
-#   The following data files are available -- input/S03723314_Covered_c3.bed; input/trunk8000snvs.txt; input/human_g1k_v37.genome; output/phylovar_cnvs/tumor.cnv; $1/output_alternative_solutions.txt; $1/output_segments.txt
+#   The following data files are available:
+#     input/S03723314_Covered_c3.bed; 
+#     input/trunk8000snvs.txt; 
+#     input/human_g1k_v37.gnome; 
+#     output/phylovar_cnvs/tumor.cnv; 
+#     $1/output_alternative_solutions.txt; 
+#     $1/output_segments.txt
 #   The script file scripts/compare_cnvs.py
 # Command: bash check_cnv.sh $1 $2
 #####################################################
@@ -26,7 +32,7 @@ fout=$2
 
 ftarget="input/S03723314_Covered_c3.bed"
 ftrunk="input/trunk8000snvs.txt"
-genome="input/human_g1k_v37.genome"
+genome="input/human_g1k_v37.gnome"
 fcnv="output/phylovar_cnvs/tumor.cnv"
 
 wdir="comparison"   # The directory to store the output of comparison
