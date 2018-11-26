@@ -1,0 +1,42 @@
+The number of CNVs simulated: 141
+  65 deletions
+  76 amplifications
+
+The number of truncal CNVs simulated: 10
+  4 deletions
+  6 amplifications
+
+The number of non-truncal CNVs simulated: 131
+  61 deletions
+  70 amplifications
+
+The number of CNVs overlaping with target regions: 127
+  61 deletions
+  66 amplifications
+
+The number of truncal CNVs overlaping with target regions: 10
+  4 deletions
+  6 amplifications
+
+The number of non-truncal CNVs overlaping with target regions: 117
+  57 deletions
+  60 amplifications
+
+Ploidy in sequenza output: 2.1
+
+Purity in sequenza output: 0.59
+
+Predicted CNVs by sequenza: 57
+  50 deletions
+  7 amplifications
+
+Predicted truncal CNVs by sequenza: 6
+  4 deletions
+  7 amplifications
+
+Predicted non-truncal CNVs by sequenza: 51
+  46 deletions
+  0 amplifications
+
+
+

@@ -1,0 +1,28 @@
+The number of SNVs simulated: 12199
+  8000 truncal SNVs
+  4199 non-truncal SNVs
+
+
+The number of SNVs in exome region: 168
+  80 truncal SNVs
+  88 non-truncal SNVs
+
+
+Predicted SNVs by mutect: 149
+  75 truncal SNVs
+  74 non-truncal SNVs
+
+
+FNs in the predictions: 81
+FPs in the predictions: 62
+TPs in the predictions: 87
+Precison: .58
+Recall: .51
+
+
+The number of FNs with frequency lower than 0.1: 73
+The fraction of FNs with frequency lower than 0.1: .90
+
+
+The number of FPs with frequency lower than 0.1: 54
+The fraction of FPs with frequency lower than 0.1: .87

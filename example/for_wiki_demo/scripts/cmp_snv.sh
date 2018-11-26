@@ -5,30 +5,33 @@
 # Description: This script is used to compare the output of Mutect (predicted SNVs) against simulated SNVs
 # Input: 
 #   $1 -- The folder storing mutect.PASS.vcf.gz; 
-#   $2 -- The name of output file
+#   $2 -- The file containing simulated SNVs; 
+#   $3 -- The name of output file
 # Output: 
-#   The file specified by $2, which contains a brief summary of SNV precitions; 
-#   tumor_snv_exome.txt, a TSV file containing simulated SNVs in the exome region; 
-#   mutect_snv.txt, a TSV file containing SNVs predicted by Mutect; 
-#   real_snv.txt, a TSV file containing the position of simulated SNVs; 
+#   The file specified by $3, which contains a brief summary of SNV precitions; 
+#   $3.exome, a TSV file containing simulated SNVs in the exome region; 
+#   $3.pos, a TSV file containing the position of simulated SNVs; 
+#   $3.mutect, a TSV file containing SNVs predicted by Mutect; 
 #   trunk_snv.pos, a one-column file containing the position of truncal SNVs
 # Assumption: 
 #   The following files are available: 
       # input/S03723314_Covered_c3.bed; 
       # input/trunk8000snvs.txt; 
-      # output/phylovar_snvs/tumor.snv; 
+      # The file specified by $2; 
       # $1/mutect.PASS.vcf.gz
 # Command: 
-#   bash check_snv.sh $1 $2
+#   bash check_snv.sh $1 $2 $3
 #####################################################
 
 dir_mutect=$1
-fout=$2
+fsnv=$2
+fout=$3
+
+# fsnv="output/phylovar_snvs/tumor.snv"
 # fout="snv_stats.txt"
 
 ftarget="input/S03723314_Covered_c3.bed"
 ftrunk="input/trunk8000snvs.txt"
-fsnv="output/phylovar_snvs/tumor.snv"
 res_mutect="$dir_mutect/mutect.PASS.vcf.gz"
 # threshold for low-frequency SNVs
 cutoff=0.1
@@ -39,18 +42,18 @@ if [ ! -d $wdir ]; then
 fi 
 
 # Parse the simulated SNVs
-fsnv_exome="$wdir/tumor_snv_exome.txt"
+fsnv_exome="$wdir/$fout.exome"
 # Find regions in $fsnv that are also in $ftarget
 bedtools intersect -u -a $fsnv -b $ftarget > $fsnv_exome
 # Extract only the position
 cut -f1,3 $fsnv_exome | sed 's/\t/_/g' > $wdir/tumor_snv_exome.pos
-cut -f1,3,4,5 $fsnv > $wdir/real_snv.txt
+cut -f1,3,4,5 $fsnv > $wdir/$fout.pos
 tail -n+2 $ftrunk | awk '$5 !~ /^+.*/ && $5 !~ /^-.*/' | cut -f1,4 | sed 's/\t/_/g' > $wdir/trunk_snv.pos
 
 # Parse the predicted SNVs
 zcat $res_mutect | awk '!/^#/' | cut -f1,2 > $wdir/mutect_snv.pos
 sed -i 's/\t/_/g' $wdir/mutect_snv.pos
-zcat $res_mutect | awk '!/^#/' | cut -f1,2,4,5,10,11 | perl -lane '@s1=split/:/,$F[4]; @s2=split/:/,$F[5]; print join("\t", $F[0], $F[1], $F[2], $F[3], $s1[4], $s2[4]);' -  > $wdir/mutect_snv.txt
+zcat $res_mutect | awk '!/^#/' | cut -f1,2,4,5,10,11 | perl -lane '@s1=split/:/,$F[4]; @s2=split/:/,$F[5]; print join("\t", $F[0], $F[1], $F[2], $F[3], $s1[4], $s2[4]);' -  > $wdir/$fout.mutect
 
 # Find FNs and FPs
 fpos=$wdir/mutect_snv.pos
@@ -104,7 +107,7 @@ echo -e "\n" >> $fstat
 
 # Find the frequency of FPs and FNs
 # Get simulated (real) frequency of FNs
-sed 's/_/\t/g' $ffn | grep -F -f - $wdir/real_snv.txt | sort -k4n > $ffn.freq
+sed 's/_/\t/g' $ffn | grep -F -f - $wdir/$fout.pos | sort -k4n > $ffn.freq
 # Find FNs with low frequency
 nlf=`awk -v cutoff=$cutoff '$4<cutoff' $ffn.freq | wc -l`
 echo "The number of FNs with frequency lower than $cutoff: $nlf"  >> $fstat

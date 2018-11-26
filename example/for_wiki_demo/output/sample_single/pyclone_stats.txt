@@ -1,0 +1,7 @@
+A brief summary of input SNVs to PyClone
+   Total: 
+       157 input SNVs to PyClone
+       89 simulated SNVs
+         73 truncal SNVs
+         16 simulated non-truncal SNVs
+       68 false positive non-truncal SNVs
