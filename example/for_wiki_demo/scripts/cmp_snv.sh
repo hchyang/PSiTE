@@ -12,6 +12,9 @@
 #   $3.exome, a TSV file containing simulated SNVs in the exome region; 
 #   $3.pos, a TSV file containing the position of simulated SNVs; 
 #   $3.mutect, a TSV file containing SNVs predicted by Mutect; 
+#   snv_wes.mutect.fp, a TSV file containing the postions of the false positive predictions of Mutect; 
+#   snv_wes.mutect.fp.mutations, a TSV file containing the false positive predictions of Mutect, extracted from $1; 
+#   snv.mutect.fn, a TSV file containing the position of the false negative predictions of Mutect; 
 #   trunk_snv.pos, a one-column file containing the position of truncal SNVs
 # Assumption: 
 #   The following files are available: 
@@ -128,11 +131,19 @@ total=`cat $ffp.freq | wc -l`
 frac=`echo "scale=2; $nlf / $total" | bc`
 echo "The fraction of FPs with frequency lower than $cutoff: $frac" >> $fstat
 
+# Keep the position of FNs and FPs for further checking
+sed -i 's/_/\t/g' $ffn
+sed -i 's/_/\t/g' $ffp
+
+# Find the mutations in the predicted FPs, some of which are probably introduced by simulated sequencing errors 
+less $res_mutect | grep -f $ffp - > $ffp.mutations
+
+
 # Remove intermediate files
 rm tmp
 rm $fpos
 rm $fwes
-rm $ffn
-rm $ffp
+# rm $ffn
+# rm $ffp
 rm $ffn.freq
 rm $ffp.freq

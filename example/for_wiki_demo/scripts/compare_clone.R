@@ -11,7 +11,7 @@
 #   input/trunk8000snvs.txt -- The file containing input truncal mutations
 # Output:
 #   comparison/pyclone_stats.txt, which contains a brief summary of input SNVs to PyClone
-#   comparison/pycloneVsReal.pdf, which contains the alluvial plot that shows the assignment of mutations in different clusters between the simulated clonal populations and the predicted clonal populations. The y-axis represents the number of mutations. Each rectangle in the white bar at the two sides of the plot represents a cluster. The cluster are ordered by increasing CCF (Cancer Cell Fraction) from top to bottom. The color stripes correspond to mutations in different simulated clusters. CRI: corrected rand index. VI: variation of information. CRI (range from -1 to 1) and VI (non-negative) are two common indexes to measure the agreement between two clusterings. They were computed by method cluster.stats in R library fpc. The larger the CRI is, the more similar the two clustersings are. The smaller the VI is, the more similar the two clustersings are.
+#   comparison/pycloneVsReal.pdf, which contains the alluvial plot that shows the assignment of mutations in different clusters between the simulated clonal populations and the predicted clonal populations. The y-axis represents the number of mutations. Each rectangle in the white bar at the two sides of the plot represents a cluster. The cluster are ordered by increasing CCF (Cancer Cell Fraction) from top to bottom. The color stripes correspond to mutations in different simulated clusters. CRI: corrected rand index. VI: variation of information. CRI (range from -1 to 1) and VI (non-negative) are two common indexes to measure the agreement between two clusterings. They were computed by method cluster.stats in R library fpc. The larger the CRI is, the more similar the two clustersings are. The smaller the VI is, the more similar the two clustersings are. CRI and VI are the same for all the samples, since the number and size of the clustering are the same across samples. The only differences in clusterings across samples are the CCFs of clusters in each sample.
 ##################################################### 
 
 library(ggplot2)
@@ -199,7 +199,6 @@ for (i in 1:length(samples)) {
     plot.title = element_text(size = titlesize, hjust = 0.5), legend.position = "none", 
     axis.line = element_line(), panel.grid.major = element_blank(), panel.grid.minor = element_blank())
   
-  
   if (length(samples) > 1) {
     prefix = paste("Mutation assignment", i)
   } else {
@@ -209,8 +208,14 @@ for (i in 1:length(samples)) {
   main = paste0(prefix, " (CRI: ", cri, "; VI: ", vi, ")")
   p = ggplot(data = res_all, aes(axis1 = sprintf("%.3f", res_all[,sampleid]), axis2 = sprintf("%.3f", 
     ccf))) + scale_x_discrete(limits = c("Simulated", "PyClone"), expand = c(0, 
-    0)) + geom_alluvium(aes(fill = as.factor(res_all[,sampleid]))) + geom_stratum(width = 1/10) + 
+    0)) + geom_alluvium(aes(color = as.factor(res_all[,sampleid]))) + geom_stratum(width = 1/10) + 
     geom_label(stat = "stratum", label.strata = TRUE) + themes1 + ggtitle(main)
+  # # Using fixed float point may cause adjacent clusters being merged in the alluvium plot.
+  # # Use the following command if you want to show the exact value of CCF
+  # # Use geom_text for showing CCF without a box; Use alpha=... to show more colors for different combinations of mutation matching; Use fill=.. to show more smooth color stripes.
+  # p = ggplot(data = res_all, aes(axis1 = res_all[,sampleid], axis2 = ccf)) + scale_x_discrete(limits = c("Simulated", "PyClone"), expand = c(0, 
+  #   0)) + geom_alluvium(aes(fill = as.factor(res_all[,sampleid])), alpha=as.factor(ccf)) + geom_stratum(width = 1/5) + 
+  #   geom_label(stat = "stratum", label.strata = TRUE) + themes1 + ggtitle(main)    
   print(p)
 }
 
