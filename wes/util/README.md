@@ -24,8 +24,8 @@ wget ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/NA12878/NIST_NA12878_HG001_H
 ```
   - Downloading alignment files for Illumina HiSeq Exome data:
 ```
-wget ftp://ftp-trace.ncbi.nih.gov/giab/ftp/data/NA12878/Garvan_NA12878_HG001_HiSeq_Exome/project.NIST_NIST7035_H7AP8ADXX_TAAGGCGA_1_NA12878.bwa.markDuplicates.bam
-wget ftp://ftp-trace.ncbi.nih.gov/giab/ftp/data/NA12878/Garvan_NA12878_HG001_HiSeq_Exome/project.NIST_NIST7035_H7AP8ADXX_TAAGGCGA_1_NA12878.bwa.markDuplicates.bai
+wget ftp://ftp-trace.ncbi.nih.gov/giab/ftp/data/NA12878/Garvan_NA12878_HG001_HiSeq_Exome/project.NIST_NIST7086_H7AP8ADXX_CGTACTAG_1_NA12878.bwa.markDuplicates.bam
+wget ftp://ftp-trace.ncbi.nih.gov/giab/ftp/data/NA12878/Garvan_NA12878_HG001_HiSeq_Exome/project.NIST_NIST7086_H7AP8ADXX_CGTACTAG_1_NA12878.bwa.markDuplicates.bai
 ```
 
 3. Create SAM file from BAM file.
@@ -33,7 +33,7 @@ wget ftp://ftp-trace.ncbi.nih.gov/giab/ftp/data/NA12878/Garvan_NA12878_HG001_HiS
   `samtools view -h RMNISTHS_30xdownsample.bam 22 > RMNISTHS_30xdownsample.chr22.sam`
 
   - For Illumina HiSeq Exome alignment file:  
-  `samtools view -h project.NIST_NIST7035_H7AP8ADXX_TAAGGCGA_1_NA12878.bwa.markDuplicates.bam 1 > project.NIST_NIST7035_H7AP8ADXX_TAAGGCGA_1_NA12878.bwa.markDuplicates.chr1.sam`
+  `samtools view -h project.NIST_NIST7086_H7AP8ADXX_CGTACTAG_1_NA12878.bwa.markDuplicates.bam chr1 > project.NIST_NIST7086_H7AP8ADXX_CGTACTAG_1_NA12878.bwa.markDuplicates.chr1.sam`
 
 4. Prepare a VCF file which contains germline variants (optional).
   - Downloading reference germline variants:  
@@ -41,15 +41,15 @@ wget ftp://ftp-trace.ncbi.nih.gov/giab/ftp/data/NA12878/Garvan_NA12878_HG001_HiS
 
   - Extracting variants on Chr1 and Chr22:
 ``` 
-less HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.vcf.gz | grep -v '^#' | cut -f1,2 | grep '^22' > GV.chr22.pos`
-less HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.vcf.gz | grep -v '^#' | cut -f1,2 | grep '^1' > GV.chr1.pos
+less HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.vcf.gz | grep -v '^#' | cut -f1,2| awk '$1=="22"' > GV.chr22.pos`
+less HG001_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_PGandRTGphasetransfer.vcf.gz | grep -v '^#' | cut -f1,2 | awk '$1=="1"' > GV.chr1.pos
 ```
 
 5. Run GemErr.py.  
 
 ```
 python GemErr.py -r 150 -f hs37d5.fa -s RMNISTHS_30xdownsample.chr22.sam -n RMNISTHS_30xdownsample_chr22 -p -e GV.chr22.pos
-python GemErr.py -r 100 -f hs37d5.fa -s project.NIST_NIST7035_H7AP8ADXX_TAAGGCGA_1_NA12878.bwa.markDuplicates.chr1.sam -n NIST_NIST7035_H7AP8ADXX_TAAGGCGA_1_NA12878_chr1 -p -e GV.chr1.pos
+python GemErr.py -r 100 -f hs37d5.fa -s project.NIST_NIST7086_H7AP8ADXX_CGTACTAG_1_NA12878.bwa.markDuplicates.chr1.sam -n NIST_NIST7086_H7AP8ADXX_CGTACTAG_1_NA12878_chr1 -p -e GV.chr1.pos
 ```
 
 #### GemStats.py
@@ -58,7 +58,7 @@ This script is used to generate statistics on error model files produced by GemE
 Sample command:
 ```
 python GemStats.py -m RMNISTHS_30xdownsample_chr22_p.gzip -p -n RMNISTHS_30xdownsample_chr22_p
-python GemStats.py -m NIST_NIST7035_H7AP8ADXX_TAAGGCGA_1_NA12878_chr1_p.gzip -p -n NIST_NIST7035_H7AP8ADXX_TAAGGCGA_1_NA12878_chr1_p
+python GemStats.py -m NIST_NIST7086_H7AP8ADXX_CGTACTAG_1_NA12878_chr1_p.gzip -p -n NIST_NIST7086_H7AP8ADXX_CGTACTAG_1_NA12878_chr1_p
 ```
 
 #### Note
