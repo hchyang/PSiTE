@@ -718,7 +718,8 @@ def main(progname=None):
                 freq=alt/total
                 info['snv_file'].write('{}\t{}\t{}\t{}\t{}'.format(chroms,pos,pos+1,mutation,round(freq,4)))
                 if info['depth']!=None:
-                    total_dp,b_allele_dp=psite.tree.simulate_sequence_coverage(total,freq)
+                    expected_total_dp=info['depth']*info['standard_total_dosage']/total
+                    total_dp,b_allele_dp=psite.tree.simulate_sequence_coverage(expected_total_dp,freq)
                     if total_dp!=0:
                         rfreq=round(b_allele_dp/total_dp,4)
                     else:
