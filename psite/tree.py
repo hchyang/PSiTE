@@ -298,7 +298,7 @@ class Tree:
             all_alt_count=merge_two_all_alt_count(all_alt_count,self.right.all_snvs_summary(sector=sector))
         return all_alt_count
 
-    def nodes_vars_collect(self,chroms=None):
+    def nodes_vars_collect(self,chroms=None,parental=None):
         '''
         It will return a dictionary of all nodes in the tree. 
         {node1:{var1,var2,...},node2:{var3,var4,...},...}
@@ -307,11 +307,11 @@ class Tree:
         nodes_vars[self.nodeid]=set()
         if self.snvs:
             for snv in self.snvs:
-                var='#'.join([str(x) for x in [chroms,snv['start'],snv['end'],snv['mutation']]])
+                var='#'.join([str(x) for x in [chroms,parental,snv['start'],snv['end'],snv['mutation']]])
                 nodes_vars[self.nodeid].add(var)
         if self.cnvs:
             for cnv in self.cnvs:
-                var='#'.join([str(x) for x in [chroms,cnv['start'],cnv['end']]])
+                var='#'.join([str(x) for x in [chroms,parental,cnv['start'],cnv['end']]])
                 if cnv['copy']>0:
                     var+='#+'+str(cnv['copy'])
                 else:
@@ -320,19 +320,19 @@ class Tree:
                 if cnv['copy']>0: #amplification
                     for i in range(len(cnv['new_copies'])):
                         cp=cnv['new_copies'][i]
-                        tmp=cp.nodes_vars_collect(chroms=chroms)
+                        tmp=cp.nodes_vars_collect(chroms=chroms,parental=parental)
 #For each new copy of amplification, its self.snvs contains previous snvs.
 #Those snvs do not locate on the current node, let's remove them.
                         if tmp.get(self.nodeid) and cnv['pre_snvs'][i+1]:
                             for snv in cnv['pre_snvs'][i+1]:
                                 if self.top and snv in self.top.accumulated_snvs:
-                                    var='#'.join([str(x) for x in [chroms,snv['start'],snv['end'],snv['mutation']]])
+                                    var='#'.join([str(x) for x in [chroms,parental,snv['start'],snv['end'],snv['mutation']]])
                                     tmp[self.nodeid].discard(var)
                         nodes_vars=merge_two_dict_set(nodes_vars,tmp)
         if self.left!=None:
-            nodes_vars=merge_two_dict_set(nodes_vars,self.left.nodes_vars_collect(chroms=chroms))
+            nodes_vars=merge_two_dict_set(nodes_vars,self.left.nodes_vars_collect(chroms=chroms,parental=parental))
         if self.right!=None:
-            nodes_vars=merge_two_dict_set(nodes_vars,self.right.nodes_vars_collect(chroms=chroms))
+            nodes_vars=merge_two_dict_set(nodes_vars,self.right.nodes_vars_collect(chroms=chroms,parental=parental))
         return nodes_vars
 
     def leaves_counting(self):
@@ -681,7 +681,7 @@ class Tree:
                 haplotype_cnvs=hap_tree.all_cnvs_collect(sector=sector)
                 all_cnvs[sector].extend(haplotype_cnvs)
 
-            nodes_vars=merge_two_dict_set(nodes_vars,hap_tree.nodes_vars_collect(chroms=chroms))
+            nodes_vars=merge_two_dict_set(nodes_vars,hap_tree.nodes_vars_collect(chroms=chroms,parental=parental[i]))
             hap_tree.genotyping(genotypes=tipnode_snv_alts)
             hap_tree.cnv_genotyping(genotypes=tipnode_cnvs,parental=parental[i])
             if chain!=None:

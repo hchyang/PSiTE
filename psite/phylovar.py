@@ -776,7 +776,7 @@ def main(progname=None):
         for node,variants in all_nodes_vars.items():
             nSNV,nAMP,nDEL=0,0,0
             for var in variants:
-                form=var.split('#')[3]
+                form=var.split('#')[4]
                 if form.startswith('+'):
                     nAMP+=1
                 elif form.startswith('-'):
@@ -805,10 +805,10 @@ def main(progname=None):
 #output SNVs/CNVs on each node
     if args.nodes_vars:
         with open(args.nodes_vars,'w') as nodes_vars_file:
-            nodes_vars_file.write('#node\tchr\tstart\tend\tvar\n')
+            nodes_vars_file.write('#node\tchr\thap\tstart\tend\tvar\n')
             for node in sorted(all_nodes_vars.keys(),key=lambda x: int(x[4:])):
                 vars_list=[x.split('#') for x in all_nodes_vars[node]]
-                vars_list=sorted(vars_list,key=lambda x:(x[0],int(x[1]),int(x[2])))
+                vars_list=sorted(vars_list,key=lambda x:(x[0],int(x[2]),int(x[3])))
                 for var in vars_list:
                     nodes_vars_file.write('{}\t{}\n'.format(node,'\t'.join(var)))
     t1 = time.time()
