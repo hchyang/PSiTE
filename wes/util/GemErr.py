@@ -655,7 +655,9 @@ def mkMxPaired(readLen, ref, samFile, name, skip, circular, maxIndel, excl, minK
                     # errlog.info('{} not in {}'.format(chr, ref.keys()))
                     continue
                 reflen = lenD[chr]
-                errlog.info('The number of positions to exclude: {}.'.format(len(excl[chr])))
+                if chr not in excl.keys():
+                    excl[chr] = []
+                errlog.info('The number of positions to exclude on chromosome {}: {}.'.format(chr, len(excl[chr])))
                 cigList = parseMD(cigar)
                 # update read length dictionary
                 if (readCount) % 5000 == 0:

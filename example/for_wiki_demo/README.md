@@ -5,3 +5,7 @@ This folder contains two subfolders.
 
 - scripts  
    This subfolder contains scripts used to analyze the results of PSiTE.
+
+- output  
+  This subfolder contains some output files of benchmarking.
+      

@@ -1,0 +1,34 @@
+The number of SNVs simulated: 12199
+  8000 truncal SNVs
+  4199 non-truncal SNVs
+
+
+The number of SNVs in exome region: 168
+  80 truncal SNVs
+  88 non-truncal SNVs
+
+
+The number of CNVs simulated: 366
+  173 deletions
+  193 amplifications
+
+The number of truncal CNVs simulated: 10
+  4 deletions
+  6 amplifications
+
+The number of non-truncal CNVs simulated: 356
+  169 deletions
+  187 amplifications
+
+The number of CNVs overlaping with target regions: 325
+  146 deletions
+  179 amplifications
+
+The number of truncal CNVs overlaping with target regions: 10
+  4 deletions
+  6 amplifications
+
+The number of non-truncal CNVs overlaping with target regions: 315
+  142 deletions
+  173 amplifications
+

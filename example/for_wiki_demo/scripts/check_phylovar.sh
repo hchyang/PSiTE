@@ -8,7 +8,12 @@
 #   phylovar_stats.txt, which contains simple summary of simulated SNVs and CNVs; 
 #   tumor_snv_exome.txt, a TSV file containing simulated SNVs in the exome region; 
 #   tumor_cnv_exome.txt, a TSV file containing simulated CNVs in the exome region
-# Assumption: The following files are available -- input/S03723314_Covered_c3.bed; input/trunk8000snvs.txt; output/phylovar_snvs/tumor.snv; output/phylovar_cnvs/tumor.cnv
+# Assumption: 
+#   The following files are available:  
+#     input/S03723314_Covered_c3.bed; 
+#     input/trunk8000snvs.txt; 
+#     output/phylovar_snvs/tumor.snv; 
+#     output/phylovar_cnvs/tumor.cnv
 # Command: bash check_phylovar.sh
 #####################################################
 

@@ -1,0 +1,37 @@
+A brief summary of input SNVs to PyClone
+   Sample sct1:
+       145 input SNVs to PyClone
+       85 simulated SNVs
+         74 truncal SNVs
+         11 simulated non-truncal SNVs
+       60 false positive non-truncal SNVs
+   Sample sct2:
+       134 input SNVs to PyClone
+       82 simulated SNVs
+         73 truncal SNVs
+         9 simulated non-truncal SNVs
+       52 false positive non-truncal SNVs
+   Sample sct3:
+       155 input SNVs to PyClone
+       86 simulated SNVs
+         77 truncal SNVs
+         9 simulated non-truncal SNVs
+       69 false positive non-truncal SNVs
+   Sample sct4:
+       149 input SNVs to PyClone
+       81 simulated SNVs
+         74 truncal SNVs
+         7 simulated non-truncal SNVs
+       68 false positive non-truncal SNVs
+   Sample sct5:
+       148 input SNVs to PyClone
+       86 simulated SNVs
+         75 truncal SNVs
+         11 simulated non-truncal SNVs
+       62 false positive non-truncal SNVs
+   Total: 
+       401 input SNVs to PyClone
+       95 simulated SNVs
+         77 truncal SNVs
+         18 simulated non-truncal SNVs
+       306 false positive non-truncal SNVs
