@@ -32,6 +32,7 @@ setup(
     version = version,
     description = "PSiTE is a Python program for jointly simulating Single Nucleotide Variants (SNVs) and Copy Number Variants (CNVs) for a sample of tumor cells.",
     long_description = long_descr,
+    license='GNU General Public License v3.0',
     author = "Hechuan Yang",
     author_email = "yanghch@outlook.com",
     url = "https://github.com/hchyang/PSiTE.git",
