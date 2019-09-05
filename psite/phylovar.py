@@ -451,8 +451,8 @@ def main(progname=None):
     group4.add_argument('--nodes_ccf',type=str,default=default,metavar='FILE',
         help='the output file to save CCF (Cancer Cell Fraction) of each node in each sector [{}]'.format(default))
     default=None
-    group4.add_argument('--cnv_profile',type=str,default=default,metavar='FILE',
-        help='the file to save CNVs profile across the cell population of the sample [{}]'.format(default))
+    group4.add_argument('--cnv_profile',type=str,default=default,metavar='DIR',
+        help='the output directory to save the files of CNV profile of each sector [{}]'.format(default))
     default=None
     group4.add_argument('--snv_genotype',type=str,default=default,metavar='FILE',
         help='the file to save SNV genotypes for each cell [{}]'.format(default))
@@ -623,8 +623,11 @@ def main(progname=None):
         info['cnv_file'].write('#chr\tstart\tend\tcopy\tcarrier\n')
 
     if args.cnv_profile!=None:
-        cnv_profile_file=open(args.cnv_profile,'w')
-        cnv_profile_file.write('#chr\tstart\tend\tlocal_cp\n')
+        sectors_cnv_prof_dir=args.cnv_profile
+        os.mkdir(sectors_cnv_prof_dir,mode=0o755)
+        for sector,info in sectors.items():
+            info['cnv_profile_file']=open(os.path.join(sectors_cnv_prof_dir,'{}.cnv_prof'.format(sector)),'w')
+            info['cnv_profile_file'].write('#chr\tstart\tend\tlocal_cp\n')
 
     if args.snv_genotype!=None:
         genotype_file=open(args.snv_genotype,'w')
@@ -732,10 +735,11 @@ def main(progname=None):
                 info['cnv_file'].write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,cnv['start'],cnv['end'],cnv_copy,cnv['leaves_count']))
 
         if args.cnv_profile!=None:
-            for seg in cnv_profile:
+            for sector,info in sectors.items():
+                for seg in info['cnv_profile']:
 #cnv_profile means the local copy of each segment across the cell population of the sample (normal+tumor)
-                seg[-1]=seg[-1]+normal_dosage
-                cnv_profile_file.write('{}\n'.format('\t'.join([str(x) for x in [chroms]+seg])))
+                    seg[-1]=seg[-1]+info['normal_dosage']
+                    info['cnv_profile_file'].write('{}\n'.format('\t'.join([str(x) for x in [chroms]+seg])))
 
 ##output for expands
 #        if args.expands != None:
@@ -754,7 +758,8 @@ def main(progname=None):
         info['cnv_file'].close()
 
     if args.cnv_profile!=None:
-        cnv_profile_file.close()
+        for sector,info in sectors.items():
+            info['cnv_profile_file'].close()
 
     if args.snv_genotype!=None:
         genotype_file.close()
