@@ -10,7 +10,7 @@ different demographic histories and allows efficient benchmarking of methods
 for clonality analysis.
 
 You can find more details in our paper:
-- Yang, H., Lu, B., Lai, L. H., Lim, A. H., Alvarez, J. J. S., & Zhai, W. (2019). PSiTE: a Phylogeny guided Simulator for Tumor Evolution. __*Bioinformatics*__, 1–3. https://doi.org/10.1093/bioinformatics/btz028
+- Yang, H., Lu, B., Lai, L. H., Lim, A. H., Alvarez, J. J. S., & Zhai, W. (2019). PSiTE: a Phylogeny guided Simulator for Tumor Evolution. __*Bioinformatics*__, 35(17), 3148–3150. https://doi.org/10.1093/bioinformatics/btz028
 
 ## Table of Contents
 
