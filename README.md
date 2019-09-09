@@ -426,15 +426,24 @@ option can be very large.
 This option specifies the directory to store the files of CNV profile in each sector. 
 The directory also contains an output file for the whole tumor sample named 
 'tumor.cnv_prof'. In each file, there is a step function of copy numbers 
-of normal and tumor cells across the genome.  There are four columns in the files:
+of normal and tumor cells across the genome.  There are six columns in the files:
 
 - **chr**: The chromosome of the segment
 - **start**: The start position of the region (0-based, inclusive).
 - **end**: The end position of the region (0-based, exclusive).
-- **local_cp**: The copy number of the local region. For example, if there are 
-1000 cells (normal+tumor) in the sector, the local copy number for most 
-regions is 2000 as cells are diploid. For a genome region whose parental 0 
-copy are lost in 200 tumor cells, the local copy number will be 1800. 
+- **parental0_cn**: The copy number of the parental 0 haplotypes (normal+tumor).
+- **parental1_cn**: The copy number of the parental 1 haplotypes (normal+tumor).
+- **total_cn**: The total copy number of the local region. It equals the sum of 
+'parental0_cn' and 'parental1_cn'. 
+
+For example, if there are 1000 cells (normal+tumor) in the sector, the local 
+copy number for autosome regions is 2000 as cells are diploid. For a genome 
+region (e.g. 1:3000000-3400000) whose parental 0 haplotype is lost in 200 tumor 
+cells, and parental 1 haplotype is copy number neutral. There will be a record
+like below in this sector's cnv profile.
+
+    #chr    start      end        parental0_cn    parental1_cn    total_cn
+    1       3000000    3400000    800             1000            1800
 
 ##### Variant tree file (--nhx/--NHX) (optional)
 

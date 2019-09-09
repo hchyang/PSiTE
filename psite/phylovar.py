@@ -627,7 +627,7 @@ def main(progname=None):
         os.mkdir(sectors_cnv_prof_dir,mode=0o755)
         for sector,info in sectors.items():
             info['cnv_profile_file']=open(os.path.join(sectors_cnv_prof_dir,'{}.cnv_prof'.format(sector)),'w')
-            info['cnv_profile_file'].write('#chr\tstart\tend\tlocal_cp\n')
+            info['cnv_profile_file'].write('#chr\tstart\tend\tparental0_cn\tparental1_cn\ttotal_cn\n')
 
     if args.snv_genotype!=None:
         genotype_file=open(args.snv_genotype,'w')
@@ -671,9 +671,9 @@ def main(progname=None):
                 n=1
             else:
                 n=2
-            info['standard_total_dosage']=len(info['members'])*n/info['purity']
-            info['normal_dosage']=info['standard_total_dosage']*(1-info['purity'])
-        normal_dosage=sectors[WHOLET]['normal_dosage']
+            total_cells=int(len(info['members'])/info['purity'])
+            info['standard_total_dosage']=total_cells*n
+            info['normal_dosage']=int(info['standard_total_dosage']*(1-info['purity']))
 
         (nodes_vars,tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs,
             )=mytree.snvs_freq_cnvs_profile(
@@ -697,7 +697,6 @@ def main(progname=None):
             )
         snvs_alt_total=sectors[WHOLET]['snvs_alt_total']
         cnvs=sectors[WHOLET]['cnvs']
-        cnv_profile=sectors[WHOLET]['cnv_profile']
         if args.nhx or args.NHX or args.nodes_vars:
             all_nodes_vars=psite.tree.merge_two_dict_set(dict1=all_nodes_vars,dict2=nodes_vars)
 
@@ -735,11 +734,21 @@ def main(progname=None):
                 info['cnv_file'].write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,cnv['start'],cnv['end'],cnv_copy,cnv['leaves_count']))
 
         if args.cnv_profile!=None:
-            for sector,info in sectors.items():
-                for seg in info['cnv_profile']:
+            if chroms in sex_chrs and len(sex_chrs)==2: # haploid sex chromosomes
+                for sector,info in sectors.items():
+                    for seg in info['cnv_profile']:
 #cnv_profile means the local copy of each segment across the cell population of the sample (normal+tumor)
-                    seg[-1]=seg[-1]+info['normal_dosage']
-                    info['cnv_profile_file'].write('{}\n'.format('\t'.join([str(x) for x in [chroms]+seg])))
+                        seg[2]=seg[2]+info['normal_dosage']
+                        seg[3]=seg[3]+0
+                        seg[4]=seg[4]+info['normal_dosage']
+                        info['cnv_profile_file'].write('{}\n'.format('\t'.join([str(x) for x in [chroms]+seg])))
+            else:
+                for sector,info in sectors.items():
+                    for seg in info['cnv_profile']:
+                        seg[2]=seg[2]+info['normal_dosage']//2
+                        seg[3]=seg[3]+info['normal_dosage']//2
+                        seg[4]=seg[4]+info['normal_dosage']
+                        info['cnv_profile_file'].write('{}\n'.format('\t'.join([str(x) for x in [chroms]+seg])))
 
 ##output for expands
 #        if args.expands != None:

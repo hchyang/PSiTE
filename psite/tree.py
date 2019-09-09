@@ -45,7 +45,7 @@ class Tree:
     #@profile
     def add_snv_cnv(self,start=None,end=None,inherent_snvs=None,inherent_cnvs=None,
                     snv_rate=None,cnv_rate=None,del_prob=None,tandem_prob=None,cnv_length_beta=None,
-                    cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,cnvl_dist=None):
+                    cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,cnvl_dist=None,parental=None):
         '''
         Randomly put SNVs and CNVs on a phylogenetic tree.
         For amplifications, we will build a new tree for every new copy and use this method to add SNVs/CNVs on the new tree.
@@ -104,6 +104,7 @@ class Tree:
                     if new_snv:
                         Tree.snv_pos.add(pos)
                         snv={'type':'SNV',
+                             'parental':parental,
                              'start':pos,
                              'end':pos+1,
                              'mutation':numpy.random.choice(tstv_dist_cfg['form'],p=tstv_dist_cfg['prob'])}
@@ -173,6 +174,7 @@ class Tree:
                                         pre_snvs.append(snv)
                             logging.debug('pre_snvs in new DELs regions: %s.',str(pre_snvs))
                             cnv={'type':'DEL',
+                                 'parental':parental,
                                  'seg':[start,end],
                                  'start':del_start,
                                  'end':del_end,
@@ -207,6 +209,7 @@ class Tree:
                                     segment.right.top=segment
                                 new_copies.append(segment)
                             cnv={'type':'AMP',
+                                 'parental':parental,
                                  'seg':[start,end],
                                  'start':amp_start,
                                  'end':amp_end,
@@ -232,18 +235,18 @@ class Tree:
                     segment.add_snv_cnv(start=cnv['start'],end=cnv['end'],inherent_snvs=cnv['pre_snvs'][i+1],
                                         snv_rate=snv_rate*scale,cnv_rate=cnv_rate*scale,del_prob=del_prob,tandem_prob=tandem_prob,
                                         cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
-                                        cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist)
+                                        cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist,parental=parental)
 #only root node have inherent_snvs and inherent_cnvs
         if self.left != None:
             self.left.add_snv_cnv(start=start,end=end,inherent_snvs=[],inherent_cnvs=[],
                                   snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,tandem_prob=tandem_prob,
                                   cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
-                                  cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist)
+                                  cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist,parental=parental)
         if self.right != None:
             self.right.add_snv_cnv(start=start,end=end,inherent_snvs=[],inherent_cnvs=[],
                                    snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,tandem_prob=tandem_prob,
                                    cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
-                                   cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist)
+                                   cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist,parental=parental)
 
     def all_cnvs_collect(self,sector=None):
         '''
@@ -658,7 +661,7 @@ class Tree:
                 inherent_cnvs=hap_trunk_cnvs,snv_rate=snv_rate,cnv_rate=cnv_rate,
                 del_prob=del_prob,tandem_prob=tandem_prob,cnv_length_beta=cnv_length_beta,
                 cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg,
-                tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist)
+                tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist,parental=parental[i])
 
 #Update the dictionary all_snvs_alt_counts here
 #There will not be two snps occure on the same position of different haplotype,
@@ -698,14 +701,17 @@ class Tree:
 
             sector_snvs_pos=sorted(sector_snvs_alt_counts.keys())
 
-            sector_cnvs_pos_changes=cnvs2pos_changes(cnvs=sector_cnvs,length=length,background=len(info['members'])*ploidy)
+            sector_background=[0,0]
+            for hap in parental:
+                sector_background[int(hap)]+=len(info['members'])
+            sector_cnvs_pos_changes=cnvs2pos_changes(cnvs=sector_cnvs,length=length,background=sector_background)
             sector_cnv_profile=pos_changes2region_profile(sector_cnvs_pos_changes)
             sector_normal_dosage=info['normal_dosage']
             sector_local_tumor_dosage=0
             sector_snvs_alt_total=[]
             for pos in sector_snvs_pos:
                 while pos>=sector_cnvs_pos_changes[0][0]:
-                    sector_local_tumor_dosage+=sector_cnvs_pos_changes.pop(0)[1]
+                    sector_local_tumor_dosage+=sum(sector_cnvs_pos_changes.pop(0)[1:])
                 sector_snvs_alt_total.append([pos,
                     sector_snvs_alt_counts[pos]['mutation'],
                     sector_snvs_alt_counts[pos]['alt_count'],
@@ -720,7 +726,10 @@ class Tree:
             if tipnode not in tipnode_cnvs:
                 tipnode_cnvs[tipnode]=[]
             tipnode_cnvs[tipnode].sort(key=lambda cnv:(cnv['start'],cnv['end']))
-            tipnode_cnvs_pos_changes[tipnode]=cnvs2pos_changes(cnvs=tipnode_cnvs[tipnode],length=length,background=ploidy)
+            tipnode_background=[0,0]
+            for hap in parental:
+                tipnode_background[int(hap)]+=1
+            tipnode_cnvs_pos_changes[tipnode]=cnvs2pos_changes(cnvs=tipnode_cnvs[tipnode],length=length,background=tipnode_background)
             if tipnode in tipnode_snv_alts:
                 for pos in all_snvs_pos:
                     if pos not in tipnode_snv_alts[tipnode]:
@@ -733,7 +742,7 @@ class Tree:
             tipnode_snv_refs[tipnode]={}
             for pos in all_snvs_pos:
                 while pos>=tipnode_cnvs_pos_changes[tipnode][0][0]:
-                    local_ploidy+=tipnode_cnvs_pos_changes[tipnode].pop(0)[1]
+                    local_ploidy+=sum(tipnode_cnvs_pos_changes[tipnode].pop(0)[1:])
                 tipnode_snv_refs[tipnode][pos]=local_ploidy-tipnode_snv_alts[tipnode][pos]
         return nodes_vars,tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs
 
@@ -843,32 +852,37 @@ def merge_two_dict_set(dict1=None,dict2=None):
     
 def cnvs2pos_changes(cnvs=None,length=None,background=None):
     '''
-    Return a list of lists. Each sublist contain two elements. The first is the position, and the second 
+    Return a list of lists. Each sublist contain three elements. The first is the position, and the second 
     is the copy number CHANGES across all the samples between that positon and the next position.
-    [[pos,relative_copy_number_change],...]
+    [[pos,parental0_relative_copy_number_change,parental1_relative_copy_number_change],...]
     '''
-    pos_changes=[[0,background],[length,-background]]
+    pos_changes=[[0,background[0],background[1]],[length,-background[0],-background[1]]]
     for cnv in cnvs:
         change=cnv['copy']*cnv['leaves_count']
-        pos_changes.extend([[cnv['start'],change],[cnv['end'],-change]])
+        if cnv['parental']=='0':
+            pos_changes.extend([[cnv['start'],change,0],[cnv['end'],-change,0]])
+        else:
+            pos_changes.extend([[cnv['start'],0,change],[cnv['end'],0,-change]])
     pos_changes.sort(key=lambda pos: pos[0])
     return pos_changes
 
 def pos_changes2region_profile(pos_changes):
     '''
-    Convert [[pos,change]...] to [[start,end,current]...]
+    Convert [[pos,parental0_change,parental1_change]...] to [[start,end,parental0_current,parental1_current,total_current]...]
     '''
     pos_changes_copy=pos_changes[:]
     profile=[]
-    current=0
+    (current0,current1,current_total)=(0,0,0)
     while pos_changes_copy:
-        pos,change=pos_changes_copy.pop(0)
+        pos,change0,change1=pos_changes_copy.pop(0)
         start=pos
-        current+=change
+        current0+=change0
+        current1+=change1
+        current_total+=change0+change1
         if pos_changes_copy:
             end=pos_changes_copy[0][0]
             if start!=end:
-                profile.append([start,end,current])
+                profile.append([start,end,current0,current1,current_total])
     return profile
 
 def node_id():
@@ -925,7 +939,7 @@ def simulate_sequence_coverage(mean_coverage=None,baf=None):
 def hap_local_leaves(positions=None,haps_cnvs=None,length=None,background=None,ploidy=None):
     '''
     Calculates the local copy on each haplotype for each snvs.
-    Return a list of lists, each sublist is have these elements:
+    Return a list of lists, each sublist contains these elements:
     Position
     local_copy_on_hap1
     local_copy_on_hap2
@@ -943,7 +957,7 @@ def hap_local_leaves(positions=None,haps_cnvs=None,length=None,background=None,p
         all_pos_local_copy.append([pos])
         for i in range(ploidy):
             while pos>=hap_cnvs_pos_changes[i][0][0]:
-                hap_local_copy[i]+=hap_cnvs_pos_changes[i].pop(0)[1]
+                hap_local_copy[i]+=sum(hap_cnvs_pos_changes[i].pop(0)[1:])
             all_pos_local_copy[-1].append(hap_local_copy[i])
     return all_pos_local_copy
 
