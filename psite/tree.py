@@ -44,7 +44,8 @@ class Tree:
 
     #@profile
     def add_snv_cnv(self,start=None,end=None,inherent_snvs=None,inherent_cnvs=None,
-                    snv_rate=None,cnv_rate=None,del_prob=None,tandem_prob=None,cnv_length_beta=None,
+                    snv_rate=None,cnv_rate=None,trunk_snv_rate=None,trunk_cnv_rate=None,
+                    del_prob=None,tandem_prob=None,cnv_length_beta=None,
                     cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,cnvl_dist=None,parental=None):
         '''
         Randomly put SNVs and CNVs on a phylogenetic tree.
@@ -77,12 +78,18 @@ class Tree:
             if self.top.accumulated_cnvs != None:
                 self.accumulated_cnvs=self.top.accumulated_cnvs[:]
 #rescale with the length
-        mutation_rate=snv_rate+cnv_rate
+        if self.nodeid=='node1':
+            mutation_rate=trunk_snv_rate+trunk_cnv_rate
+        else:
+            mutation_rate=snv_rate+cnv_rate
 #skip 1. self.sim==False (the leveas of which are less or equal to prune)
 #     2. self.lens=None  (the root)
 #     3. mutation_rate<=0
         if self.sim and self.lens!=None and mutation_rate > 0:
-            snv_prob=snv_rate/(snv_rate+cnv_rate)
+            if self.nodeid=='node1':
+                snv_prob=trunk_snv_rate/(trunk_snv_rate+trunk_cnv_rate)
+            else:
+                snv_prob=snv_rate/(snv_rate+cnv_rate)
             mutation_waiting_times=waiting_times(span=self.lens,rate=mutation_rate)
             for waiting_t in mutation_waiting_times:
                 if numpy.random.uniform()<snv_prob:
@@ -233,18 +240,24 @@ class Tree:
 #For each new copy of amplification, the current node is the root node. It inherent all the snvs in pre_snvs.
 #But we have compared all new cnvs with accumulated_cnvs, so no pre_cnvs will affect our new copies.
                     segment.add_snv_cnv(start=cnv['start'],end=cnv['end'],inherent_snvs=cnv['pre_snvs'][i+1],
-                                        snv_rate=snv_rate*scale,cnv_rate=cnv_rate*scale,del_prob=del_prob,tandem_prob=tandem_prob,
+                                        snv_rate=snv_rate*scale,cnv_rate=cnv_rate*scale,
+                                        trunk_snv_rate=trunk_snv_rate*scale,trunk_cnv_rate=trunk_cnv_rate*scale,
+                                        del_prob=del_prob,tandem_prob=tandem_prob,
                                         cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
                                         cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist,parental=parental)
 #only root node have inherent_snvs and inherent_cnvs
         if self.left != None:
             self.left.add_snv_cnv(start=start,end=end,inherent_snvs=[],inherent_cnvs=[],
-                                  snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,tandem_prob=tandem_prob,
+                                  snv_rate=snv_rate,cnv_rate=cnv_rate,
+                                  trunk_snv_rate=trunk_snv_rate,trunk_cnv_rate=trunk_cnv_rate,
+                                  del_prob=del_prob,tandem_prob=tandem_prob,
                                   cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
                                   cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist,parental=parental)
         if self.right != None:
             self.right.add_snv_cnv(start=start,end=end,inherent_snvs=[],inherent_cnvs=[],
-                                   snv_rate=snv_rate,cnv_rate=cnv_rate,del_prob=del_prob,tandem_prob=tandem_prob,
+                                   snv_rate=snv_rate,cnv_rate=cnv_rate,
+                                   trunk_snv_rate=trunk_snv_rate,trunk_cnv_rate=trunk_cnv_rate,
+                                   del_prob=del_prob,tandem_prob=tandem_prob,
                                    cnv_length_beta=cnv_length_beta,cnv_length_max=cnv_length_max,
                                    cn_dist_cfg=cn_dist_cfg,tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist,parental=parental)
 
@@ -624,7 +637,8 @@ class Tree:
         return tipnode_hap
 
     #@profile
-    def snvs_freq_cnvs_profile(self,parental=None,snv_rate=None,cnv_rate=None,del_prob=None,tandem_prob=None,
+    def snvs_freq_cnvs_profile(self,parental=None,snv_rate=None,cnv_rate=None,trunk_snv_rate=None,
+                               trunk_cnv_rate=None,del_prob=None,tandem_prob=None,
                                cnv_length_beta=None,cnv_length_max=None,cn_dist_cfg=None,tstv_dist_cfg=None,
                                trunk_snvs=None,trunk_cnvs=None,length=None,
                                chain=None,chroms=None,sectors=None,wholeT=None,cnvl_dist=None):
@@ -659,6 +673,7 @@ class Tree:
             hap_trunk_cnvs=trunk_cnvs.get(i,[])
             hap_tree.add_snv_cnv(start=0,end=length,inherent_snvs=hap_trunk_snvs,
                 inherent_cnvs=hap_trunk_cnvs,snv_rate=snv_rate,cnv_rate=cnv_rate,
+                trunk_snv_rate=trunk_snv_rate,trunk_cnv_rate=trunk_cnv_rate,
                 del_prob=del_prob,tandem_prob=tandem_prob,cnv_length_beta=cnv_length_beta,
                 cnv_length_max=cnv_length_max,cn_dist_cfg=cn_dist_cfg,
                 tstv_dist_cfg=tstv_dist_cfg,cnvl_dist=cnvl_dist,parental=parental[i])

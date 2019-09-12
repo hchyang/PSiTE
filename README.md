@@ -251,6 +251,8 @@ the YAML file, please see section 2.3.3 for further details).
     genome:
         snv_rate: 2.0
         cnv_rate: 0.6
+        trunk_snv_rate: 2.0
+        trunk_cnv_rate: 0.6
         del_prob: 0.5
         tandem_prob: 1.0
         cnv_length_beta: 200
@@ -259,20 +261,31 @@ the YAML file, please see section 2.3.3 for further details).
         copy_max: 5
         parental: '01'
         tstv: 2.0
-        length: 109000
+        length: 800000
     chromosomes:
         - '1':
-            length: 100000
+            length: 500000
             parental: '00'
         - '2':
-            snv_rate: 2.0
-            length: 9000
+            length: 200000
+            snv_rate: 0.8
+        - '3':
+            length: 100000
+            snv_rate: 0.4
+            cnv_rate: 0.11
 
 In a configuration file, all the parameters under the genome section must be 
-specified. The parameters specified under snv_rate, cnv_rate as well as length 
-in the genome section must be the sum of corresponding values across all the 
-chromosomes. The parental value and the chromosome names should be quoted with 
-quotation marks.
+specified. The parental value and the chromosome names should be quoted with 
+quotation marks. The 'length' is required for each chromosome, and the sum of
+the length of all chromosomes should be equal with the value specified in the 
+genome section. The parameters specified for snv_rate, cnv_rate, 
+trunk_snv_rate and trunk_cnv_rate in the genome section is the total rate of 
+the whole genome, the corresponding value of each chromosome is rescaled 
+according to its length. Users can override this setting by specifying the 
+corresponding parameters under chromsomes. In the example configuration file
+above, the genome cnv_rate is 0.6 and is 0.11 for chromosome 3. So the 
+cnv_rate for chromosome 2 is calculated by 
+(0.6-0.11)\*200000/(200000+500000)=0.14.
 
 ##### Affiliation file (--affiliation)
 
@@ -578,12 +591,20 @@ This option specifies the name of the simulated sequence (e.g. chromosome name).
 This option specifies the length of the simulated sequence. 
 
 ##### --snv_rate and --cnv_rate
+
 These two options set two most important parameters in the simulation: the 
 mutation rates of SNVs (specified by `--snv_rate`) and CNVs (specified by 
 `--cnv_rate`) along the history of tumor evolution. Note that these rates 
 represent the total mutation rate of the target segment. The mutational events 
 are then simulated according to a Poisson process with user-specified rates 
 (see Notes for extra discussions).
+
+##### --trunk_snv_rate and --trunk_cnv_rate
+
+These two options can be used to set the mutation rate of SNVs/CNVs along the 
+truncal branch of the tree. If they are not specified, the value of --snv_rate 
+and --cnv_rate will be used.
+
 
 ##### --tstv
 

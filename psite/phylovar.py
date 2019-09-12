@@ -29,8 +29,10 @@ WHOLET='tumor'
 #I defined those two variables as global variables. As they will be used in function
 #random_int and check_config_file, which are also used in allinone.py.
 LARGEST=2**31
-cfg_params={'snv_rate':float,
+CFG_PARAMS={'snv_rate':float,
             'cnv_rate':float,
+            'trunk_snv_rate':float,
+            'trunk_cnv_rate':float,
             'del_prob':float,
             'tandem_prob':float,
             'cnv_length_beta':int,
@@ -181,76 +183,100 @@ def tstv_dist(tstv=None):
 
 def check_config_file(config=None):
     '''
-    Check the validation of your config file.
+    Validate the settings in config file.
     1. There must be only two section in config file: genome and chromosomes.
-    2. Every parameter in cfg_params must have a pair of key:value in genome section.
+    2. Every parameter in CFG_PARAMS must have a pair of key:value in genome section.
     3. Every chromosome at least has the key 'length'.
     4. The total length of all chromosomes must equal the length of genome.
-    5. If the SNV rate of each chromosome has been specified, the sum of them should be equal the SNV rate of genome.
-    6. If the SNV rate of some chromosomes (not all) have been specified, the sum of them should be <= the SNV rate of genome.
+    5. If the (trunk) SNV rate of each chromosome has been specified, the sum of them should be equal the (trunk) SNV rate of genome.
+    6. If the (trunk) SNV rate of some chromosomes (not all) have been specified, the sum of them should be <= the (trunk) SNV rate of genome.
     7. The CNV rate should satisfy the same criteria as SNV rate.
     '''
     if not (isinstance(config,dict) and set(config)==set(['genome','chromosomes'])):
         raise ConfigFileError('Check your config file. The format is not correct.')
     if not isinstance(config['genome'],dict):
         raise ConfigFileError('Check your config file. The format in genome section is not correct.')
-    lack=set(cfg_params)-set(config['genome'])
+    lack=set(CFG_PARAMS)-set(config['genome'])
     if lack!=set():
         raise ConfigFileError("'{}' are required in the genome section of config file.".format(','.join([str(x) for x in lack])))
-    over=set(config['genome'])-set(cfg_params)
+    over=set(config['genome'])-set(CFG_PARAMS)
     if over!=set():
         raise ConfigFileError("'{}' are not acceptable parameters in config file.".format(','.join([str(x) for x in over])))
 
-    for parameter in cfg_params:
-        assert isinstance(config['genome'][parameter],cfg_params[parameter]),\
-            "'{}' in genome section of config file should be a {}!".format(parameter,cfg_params[parameter].__name__)
+    for parameter in CFG_PARAMS:
+        assert isinstance(config['genome'][parameter],CFG_PARAMS[parameter]),\
+            "'{}' in genome section of config file should be a {}!".format(parameter,CFG_PARAMS[parameter].__name__)
 
     if not isinstance(config['chromosomes'],list):
         raise ConfigFileError('Check your config file. The format in chromosomes section is not correct.')
     total_chroms_length=0
     total_snv_rate=0
     total_cnv_rate=0
-    missing_snv_rate=False
-    missing_cnv_rate=False
+    total_trunk_snv_rate=0
+    total_trunk_cnv_rate=0
+    any_chr_missing_snv_rate=False
+    any_chr_missing_cnv_rate=False
+    any_chr_missing_trunk_snv_rate=False
+    any_chr_missing_trunk_cnv_rate=False
     for chroms in config['chromosomes']:
         if not isinstance(chroms,dict) or len(chroms)>1:
             raise ConfigFileError('Check your config file. The format in chromosomes section is not correct.')
         for chroms_n,chroms_cfg in chroms.items():
             assert isinstance(chroms_n,str),'The name of chromosome {} in config file should be a str!'.format(chroms_n)
-            over=set(chroms_cfg)-set(cfg_params)
+            over=set(chroms_cfg)-set(CFG_PARAMS)
             if over!=set():
                 raise ConfigFileError("'{}' are not acceptable parameters ".format(','.join([str(x) for x in over]))+
                     'in the section of chromosome {} in your config file!'.format(chroms))
             for parameter in chroms_cfg.keys():
-                assert isinstance(chroms_cfg[parameter],cfg_params[parameter]),\
-                    "'{}' of chromosome {} in config file should be a {}!".format(parameter,chroms_n,cfg_params[parameter].__name__)
+                assert isinstance(chroms_cfg[parameter],CFG_PARAMS[parameter]),\
+                    "'{}' of chromosome {} in config file should be a {}!".format(parameter,chroms_n,CFG_PARAMS[parameter].__name__)
             if 'length' not in chroms_cfg:
                 raise ConfigFileError("Couldn't find the length of chromosome:{}.".format(chroms_n))
             total_chroms_length+=chroms_cfg['length']
             if 'snv_rate' in chroms_cfg:
                 total_snv_rate+=chroms_cfg['snv_rate']
             else:
-                missing_snv_rate=True
+                any_chr_missing_snv_rate=True
             if 'cnv_rate' in chroms_cfg:
                 total_cnv_rate+=chroms_cfg['cnv_rate']
             else:
-                missing_cnv_rate=True
+                any_chr_missing_cnv_rate=True
+            if 'trunk_snv_rate' in chroms_cfg:
+                total_trunk_snv_rate+=chroms_cfg['trunk_snv_rate']
+            else:
+                any_chr_missing_trunk_snv_rate=True
+            if 'trunk_cnv_rate' in chroms_cfg:
+                total_trunk_cnv_rate+=chroms_cfg['trunk_cnv_rate']
+            else:
+                any_chr_missing_trunk_cnv_rate=True
 
     if config['genome']['length']!=total_chroms_length:
         raise ConfigFileError('In your config file, the length of genome is {},'.format(str(config['genome']['length']))+
             'But the total length of all chromosomes are {}'.format(str(total_chroms_length)))
-    if missing_snv_rate:
+    if any_chr_missing_snv_rate:
         if total_snv_rate>config['genome']['snv_rate']:
             raise ConfigFileError('Check your config file, the sum of snv_rate in chromosmomes section is larger than the rate in genome section!')
     else:
         if total_snv_rate!=config['genome']['snv_rate']:
             raise ConfigFileError('Check your config file, the sum of snv_rate in chromosmomes section is not equal the rate in genome section!')
-    if missing_cnv_rate:
+    if any_chr_missing_cnv_rate:
         if total_cnv_rate>config['genome']['cnv_rate']:
             raise ConfigFileError('Check your config file, the sum of cnv_rate in chromosmomes section is larger than the rate in genome section!')
     else:
         if total_cnv_rate!=config['genome']['cnv_rate']:
             raise ConfigFileError('Check your config file, the sum of cnv_rate in chromosmomes section is not equal the rate in genome section!')
+    if any_chr_missing_trunk_snv_rate:
+        if total_trunk_snv_rate>config['genome']['trunk_snv_rate']:
+            raise ConfigFileError('Check your config file, the sum of trunk_snv_rate in chromosmomes section is larger than the rate in genome section!')
+    else:
+        if total_trunk_snv_rate!=config['genome']['trunk_snv_rate']:
+            raise ConfigFileError('Check your config file, the sum of trunk_snv_rate in chromosmomes section is not equal the rate in genome section!')
+    if any_chr_missing_trunk_cnv_rate:
+        if total_trunk_cnv_rate>config['genome']['trunk_cnv_rate']:
+            raise ConfigFileError('Check your config file, the sum of trunk_cnv_rate in chromosmomes section is larger than the rate in genome section!')
+    else:
+        if total_trunk_cnv_rate!=config['genome']['trunk_cnv_rate']:
+            raise ConfigFileError('Check your config file, the sum of trunk_cnv_rate in chromosmomes section is not equal the rate in genome section!')
 
 class ConfigFileError(Exception):
     pass
@@ -357,7 +383,7 @@ def main(progname=None):
     default=None
     group1.add_argument('--config',type=str,default=default,metavar='FILE',
         help='a YAML file which contains the configuration of somatic variant simulation. '+
-            '-n/-r/-R/-d/-l/-L/-c/-C/-p/--tstv/--length will be ignored. [{}]'.format(default))
+            '-n/-r/-R/-d/-l/-L/-c/-C/-p/--tstv/--length/--trunk_snv_rate/--trunk_cnv_rate will be ignored. [{}]'.format(default))
     default=None
     group1.add_argument('--affiliation',type=str,default=default,metavar='FILE',
         help='a file containing sector affiliation of the cells in the sample [{}]'.format(default))
@@ -374,6 +400,12 @@ def main(progname=None):
     default=3
     group2.add_argument('-R','--cnv_rate',type=float,default=default,metavar='FLOAT',
         help='the muation rate of CNVs [{}]'.format(default))
+    default=None
+    group2.add_argument('--trunk_snv_rate',type=float,default=default,metavar='FLOAT',
+        help='the muation rate of SNVs on trunk. It will be the same as --snv_rate if not being specified [{}]'.format(default))
+    default=None
+    group2.add_argument('--trunk_cnv_rate',type=float,default=default,metavar='FLOAT',
+        help='the muation rate of CNVs on trunk. It will be the same as --cnv_rate if not being specified [{}]'.format(default))
     default=0.5
     group2.add_argument('-d','--del_prob',type=float,default=default,metavar='FLOAT',
         help='the probability of being deletion for a CNV mutation [{}]'.format(default))
@@ -476,10 +508,14 @@ def main(progname=None):
 ###### figure out the simulation setting for each chroms
 #1. The setting in configure YAML file will override the setting in command line.
 #2. In the configure file, the setting for individual chr will override the setting of genome.
+    if args.trunk_snv_rate==None:
+        args.trunk_snv_rate=args.snv_rate
+    if args.trunk_cnv_rate==None:
+        args.trunk_cnv_rate=args.cnv_rate
     final_chroms_cfg={}
     final_chroms_cfg[args.name]={}
     final_chroms_cfg['order']=[args.name]
-    for parameter in cfg_params:
+    for parameter in CFG_PARAMS:
         final_chroms_cfg[args.name][parameter]=getattr(args,parameter)
     max_ploidy=len(final_chroms_cfg[args.name]['parental'])
 
@@ -495,6 +531,10 @@ def main(progname=None):
         undefined_snv_rate_length=config['genome']['length']
         undefined_cnv_rate=config['genome']['cnv_rate']
         undefined_cnv_rate_length=config['genome']['length']
+        undefined_trunk_snv_rate=config['genome']['trunk_snv_rate']
+        undefined_trunk_snv_rate_length=config['genome']['length']
+        undefined_trunk_cnv_rate=config['genome']['trunk_cnv_rate']
+        undefined_trunk_cnv_rate_length=config['genome']['length']
         for chroms in config['chromosomes']:
             for chroms_cfg in chroms.values():
                 if 'snv_rate' in chroms_cfg:
@@ -503,12 +543,20 @@ def main(progname=None):
                 if 'cnv_rate' in chroms_cfg:
                     undefined_cnv_rate-=chroms_cfg['cnv_rate']
                     undefined_cnv_rate_length-=chroms_cfg['length']
+                if 'trunk_snv_rate' in chroms_cfg:
+                    undefined_trunk_snv_rate-=chroms_cfg['trunk_snv_rate']
+                    undefined_trunk_snv_rate_length-=chroms_cfg['length']
+                if 'trunk_cnv_rate' in chroms_cfg:
+                    undefined_trunk_cnv_rate-=chroms_cfg['trunk_cnv_rate']
+                    undefined_trunk_cnv_rate_length-=chroms_cfg['length']
         for chroms in config['chromosomes']:
             for chroms_n,chroms_cfg in chroms.items():
                 final_chroms_cfg[chroms_n]={}
                 final_chroms_cfg[chroms_n]['snv_rate']=chroms_cfg.get('snv_rate',chroms_cfg['length']/undefined_snv_rate_length*undefined_snv_rate)
                 final_chroms_cfg[chroms_n]['cnv_rate']=chroms_cfg.get('cnv_rate',chroms_cfg['length']/undefined_cnv_rate_length*undefined_cnv_rate)
-                for parameter in set(cfg_params)-set(['snv_rate','cnv_rate']):
+                final_chroms_cfg[chroms_n]['trunk_snv_rate']=chroms_cfg.get('trunk_snv_rate',chroms_cfg['length']/undefined_trunk_snv_rate_length*undefined_trunk_snv_rate)
+                final_chroms_cfg[chroms_n]['trunk_cnv_rate']=chroms_cfg.get('trunk_cnv_rate',chroms_cfg['length']/undefined_trunk_cnv_rate_length*undefined_trunk_cnv_rate)
+                for parameter in set(CFG_PARAMS)-set(['snv_rate','cnv_rate','trunk_snv_rate','trunk_cnv_rate']):
                     final_chroms_cfg[chroms_n][parameter]=chroms_cfg.get(parameter,config['genome'][parameter])
                 if 'parental' in chroms_cfg and len(chroms_cfg['parental'])>max_ploidy:
                     max_ploidy=len(chroms_cfg['parental'])
@@ -680,6 +728,8 @@ def main(progname=None):
                 parental=chroms_cfg['parental'],
                 snv_rate=chroms_cfg['snv_rate'],
                 cnv_rate=chroms_cfg['cnv_rate'],
+                trunk_snv_rate=chroms_cfg['trunk_snv_rate'],
+                trunk_cnv_rate=chroms_cfg['trunk_cnv_rate'],
                 del_prob=chroms_cfg['del_prob'],
                 tandem_prob=chroms_cfg['tandem_prob'],
                 cnv_length_beta=chroms_cfg['cnv_length_beta'],

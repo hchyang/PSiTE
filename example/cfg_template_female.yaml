@@ -2,6 +2,8 @@
 genome:
     snv_rate: 3000.0
     cnv_rate: 30.0
+    trunk_snv_rate: 3000.0
+    trunk_cnv_rate: 30.0
     del_prob: 0.5
     tandem_prob: 1.0
     cnv_length_beta: 2000000
