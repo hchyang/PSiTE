@@ -321,7 +321,7 @@ def read_affiliation(affiliation_f=None):
                     "Please do not use '{}' as a sector name. In PSiTE, I use it as the name of whole tumor sample.".format(WHOLET))
             if not 0<=purity<=1:
                 raise AffiliationFileError(
-                    "The purity {} for sector {} is not valid in your affiliation file.\n".format(prune_p,sector)+\
+                    "The purity {} for sector {} is not valid in your affiliation file.\n".format(purity,sector)+\
                     "It should be a float number in the range of [0,1]")
             if depth=='-':
                 depth=None
@@ -719,9 +719,11 @@ def main(progname=None):
                 n=1
             else:
                 n=2
-            total_cells=int(len(info['members'])/info['purity'])
+            tumor_cells=len(info['members'])
+            total_cells=round(tumor_cells/info['purity'])
+            normal_cells=total_cells-tumor_cells
             info['standard_total_dosage']=total_cells*n
-            info['normal_dosage']=int(info['standard_total_dosage']*(1-info['purity']))
+            info['normal_dosage']=normal_cells*n
 
         (nodes_vars,tipnode_snv_alts,tipnode_snv_refs,tipnode_cnvs,
             )=mytree.snvs_freq_cnvs_profile(
@@ -795,8 +797,8 @@ def main(progname=None):
             else:
                 for sector,info in sectors.items():
                     for seg in info['cnv_profile']:
-                        seg[2]=seg[2]+info['normal_dosage']//2
-                        seg[3]=seg[3]+info['normal_dosage']//2
+                        seg[2]=seg[2]+round(info['normal_dosage']/2)
+                        seg[3]=seg[3]+round(info['normal_dosage']/2)
                         seg[4]=seg[4]+info['normal_dosage']
                         info['cnv_profile_file'].write('{}\n'.format('\t'.join([str(x) for x in [chroms]+seg])))
 
