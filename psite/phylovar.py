@@ -457,6 +457,9 @@ def main(progname=None):
 #It's impossible to get that without calculating the size of all the genomes in sample. 
 #Here we set all the diploid part of the genome with this depth. And the depth of other part will be caculated 
 #according this.
+    default=150
+    group3.add_argument('--rlen',type=int,default=default,metavar='INT',
+        help='the read length for simulating the read count for each segment of the genome [{}]'.format(default))
     group4=parser.add_argument_group('Output arguments')
     default='phylovar_snvs'
     group4.add_argument('-S','--snv',type=str,default=default,metavar='DIR',
@@ -485,6 +488,9 @@ def main(progname=None):
     default=None
     group4.add_argument('--cnv_profile',type=str,default=default,metavar='DIR',
         help='the output directory to save the files of CNV profile of each sector [{}]'.format(default))
+    default=None
+    group4.add_argument('--cnv_rc',type=str,default=default,metavar='DIR',
+        help='the output directory to save the files of simulated CNV read depth of each sector [{}]'.format(default))
     default=None
     group4.add_argument('--snv_genotype',type=str,default=default,metavar='FILE',
         help='the file to save SNV genotypes for each cell [{}]'.format(default))
@@ -677,6 +683,14 @@ def main(progname=None):
             info['cnv_profile_file']=open(os.path.join(sectors_cnv_prof_dir,'{}.cnv_prof'.format(sector)),'w')
             info['cnv_profile_file'].write('#chr\tstart\tend\tparental0_cn\tparental1_cn\ttotal_cn\n')
 
+    if args.cnv_rc!=None:
+        sectors_cnv_rc_dir=args.cnv_rc
+        os.mkdir(sectors_cnv_rc_dir,mode=0o755)
+        for sector,info in sectors.items():
+            if info['depth']!=None:
+                info['cnv_rc_file']=open(os.path.join(sectors_cnv_rc_dir,'{}.cnv_rc'.format(sector)),'w')
+                info['cnv_rc_file'].write('#chr\tstart\tend\tparental0_rc\tparental1_rc\ttotal_rc\n')
+
     if args.snv_genotype!=None:
         genotype_file=open(args.snv_genotype,'w')
         genotype_file.write('#chr\tstart\tend\tform\t{}\n'.format('\t'.join(tipnode_list)))
@@ -785,22 +799,49 @@ def main(progname=None):
                 cnv_copy='+{}'.format(cnv['copy']) if cnv['copy']>0 else str(cnv['copy'])
                 info['cnv_file'].write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,cnv['start'],cnv['end'],cnv_copy,cnv['leaves_count']))
 
-        if args.cnv_profile!=None:
-            if chroms in sex_chrs and len(sex_chrs)==2: # haploid sex chromosomes
-                for sector,info in sectors.items():
-                    for seg in info['cnv_profile']:
+        if chroms in sex_chrs and len(sex_chrs)==2: # haploid sex chromosomes
+            for sector,info in sectors.items():
+                for seg in info['cnv_profile']:
 #cnv_profile means the local copy of each segment across the cell population of the sample (normal+tumor)
-                        seg[2]=seg[2]+info['normal_dosage']
-                        seg[3]=seg[3]+0
-                        seg[4]=seg[4]+info['normal_dosage']
-                        info['cnv_profile_file'].write('{}\n'.format('\t'.join([str(x) for x in [chroms]+seg])))
-            else:
-                for sector,info in sectors.items():
+                    seg[2]=seg[2]+info['normal_dosage']
+                    seg[3]=seg[3]+0
+                    seg[4]=seg[4]+info['normal_dosage']
+        else:
+            for sector,info in sectors.items():
+                for seg in info['cnv_profile']:
+                    seg[2]=seg[2]+round(info['normal_dosage']/2)
+                    seg[3]=seg[3]+round(info['normal_dosage']/2)
+                    seg[4]=seg[4]+info['normal_dosage']
+
+        if args.cnv_profile!=None:
+            for sector,info in sectors.items():
+                for seg in info['cnv_profile']:
+#cnv_profile means the local copy of each segment across the cell population of the sample (normal+tumor)
+                    info['cnv_profile_file'].write('{}\n'.format('\t'.join([str(x) for x in [chroms]+seg])))
+
+        if args.cnv_rc!=None:
+            read_length=args.rlen
+            for sector,info in sectors.items():
+                if info['depth']!=None:
+                    temp=[]
                     for seg in info['cnv_profile']:
-                        seg[2]=seg[2]+round(info['normal_dosage']/2)
-                        seg[3]=seg[3]+round(info['normal_dosage']/2)
-                        seg[4]=seg[4]+info['normal_dosage']
-                        info['cnv_profile_file'].write('{}\n'.format('\t'.join([str(x) for x in [chroms]+seg])))
+                        if temp:
+                            if seg[2]==temp[-1][2] and seg[3]==temp[-1][3] and seg[4]==temp[-1][4] and seg[0]==temp[-1][1]:
+                                temp[-1][1]=seg[1]
+                            else:
+                                temp.append(seg)
+                        else:
+                            temp.append(seg)
+                    for seg in temp:
+                        start,end,parental0_cn,parental1_cn,total_cn=seg
+                        expected_total_dp=info['depth']*total_cn/info['standard_total_dosage']
+                        total_rc,parental0_rc,parental1_rc=psite.tree.simulate_cnv_rc(
+                            mean_coverage=expected_total_dp,
+                            parental0_cn=parental0_cn,
+                            parental1_cn=parental1_cn,
+                            seg_length=end-start,
+                            read_length=read_length)
+                        info['cnv_rc_file'].write('{}\n'.format('\t'.join([str(x) for x in (chroms,start,end,parental0_rc,parental1_rc,total_rc)])))
 
 ##output for expands
 #        if args.expands != None:
@@ -821,6 +862,11 @@ def main(progname=None):
     if args.cnv_profile!=None:
         for sector,info in sectors.items():
             info['cnv_profile_file'].close()
+
+    if args.cnv_rc!=None:
+        for sector,info in sectors.items():
+            if info['depth']!=None:
+                info['cnv_rc_file'].close()
 
     if args.snv_genotype!=None:
         genotype_file.close()

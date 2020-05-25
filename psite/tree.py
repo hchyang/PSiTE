@@ -951,6 +951,20 @@ def simulate_sequence_coverage(mean_coverage=None,baf=None):
     b_allele_coverage=numpy.random.binomial(n=coverage,p=baf)
     return [coverage,b_allele_coverage]
 
+def simulate_cnv_rc(mean_coverage=None,parental0_cn=None,parental1_cn=None,seg_length=None,read_length=150):
+    '''
+    Simulate the coverage of each parental copy in each genome segment
+    I will set the standard deviation to be 0.025*mean_coverage for the simulation, so 95% of the simulated
+    depth will in the range (mean_coverage-0.025*mean_coverage,mean_coverage+0.025*mean_coverage)
+    '''
+    local_coverage=numpy.random.normal(mean_coverage,0.025*mean_coverage)
+    while local_coverage<0:
+        local_coverage=numpy.random.normal(mean_coverage,0.025*mean_coverage)
+    total_rc=round(local_coverage*seg_length/read_length)
+    parental0_rc=numpy.random.binomial(n=total_rc,p=parental0_cn/(parental0_cn+parental1_cn))
+    parental1_rc=total_rc-parental0_rc
+    return [total_rc,parental0_rc,parental1_rc]
+
 def hap_local_leaves(positions=None,haps_cnvs=None,length=None,background=None,ploidy=None):
     '''
     Calculates the local copy on each haplotype for each snvs.
