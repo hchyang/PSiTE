@@ -674,7 +674,7 @@ def main(progname=None):
         else:
             info['snv_file'].write('\n')
         info['cnv_file']=open(os.path.join(sectors_cnvs_dir,'{}.cnv'.format(sector)),'w')
-        info['cnv_file'].write('#chr\tstart\tend\tcopy\tcarrier\n')
+        info['cnv_file'].write('#chr\tstart\tend\tparental\tcopy\tcarrier\n')
 
     if args.cnv_profile!=None:
         sectors_cnv_prof_dir=args.cnv_profile
@@ -797,7 +797,7 @@ def main(progname=None):
                     info['snv_file'].write('\n')
             for cnv in info['cnvs']:
                 cnv_copy='+{}'.format(cnv['copy']) if cnv['copy']>0 else str(cnv['copy'])
-                info['cnv_file'].write('{}\t{}\t{}\t{}\t{}\n'.format(chroms,cnv['start'],cnv['end'],cnv_copy,cnv['leaves_count']))
+                info['cnv_file'].write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(chroms,cnv['start'],cnv['end'],cnv['parental'],cnv_copy,cnv['leaves_count']))
 
         if chroms in sex_chrs and len(sex_chrs)==2: # haploid sex chromosomes
             for sector,info in sectors.items():
@@ -806,12 +806,31 @@ def main(progname=None):
                     seg[2]=seg[2]+info['normal_dosage']
                     seg[3]=seg[3]+0
                     seg[4]=seg[4]+info['normal_dosage']
+#output aneuploidy events on sex chromosomes if there is any
+                assert re.match('^0*$',chroms_cfg['parental']),\
+                    "Check the parental settings of the sex chromosome {}. It's not right!".format(chroms)
+                aneuploidy=len(chroms_cfg['parental'])-1
+                if aneuploidy!=0:
+                    aneuploidy='+{}'.format(aneuploidy) if aneuploidy>0 else str(aneuploidy)
+                    info['cnv_file'].write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(
+                        chroms,0,chroms_cfg['length'],0,aneuploidy,len(info['members'])))
+
         else:
             for sector,info in sectors.items():
                 for seg in info['cnv_profile']:
                     seg[2]=seg[2]+round(info['normal_dosage']/2)
                     seg[3]=seg[3]+round(info['normal_dosage']/2)
                     seg[4]=seg[4]+info['normal_dosage']
+#output aneuploidy events on autosomes if there is any
+                assert re.match('^[01]*$',chroms_cfg['parental']),\
+                    "Check the parental settings of the sex chromosome {}. It's not right!".format(chroms)
+                for parental in ['0','1']:
+                    parental_count=len(re.findall(parental,chroms_cfg['parental']))
+                    aneuploidy=parental_count-1
+                    if aneuploidy!=0:
+                        aneuploidy='+{}'.format(aneuploidy) if aneuploidy>0 else str(aneuploidy)
+                        info['cnv_file'].write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(
+                            chroms,0,chroms_cfg['length'],parental,aneuploidy,len(info['members'])))
 
         if args.cnv_profile!=None:
             for sector,info in sectors.items():

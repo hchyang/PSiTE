@@ -384,6 +384,7 @@ for each sector, there is also a CNV file for the whole tumor sample named
 - **chr**: The chromosome on which the CNV locates.
 - **start**: The start position of the CNV (0-based, inclusive).
 - **end**: The end position of the CNV (0-based, exclusive).
+- **parental**: The parental copy on which the CNV locates.
 - **copy**: The copy changes of the CNV (e.g. -1 stands for deletion, +N stands
 for an amplification with N new copies).    
 - **carrier**: The number of tumor cells within the sample carrying the CNV
@@ -457,6 +458,20 @@ like below in this sector's cnv profile.
 
     #chr    start      end        parental0_cn    parental1_cn    total_cn
     1       3000000    3400000    800             1000            1800
+
+##### Total CNV read count files (--cnv_rc) (optional)
+
+This option specifies the directory to store the files of CNV read count 
+in each sector. In each file, there is a step function of simulated read count
+of normal and tumor cells across the genome.  There are six columns in the files:
+
+- **chr**: The chromosome of the segment
+- **start**: The start position of the region (0-based, inclusive).
+- **end**: The end position of the region (0-based, exclusive).
+- **parental0_rc**: The simulated read count of the parental 0 haplotypes (normal+tumor).
+- **parental1_rc**: The simulated read count of the parental 1 haplotypes (normal+tumor).
+- **total_rc**: The total read count of the local region. It equals the sum of 
+'parental0_rc' and 'parental1_rc'. 
 
 ##### Variant tree file (--nhx/--NHX) (optional)
 
