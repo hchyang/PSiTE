@@ -124,13 +124,18 @@ class Tree:
 #cnvs
 #if the new cnv overlap with accumulated_dels, compare it with the accumulated dels 
 #and only keep those new regions.
+                    larger_than_host=0
                     cnv_length=get_cnv_length(cnvl_dist=cnvl_dist,cnvl_beta=cnv_length_beta,cnvl_max=cnv_length_max)
-                    if cnv_length>=end-start:
-                        cnv_start=start
-                        cnv_end=end
-                    else:
-                        cnv_start=numpy.random.randint(start,end-cnv_length)
-                        cnv_end=cnv_start+cnv_length
+                    while cnv_length>=end-start:
+                        larger_than_host+=1
+                        if larger_than_host>10:
+                            break
+                        else:
+                            cnv_length=get_cnv_length(cnvl_dist=cnvl_dist,cnvl_beta=cnv_length_beta,cnvl_max=cnv_length_max)
+                    if larger_than_host>10:
+                        continue
+                    cnv_start=numpy.random.randint(start,end-cnv_length)
+                    cnv_end=cnv_start+cnv_length
                     leaves_count=self.leaves_counting()
                     new_cnvs=[[cnv_start,cnv_end]]
                     logging.debug('New CNV: %s',str(new_cnvs))
