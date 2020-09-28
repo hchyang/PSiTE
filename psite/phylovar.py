@@ -783,7 +783,10 @@ def main(progname=None):
 
         for sector,info in sectors.items():
             for pos,mutation,alt,total in info['snvs_alt_total']:
-                freq=alt/total
+                if total==0:
+                    freq=0
+                else:
+                    freq=alt/total
                 info['snv_file'].write('{}\t{}\t{}\t{}\t{}'.format(chroms,pos,pos+1,mutation,round(freq,4)))
                 if info['depth']!=None:
                     expected_total_dp=info['depth']*total/info['standard_total_dosage']

@@ -966,8 +966,12 @@ def simulate_cnv_rc(mean_coverage=None,parental0_cn=None,parental1_cn=None,seg_l
     while local_coverage<0:
         local_coverage=numpy.random.normal(mean_coverage,0.025*mean_coverage)
     total_rc=round(local_coverage*seg_length/read_length)
-    parental0_rc=numpy.random.binomial(n=total_rc,p=parental0_cn/(parental0_cn+parental1_cn))
-    parental1_rc=total_rc-parental0_rc
+    if total_rc==0:
+        parental0_rc=0
+        parental1_rc=0
+    else:
+        parental0_rc=numpy.random.binomial(n=total_rc,p=parental0_cn/(parental0_cn+parental1_cn))
+        parental1_rc=total_rc-parental0_rc
     return [total_rc,parental0_rc,parental1_rc]
 
 def hap_local_leaves(positions=None,haps_cnvs=None,length=None,background=None,ploidy=None):
