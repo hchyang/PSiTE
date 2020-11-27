@@ -512,6 +512,8 @@ def main(progname=None):
     group3.add_argument('--rlen',type=int,default=default,metavar='INT',
         help='the read length for simulating the read count for each segment of the genome [{}]'.format(default))
     group4=parser.add_argument_group('Output arguments')
+    group4.add_argument('--just_prune',action='store_true',
+        help='just prune the tree and output the pruned tree and the map of tipnode:cells')
     default='phylovar_snvs'
     group4.add_argument('-S','--snv',type=str,default=default,metavar='DIR',
         help='the output directory to save SNVs files [{}]'.format(default))
@@ -561,6 +563,10 @@ def main(progname=None):
     group4.add_argument('--chain',type=check_folder,default=default,metavar='DIR',
         help='directory to output chain files for each sample [{}]'.format(default))
     args=parser.parse_args()
+    if args.just_prune:
+        if args.nhx==None or args.map==None:
+            raise argparse.ArgumentTypeError("--nhx and --map must be specified when phylovar run with --just_prune.")
+
 
 ###### figure out the simulation setting for each chroms
 #1. The setting in configure YAML file will override the setting in command line.
@@ -695,6 +701,22 @@ def main(progname=None):
     leaves_names.sort()
     logging.info(' There are %s leaves on your input tree.',len(leaves_names))
     logging.info(' After pruning, there are %s tip nodes on the tree.',len(tipnode_list))
+
+#just prune tree and output the pruned tree and the map of tipnode:cells
+    if args.just_prune:
+        os.mkdir(args.map,mode=0o755)
+        for sector in sectors:
+            with open(os.path.join(args.map,'{}.tipnode.map'.format(sector)),'w') as tipnode_samples_map_f:
+                tipnode_samples_map_f.write('#tip_node\tcell_count\tcells\n')
+                for tip_node in tipnode_list:
+                    focal_members=sectors[sector]['members'].intersection(set(tipnode_leaves[tip_node]))
+                    if len(focal_members):
+                        tipnode_samples_map_f.write('{}\t{}\t'.format(tip_node,len(focal_members)))
+                        tipnode_samples_map_f.write(','.join(sorted(focal_members)))
+                        tipnode_samples_map_f.write('\n')
+        with open(args.nhx,'w') as tree_data_file:
+            tree_data_file.write('{};\n'.format(mytree.tree2nhx(with_lens=True)))
+        exit()
 
 ###### output the map of tip_node(after pruning):leaf
     if args.chain!=None:
