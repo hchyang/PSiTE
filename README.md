@@ -719,6 +719,11 @@ setting `--prune 0.01`. This means that there will be no polymorphic variants o
 subtrees with <10,000 tips. Namely, terminal cells belonging to the same subtree 
 with <10,000 tips will have the same genome. 
 
+##### --just_prune
+
+By this option, users can prune the input tree without simulating variants on the 
+tree. `--map` and `--nhx` must be specified when using this option.
+
 ##### -s/--sex_chr
 
 This is the same option as option `--sex_chr` in module vcf2fa. Setting this 
