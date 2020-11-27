@@ -314,6 +314,22 @@ list of cell names separated by commas or a continuous block of cells separated
 by two dots (e.g. 'cell1..4,cell7' is equivalent to 
 'cell1,cell2,cell3,cell4,cell7').
 
+##### Clone file (--clone)
+
+By default, phylovar treats the phylogeny as a cell lineage tree. Using 
+this option, phylovar can deal with clone tree. User defines the cell composition of
+each clone in this file. An example clone file is shown below:
+
+    #clone cells
+    clone1 1,2,3,4..5000
+    clone2 5001..10000
+
+- **clone**: The id of each clone. 
+- **cells**: The list of cells in each clone. It can be specified as a 
+list of cell names separated by commas or a continuous block of cells separated 
+by two dots (e.g. 'cell1..4,cell7' is equivalent to 
+'cell1,cell2,cell3,cell4,cell7').
+
 ##### CNV length distribution file (--cnvl_dist)
 
 By default, phylovar simulates CNVs whose length distribution is an exponential
