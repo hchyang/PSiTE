@@ -639,6 +639,16 @@ reference | 0 | 1 | 2
  C | T | A | G
  T | C | A | G
 
+##### --tandem_prob
+
+This option specifies the probability of being tandem repeat for an amplification 
+mutation. Users can pick a float number between 0 and 1 for this option. The 
+default value is 1.0, which means all amplifications are tandem repleat events. 
+If users assign 0 to this parameter, all amplifications are not tandem repeat 
+events and each new copy of an amplification will be inserted to different 
+position of the focal chromomosome randomly (we can not simulate inter-chromosome
+insertions yet).
+
 ##### --cnv_length_beta
 
 This option specifies the mean length (parameter beta or mean of the exponential 
