@@ -401,6 +401,32 @@ class Tree:
                     self.tipnodes.extend(self.right.collect_tipnodes())
         return self.tipnodes
     
+    def expand_clone(self,clones=None):
+        '''
+        Put the cells of each clone in the DICTIONARY (clone) onto each tipenode.
+        '''
+        if self.name in clones:
+            self.leaves_names=clones[self.name]
+        if self.left!=None:
+            self.left.expand_clone(clones=clones)
+        if self.right!=None:
+            self.right.expand_clone(clones=clones)
+
+    def updated_leaves_name_count(self):
+        '''
+        After expand clone, we need to update the leaves names and count.
+        '''
+        if self.left==None and self.right==None:
+            self.leaves_count=len(self.leaves_names)
+        else:
+            self.leaves_names=[]
+            if self.left!=None:
+                self.leaves_names.extend(self.left.updated_leaves_name_count()[0])
+            if self.right!=None:
+                self.leaves_names.extend(self.right.updated_leaves_name_count()[0])
+            self.leaves_count=len(self.leaves_names)
+        return self.leaves_names,self.leaves_count
+
     def attach_info(self,attr=None,info=None,null=None):
         '''
         Put the informaton of each node in the DICTIONARY (info) onto each node.

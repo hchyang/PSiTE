@@ -284,13 +284,61 @@ class ConfigFileError(Exception):
 class AffiliationFileError(Exception):
     pass
 
+class CloneFileError(Exception):
+    pass
+
 class CnvDistFileError(Exception):
     pass
+
+def read_clone(clone_f=None):
+    '''
+    Check the format of clone file and dump the data into the clones dictionary.
+    There should be 2 columns in the affiliation file.
+    1. clone id
+    2. tumor cells in the clone
+    '''
+    clones={}
+    with open(clone_f) as input:
+        header=next(input)
+        if not header.startswith('#'):
+            raise CloneFileError('The format of your clone file is not right!')
+        header=header.lstrip('#')
+        header=header.rstrip()
+        header=header.split()
+        if header!=['clone','cells']:
+            raise CloneFileError('The format of your clone file is not right!')
+        for line in input:
+            line=line.rstrip()
+            cols=line.split()
+            if len(cols)!=2:
+                raise CloneFileError("The format of your clone file is not right!")
+            clone=cols[0]
+            cells=[]
+            for i in cols[1].split(','):
+                n=i.count('..')
+                if n==0:
+                    cells.append(i)
+                elif n==1:
+                    m=re.search('^(.*?)([0-9]+)\.\.(\\1)?([0-9]+)$',i)
+                    if m:
+                        prefix=m.group(1)
+                        start=int(m.group(2))
+                        end=int(m.group(4))
+                        if start>=end:
+                            raise CloneFileError("The string '{}' is not valid in your clone file.".format(i))
+                        else:
+                            cells.extend([prefix+str(x) for x in range(start,end+1)])
+                    else:
+                        raise CloneFileError("The string '{}' is not valid in your clone file.".format(i))
+                else:
+                    raise CloneFileError("The string '{}' is not valid in your clone file.".format(i))
+            clones[clone]=cells
+        return clones
 
 def read_affiliation(affiliation_f=None):
     '''
     Check the format of affiliation file and dump the data into the sectors dictionary.
-    There should be 3 columns in the affiliation file.
+    There should be 5 columns in the affiliation file.
     1. sector id
     2. purity
     3. depth
@@ -390,6 +438,9 @@ def main(progname=None):
     default=None
     group1.add_argument('--cnvl_dist',type=str,default=default,metavar='FILE',
         help="a file containing the distribution profile of CNVs' length [{}]".format(default))
+    default=None
+    group1.add_argument('--clone',type=str,default=default,metavar='FILE',
+        help="the tree file is a clone tree, and this file specifies the cells in each clone [{}]".format(default))
     group2=parser.add_argument_group('Simulation arguments (can be set in config YAML)')
     default='1'
     group2.add_argument('-n','--name',type=str,default=default,metavar='STR',
@@ -461,6 +512,8 @@ def main(progname=None):
     group3.add_argument('--rlen',type=int,default=default,metavar='INT',
         help='the read length for simulating the read count for each segment of the genome [{}]'.format(default))
     group4=parser.add_argument_group('Output arguments')
+    group4.add_argument('--just_prune',action='store_true',
+        help='just prune the tree and output the pruned tree and the map of tipnode:cells')
     default='phylovar_snvs'
     group4.add_argument('-S','--snv',type=str,default=default,metavar='DIR',
         help='the output directory to save SNVs files [{}]'.format(default))
@@ -510,6 +563,10 @@ def main(progname=None):
     group4.add_argument('--chain',type=check_folder,default=default,metavar='DIR',
         help='directory to output chain files for each sample [{}]'.format(default))
     args=parser.parse_args()
+    if args.just_prune:
+        if args.nhx==None or args.map==None:
+            raise argparse.ArgumentTypeError("--nhx and --map must be specified when phylovar run with --just_prune.")
+
 
 ###### figure out the simulation setting for each chroms
 #1. The setting in configure YAML file will override the setting in command line.
@@ -593,9 +650,15 @@ def main(progname=None):
 ###### original_tree
     original_tree=copy.deepcopy(mytree)
 
-###### In order to get the mytree.tipnode_leaves, we will prune the tree in all situation.
     leaves_number=mytree.leaves_counting()
     leaves_names=mytree.leaves_naming()
+    if args.clone:
+#it's a clone tree
+        clones=read_clone(args.clone)
+        mytree.expand_clone(clones=clones)
+        leaves_names,leaves_number=mytree.updated_leaves_name_count()
+
+###### In order to get the mytree.tipnode_leaves, we will prune the tree in all situation.
     sectors={}
     if args.affiliation:
         sectors=read_affiliation(args.affiliation)
@@ -638,6 +701,22 @@ def main(progname=None):
     leaves_names.sort()
     logging.info(' There are %s leaves on your input tree.',len(leaves_names))
     logging.info(' After pruning, there are %s tip nodes on the tree.',len(tipnode_list))
+
+#just prune tree and output the pruned tree and the map of tipnode:cells
+    if args.just_prune:
+        os.mkdir(args.map,mode=0o755)
+        for sector in sectors:
+            with open(os.path.join(args.map,'{}.tipnode.map'.format(sector)),'w') as tipnode_samples_map_f:
+                tipnode_samples_map_f.write('#tip_node\tcell_count\tcells\n')
+                for tip_node in tipnode_list:
+                    focal_members=sectors[sector]['members'].intersection(set(tipnode_leaves[tip_node]))
+                    if len(focal_members):
+                        tipnode_samples_map_f.write('{}\t{}\t'.format(tip_node,len(focal_members)))
+                        tipnode_samples_map_f.write(','.join(sorted(focal_members)))
+                        tipnode_samples_map_f.write('\n')
+        with open(args.nhx,'w') as tree_data_file:
+            tree_data_file.write('{};\n'.format(mytree.tree2nhx(with_lens=True)))
+        exit()
 
 ###### output the map of tip_node(after pruning):leaf
     if args.chain!=None:
