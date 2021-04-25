@@ -64,7 +64,7 @@ There are six modules in PSiTE.
 
 ```
 Program: psite.py (a Phylogeny guided Simulator for Tumor Evolution)
-Version: 0.9.0
+Version: 0.9.1
 
 Usage:   psite.py <command> [options]
 
