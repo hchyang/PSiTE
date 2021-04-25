@@ -532,7 +532,7 @@ class Tree:
             self.collect_leaves_and_trim(tipnode_leaves=tipnode_leaves,sectors=sectors)
             self.tipnode_leaves=tipnode_leaves
         else:
-            raise TreePruneError('Can not prune a tree which is pruned before!')
+            raise TreePruneError('Can not prune a tree which is pruned already!')
 
 #Let's use this method to collect all the snvs for each tipnode.
     #@profile

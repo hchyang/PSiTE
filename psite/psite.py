@@ -17,7 +17,7 @@ import pyfaidx
 from signal import signal, SIGPIPE, SIG_DFL
 signal(SIGPIPE,SIG_DFL)
 
-__version__='0.9.0'
+__version__='0.9.1'
 
 def usage():
     print("")
